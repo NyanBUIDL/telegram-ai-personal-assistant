@@ -1,0 +1,74 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "telegram-ai-personal-assistant"
+version = "0.1.0"
+description = "Trợ lý Telegram cá nhân chạy cục bộ, mặc định từ chối và có kiểm soát quyền."
+readme = "README.md"
+requires-python = ">=3.12"
+license = {text = "Private use"}
+dependencies = [
+  "aiogram>=3.15,<4",
+  "alembic>=1.14,<2",
+  "apscheduler>=3.10,<4",
+  "asyncmy>=0.2.10,<1",
+  "cryptography>=44,<47",
+  "fastapi>=0.115,<1",
+  "httpx>=0.27,<1",
+  "keyring>=25,<27",
+  "openai>=1.60,<3",
+  "pydantic>=2.10,<3",
+  "pydantic-settings>=2.7,<3",
+  "pymysql>=1.1,<2",
+  "psutil>=6.1,<8",
+  "qdrant-client>=1.13,<2",
+  "sqlalchemy[asyncio]>=2.0.36,<3",
+  "structlog>=24.4,<27",
+  "telethon>=1.38,<2",
+  "typer>=0.15,<1",
+  "uvicorn>=0.34,<1",
+]
+
+[project.optional-dependencies]
+dev = [
+  "aiosqlite>=0.20,<1",
+  "pytest>=8.3,<10",
+  "pytest-asyncio>=0.25,<2",
+  "pytest-cov>=6,<8",
+  "ruff>=0.9,<1",
+]
+
+[project.scripts]
+tg-assistant = "tg_assistant.cli:app"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/tg_assistant"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+addopts = "-q --disable-warnings"
+markers = [
+  "integration: kiểm thử cần dịch vụ hoặc tài nguyên tích hợp",
+]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "ASYNC", "S"]
+ignore = [
+  "E501",     # formatter không ngắt chuỗi giao diện dài
+  "S101",     # assert là chuẩn trong pytest
+  "S603",     # subprocess chỉ dùng executable đã resolve và argument list
+  "ASYNC110", # worker cố ý poll stop-file liên tiến trình
+  "ASYNC240", # file session nhỏ, thao tác đồng bộ trong shutdown
+  "UP042",    # giữ Enum tương thích rõ ràng với SQLAlchemy/Pydantic
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S105"]
+"src/tg_assistant/admin_api/**" = ["B008"]

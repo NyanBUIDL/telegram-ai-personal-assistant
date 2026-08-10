@@ -1,0 +1,678 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Prototype HTML cho năm đề xuất UX/UI ưu tiên của Telegram AI Admin Console."
+    />
+    <title>Telegram AI — Design Audit Prototype</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="app-header">
+      <a class="brand" href="#summary" data-route="summary" aria-label="Mở tổng hợp audit">
+        <span class="brand-block" aria-hidden="true">TA</span>
+        <span>
+          <strong>TELEGRAM/AI</strong>
+          <small>DESIGN AUDIT LAB</small>
+        </span>
+      </a>
+
+      <nav class="primary-nav" aria-label="Màn hình prototype">
+        <button type="button" class="is-active" data-route="summary">Tổng hợp</button>
+        <button type="button" data-route="models">Local Models</button>
+        <button type="button" data-route="knowledge">Knowledge</button>
+        <button type="button" data-route="jobs">Learning Jobs</button>
+        <button type="button" data-route="connection">Kết nối</button>
+        <button type="button" data-route="modal">Modal</button>
+      </nav>
+
+      <div class="header-status">
+        <span class="status-chip status-live" id="globalConnectionLabel">LIVE</span>
+        <button type="button" class="button button-small button-primary" data-route="summary">
+          5 ƯU TIÊN
+        </button>
+      </div>
+    </header>
+
+    <aside class="state-lab" aria-labelledby="state-lab-title">
+      <div class="state-lab-heading">
+        <p class="eyebrow">PROTOTYPE CONTROLS</p>
+        <h2 id="state-lab-title">Phòng test trạng thái</h2>
+      </div>
+
+      <div class="lab-group">
+        <span class="lab-label">Màn hình</span>
+        <div class="segmented" role="group" aria-label="Mô phỏng kích thước màn hình">
+          <button type="button" class="is-active" data-viewport="desktop">Desktop</button>
+          <button type="button" data-viewport="mobile">Mobile</button>
+        </div>
+      </div>
+
+      <div class="lab-group">
+        <span class="lab-label">Dữ liệu</span>
+        <div class="segmented segmented-wrap" role="group" aria-label="Trạng thái dữ liệu">
+          <button type="button" class="is-active" data-render-state="content">Có dữ liệu</button>
+          <button type="button" data-render-state="loading">Loading</button>
+          <button type="button" data-render-state="error">Error</button>
+          <button type="button" data-render-state="empty">Empty</button>
+        </div>
+      </div>
+
+      <div class="lab-group">
+        <span class="lab-label">Mạng</span>
+        <div class="segmented" role="group" aria-label="Mô phỏng mạng">
+          <button type="button" class="is-active" data-network="online">Online</button>
+          <button type="button" data-network="offline">Offline</button>
+        </div>
+      </div>
+
+      <p class="lab-note" id="labStatus" aria-live="polite">
+        Desktop · Có dữ liệu · Online
+      </p>
+    </aside>
+
+    <main id="main-content" class="main-shell" tabindex="-1">
+      <section class="screen is-active" id="screen-summary" data-screen="summary">
+        <div class="page-intro intro-grid">
+          <div>
+            <p class="eyebrow">UX/UI AUDIT · IMPLEMENTATION PROPOSAL</p>
+            <h1>5 sửa đổi ưu tiên trước release.</h1>
+            <p class="lede">
+              Mỗi đề xuất bên dưới ghép bằng chứng “Before” từ audit với một “After”
+              HTML có thể thao tác, kèm lý do và tiêu chí nghiệm thu.
+            </p>
+          </div>
+          <div class="audit-stamp">
+            <span>TRẠNG THÁI AUDIT</span>
+            <strong>NOT READY</strong>
+            <small>6 P1 · prototype tập trung 5 nhóm sửa đổi</small>
+          </div>
+        </div>
+
+        <div class="summary-layout">
+          <section class="priority-panel" aria-labelledby="priority-title">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">PRIORITY QUEUE</p>
+                <h2 id="priority-title">Danh sách ưu tiên</h2>
+              </div>
+              <span class="status-chip status-critical">P1</span>
+            </div>
+            <div class="priority-list" id="priorityList">
+              <button type="button" class="priority-item is-active" data-priority="models">
+                <span class="priority-index">01</span>
+                <span>
+                  <strong>Local Models</strong>
+                  <small>Card vỡ layout + chọn sai capability</small>
+                </span>
+                <b>P1</b>
+              </button>
+              <button type="button" class="priority-item" data-priority="knowledge">
+                <span class="priority-index">02</span>
+                <span>
+                  <strong>Knowledge</strong>
+                  <small>Page overflow, bảng mất cột và CTA</small>
+                </span>
+                <b>P1</b>
+              </button>
+              <button type="button" class="priority-item" data-priority="jobs">
+                <span class="priority-index">03</span>
+                <span>
+                  <strong>Learning Jobs</strong>
+                  <small>Completed nhưng hiển thị 0%</small>
+                </span>
+                <b>P1</b>
+              </button>
+              <button type="button" class="priority-item" data-priority="connection">
+                <span class="priority-index">04</span>
+                <span>
+                  <strong>Connection state</strong>
+                  <small>Offline vẫn báo LIVE/CONNECTED</small>
+                </span>
+                <b>P1</b>
+              </button>
+              <button type="button" class="priority-item" data-priority="modal">
+                <span class="priority-index">05</span>
+                <span>
+                  <strong>Modal tại 360 px</strong>
+                  <small>Mất nút đóng và tràn ngang</small>
+                </span>
+                <b>P1</b>
+              </button>
+            </div>
+          </section>
+
+          <section class="comparison-panel" aria-labelledby="comparison-title">
+            <div class="comparison-toolbar">
+              <div>
+                <p class="eyebrow">VISUAL PROOF</p>
+                <h2 id="comparison-title">Before / After</h2>
+              </div>
+              <div class="segmented" role="group" aria-label="Chọn bản so sánh">
+                <button type="button" class="is-active" data-compare="before">Before</button>
+                <button type="button" data-compare="after">After</button>
+              </div>
+            </div>
+
+            <div class="compare-stage" id="compareStage">
+              <figure class="before-figure" id="beforeFigure">
+                <img
+                  id="beforeImage"
+                  src="assets/before/10-local-models-desktop-1440x900.png"
+                  alt="Ảnh audit trước khi sửa của màn Local Models"
+                />
+                <figcaption id="beforeCaption">
+                  BEFORE · card metadata dính thành chuỗi, khó quét và so sánh.
+                </figcaption>
+              </figure>
+              <div class="after-preview" id="afterPreview" hidden></div>
+            </div>
+
+            <div class="comparison-notes">
+              <article>
+                <span>LÝ DO</span>
+                <p id="priorityRationale">
+                  Tách metadata thành lưới key/value để owner nhận diện capability, RAM,
+                  VRAM và model active trong vài giây.
+                </p>
+              </article>
+              <article>
+                <span>ACCEPTANCE CRITERIA</span>
+                <ul id="priorityCriteria">
+                  <li>Không có text dính nhau ở 1440 và 360 px.</li>
+                  <li>Card không tạo page overflow.</li>
+                  <li>Model selector chỉ cho phép đúng capability.</li>
+                </ul>
+              </article>
+            </div>
+            <button type="button" class="button button-primary" id="openPriorityScreen">
+              MỞ MÀN AFTER ĐẦY ĐỦ
+            </button>
+          </section>
+        </div>
+      </section>
+
+      <section class="screen" id="screen-models" data-screen="models" hidden>
+        <div class="page-intro page-intro-compact">
+          <div>
+            <p class="eyebrow">OLLAMA LOCAL · RESPONSIVE INVENTORY</p>
+            <h1>Local Model Manager</h1>
+            <p class="lede">
+              Metadata có cấu trúc, active state rõ ràng và lựa chọn model theo capability.
+            </p>
+          </div>
+          <div class="page-actions">
+            <button type="button" class="button button-outline" id="showDownloadState">
+              XEM DOWNLOADING
+            </button>
+            <button type="button" class="button button-primary" id="downloadModel">
+              TẢI QWEN3:8B
+            </button>
+          </div>
+        </div>
+
+        <div class="state-banner" id="modelStateBanner" hidden></div>
+
+        <section class="model-activation panel">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">ACTIVATION · CAPABILITY SAFE</p>
+              <h2>Chọn model hoạt động</h2>
+            </div>
+            <span class="status-chip status-warning">REINDEX-AWARE</span>
+          </div>
+          <div class="activation-grid">
+            <label>
+              <span>Chat model</span>
+              <select id="chatModelSelect">
+                <option value="qwen3:8b">qwen3:8b · chat + tool-use</option>
+                <option value="llama3:8b">llama3:8b · chat</option>
+                <option value="nomic-embed-text" disabled>
+                  nomic-embed-text · không hỗ trợ chat
+                </option>
+              </select>
+            </label>
+            <label>
+              <span>Embedding model</span>
+              <select id="embeddingModelSelect">
+                <option value="nomic-embed-text">nomic-embed-text · embedding</option>
+                <option value="qwen3:8b" disabled>qwen3:8b · không hỗ trợ embedding</option>
+                <option value="llama3:8b" disabled>
+                  llama3:8b · không hỗ trợ embedding
+                </option>
+              </select>
+            </label>
+            <button type="button" class="button button-primary" id="previewActivation">
+              XEM ẢNH HƯỞNG
+            </button>
+          </div>
+          <p class="inline-warning" id="activationHint">
+            Embedding hiện tại: 298 nguồn · 75.226 vector. Thay embedding luôn cần preview
+            re-index.
+          </p>
+        </section>
+
+        <section class="model-grid" id="modelGrid" aria-live="polite">
+          <article class="model-card is-active">
+            <header>
+              <div>
+                <p class="eyebrow">CHAT · TOOL-USE</p>
+                <h2>qwen3:8b</h2>
+              </div>
+              <span class="status-chip status-live">CHAT ACTIVE</span>
+            </header>
+            <dl class="model-meta">
+              <div><dt>Loại</dt><dd>Chat</dd></div>
+              <div><dt>Kích thước</dt><dd>4,9 GB</dd></div>
+              <div><dt>RAM ước tính</dt><dd>6,1 GB</dd></div>
+              <div><dt>VRAM ước tính</dt><dd>4,9 GB</dd></div>
+              <div><dt>Độ phù hợp</dt><dd>Recommended</dd></div>
+              <div><dt>Quantization</dt><dd>Q4_K_M</dd></div>
+            </dl>
+            <div class="model-footer">
+              <span>Cập nhật 10:22 · 19/07/2026</span>
+              <button type="button" class="text-button" data-model-details="qwen">
+                Xem chi tiết
+              </button>
+            </div>
+            <div class="model-details" id="details-qwen" hidden>
+              Context 32K · tool-use có kiểm soát · đang được 298 nguồn sử dụng.
+            </div>
+          </article>
+
+          <article class="model-card is-active">
+            <header>
+              <div>
+                <p class="eyebrow">EMBEDDING · 768 DIMENSIONS</p>
+                <h2>nomic-embed-text</h2>
+              </div>
+              <span class="status-chip status-live">EMBED ACTIVE</span>
+            </header>
+            <dl class="model-meta">
+              <div><dt>Loại</dt><dd>Embedding</dd></div>
+              <div><dt>Kích thước</dt><dd>261,6 MB</dd></div>
+              <div><dt>RAM ước tính</dt><dd>327 MB</dd></div>
+              <div><dt>VRAM ước tính</dt><dd>261,6 MB</dd></div>
+              <div><dt>Độ phù hợp</dt><dd>Recommended</dd></div>
+              <div><dt>Quantization</dt><dd>F16</dd></div>
+            </dl>
+            <div class="model-footer">
+              <span>Cập nhật 22:57 · 25/05/2026</span>
+              <button type="button" class="text-button" data-model-details="nomic">
+                Xem chi tiết
+              </button>
+            </div>
+            <div class="model-details" id="details-nomic" hidden>
+              Đang lập chỉ mục cho 75.226 vector · thay đổi sẽ tạo re-index preview.
+            </div>
+          </article>
+
+          <article class="model-card">
+            <header>
+              <div>
+                <p class="eyebrow">CHAT</p>
+                <h2>llama3:8b</h2>
+              </div>
+              <span class="status-chip">INSTALLED</span>
+            </header>
+            <dl class="model-meta">
+              <div><dt>Loại</dt><dd>Chat</dd></div>
+              <div><dt>Kích thước</dt><dd>4,3 GB</dd></div>
+              <div><dt>RAM ước tính</dt><dd>5,4 GB</dd></div>
+              <div><dt>VRAM ước tính</dt><dd>4,3 GB</dd></div>
+              <div><dt>Độ phù hợp</dt><dd>Recommended</dd></div>
+              <div><dt>Quantization</dt><dd>Q4_0</dd></div>
+            </dl>
+            <div class="model-footer">
+              <span>Cập nhật 10:45 · 19/07/2026</span>
+              <button type="button" class="text-button" data-model-details="llama">
+                Xem chi tiết
+              </button>
+            </div>
+            <div class="model-details" id="details-llama" hidden>
+              Chưa active · phù hợp làm chat fallback trên máy hiện tại.
+            </div>
+          </article>
+
+          <article class="model-card model-download-card" id="downloadCard" hidden>
+            <header>
+              <div>
+                <p class="eyebrow">OLLAMA DOWNLOAD</p>
+                <h2>qwen3:14b</h2>
+              </div>
+              <span class="status-chip status-warning">DOWNLOADING</span>
+            </header>
+            <div class="download-progress">
+              <div class="progress-copy">
+                <span>Đã tải 3,8 / 8,1 GB</span>
+                <strong id="downloadPercent">47%</strong>
+              </div>
+              <div
+                class="progress-track"
+                role="progressbar"
+                aria-label="Tiến độ tải qwen3:14b"
+                aria-valuemin="0"
+                aria-valuemax="100"
+                aria-valuenow="47"
+              >
+                <span style="width: 47%"></span>
+              </div>
+              <button type="button" class="button button-outline" id="cancelDownload">
+                HỦY TẢI
+              </button>
+            </div>
+          </article>
+        </section>
+      </section>
+
+      <section class="screen" id="screen-knowledge" data-screen="knowledge" hidden>
+        <div class="page-intro page-intro-compact">
+          <div>
+            <p class="eyebrow">LEARNING INVENTORY · RESPONSIVE</p>
+            <h1>Kho tri thức</h1>
+            <p class="lede">
+              Desktop dùng bảng đầy đủ; tablet giảm cột; mobile chuyển sang card mở rộng.
+            </p>
+          </div>
+          <div class="segmented" role="group" aria-label="Kiểu hiển thị nguồn">
+            <button type="button" class="is-active" data-knowledge-view="table">Bảng</button>
+            <button type="button" data-knowledge-view="cards">Card</button>
+          </div>
+        </div>
+
+        <div class="kpi-grid">
+          <article><span>Tổng nguồn</span><strong>298</strong><small>MYSQL</small></article>
+          <article><span>Đã học</span><strong>98</strong><small>32,9% ĐỘ PHỦ</small></article>
+          <article><span>Đang chờ</span><strong>12</strong><small>QUEUE</small></article>
+          <article><span>Cần rà soát</span><strong>5</strong><small>OWNER ACTION</small></article>
+        </div>
+
+        <section class="panel knowledge-panel">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">UNIFIED TELEGRAM BRAIN</p>
+              <h2>Nguồn đang đóng góp</h2>
+            </div>
+            <button type="button" class="button button-primary">XUẤT CSV</button>
+          </div>
+
+          <div class="filter-row">
+            <label class="search-control">
+              <span>Tìm nguồn</span>
+              <input type="search" id="knowledgeSearch" placeholder="Tên, username hoặc Chat ID" />
+            </label>
+            <label>
+              <span>Trạng thái</span>
+              <select id="knowledgeFilter">
+                <option value="all">Tất cả</option>
+                <option value="learned">Đã học</option>
+                <option value="queued">Đang chờ</option>
+                <option value="failed">Lỗi</option>
+              </select>
+            </label>
+            <button type="button" class="button button-outline" id="clearKnowledgeFilter">
+              XÓA BỘ LỌC
+            </button>
+          </div>
+
+          <div class="knowledge-table-wrap" id="knowledgeTableWrap">
+            <table class="knowledge-table">
+              <thead>
+                <tr>
+                  <th scope="col"><span class="sr-only">Chọn</span></th>
+                  <th scope="col">Nguồn</th>
+                  <th scope="col">Trạng thái</th>
+                  <th scope="col">MySQL</th>
+                  <th scope="col">Vector</th>
+                  <th scope="col">Dung lượng</th>
+                  <th scope="col">Lần học</th>
+                  <th scope="col">Lỗi / ghi chú</th>
+                  <th scope="col">Thao tác</th>
+                </tr>
+              </thead>
+              <tbody id="knowledgeTableBody"></tbody>
+            </table>
+          </div>
+
+          <div class="knowledge-card-list" id="knowledgeCardList"></div>
+          <div class="empty-state" id="knowledgeEmpty" hidden>
+            <strong>Không có nguồn phù hợp</strong>
+            <p>Thử xóa bộ lọc hoặc tìm bằng Chat ID đầy đủ.</p>
+            <button type="button" class="button button-primary" data-reset-knowledge>
+              XÓA BỘ LỌC
+            </button>
+          </div>
+        </section>
+
+        <div class="bulk-toolbar" id="bulkToolbar" hidden>
+          <strong><span id="selectionCount">0</span> nguồn đã chọn</strong>
+          <button type="button" class="button button-outline" id="clearSelection">BỎ CHỌN</button>
+          <button type="button" class="button button-primary">HỌC NGUỒN ĐÃ CHỌN</button>
+        </div>
+      </section>
+
+      <section class="screen" id="screen-jobs" data-screen="jobs" hidden>
+        <div class="page-intro page-intro-compact">
+          <div>
+            <p class="eyebrow">BACKGROUND JOBS · CONTRACT DEMO</p>
+            <h1>Learning Jobs</h1>
+            <p class="lede">
+              Status, phase và progress được tách rõ; không tạo phần trăm giả khi backend
+              không trả dữ liệu đáng tin cậy.
+            </p>
+          </div>
+          <span class="status-chip">1 JOB ĐANG MÔ PHỎNG</span>
+        </div>
+
+        <div class="job-state-picker" role="group" aria-label="Chọn trạng thái learning job">
+          <button type="button" class="is-active" data-job-state="queued">Queued</button>
+          <button type="button" data-job-state="syncing">Syncing</button>
+          <button type="button" data-job-state="embedding">Embedding</button>
+          <button type="button" data-job-state="completed">Completed</button>
+          <button type="button" data-job-state="failed">Failed</button>
+          <button type="button" data-job-state="paused">Paused</button>
+          <button type="button" data-job-state="unknown">Unknown</button>
+        </div>
+
+        <section class="job-card panel" id="jobCard" aria-live="polite">
+          <div class="job-card-header">
+            <div>
+              <p class="eyebrow">JOB 1261066B-0141-4782-620E-66525F2A8529</p>
+              <h2>Upside — Telegram group sync</h2>
+            </div>
+            <span class="status-chip status-warning" id="jobStatusBadge">QUEUED</span>
+          </div>
+
+          <div class="job-progress-area" id="jobProgressArea"></div>
+          <dl class="job-metrics">
+            <div><dt>Phase</dt><dd id="jobPhase">Chờ worker</dd></div>
+            <div><dt>Tin đã sync</dt><dd id="jobSynced">0 / 12.840</dd></div>
+            <div><dt>Vector</dt><dd id="jobVectors">0</dd></div>
+            <div><dt>Thời lượng</dt><dd id="jobDuration">Chưa bắt đầu</dd></div>
+            <div class="job-error-metric">
+              <dt>Lỗi gần nhất</dt><dd id="jobError">Không có</dd>
+            </div>
+          </dl>
+          <div class="job-actions" id="jobActions"></div>
+        </section>
+
+        <section class="contract-table panel" aria-labelledby="contract-title">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">FRONTEND DISPLAY CONTRACT</p>
+              <h2 id="contract-title">Quy tắc tiến độ</h2>
+            </div>
+          </div>
+          <div class="table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>Status / phase</th>
+                  <th>Progress</th>
+                  <th>Hiển thị</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td>Queued</td><td>0%</td><td>Chưa xử lý, không giả hoạt động.</td></tr>
+                <tr><td>Syncing</td><td>1–50%</td><td>Tỷ lệ tin Telegram đã đồng bộ.</td></tr>
+                <tr><td>Embedding</td><td>51–99%</td><td>Tỷ lệ vector đã tạo.</td></tr>
+                <tr><td>Completed</td><td>100%</td><td>Không bao giờ hiển thị Completed · 0%.</td></tr>
+                <tr><td>Failed / Paused</td><td>Giữ nguyên</td><td>Giữ mốc hợp lệ cuối cùng.</td></tr>
+                <tr><td>Unknown</td><td>Không hiển thị</td><td>Ghi rõ thiếu dữ liệu tiến độ.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+
+      <section class="screen" id="screen-connection" data-screen="connection" hidden>
+        <div class="page-intro page-intro-compact">
+          <div>
+            <p class="eyebrow">SSE HEALTH · STATE MACHINE</p>
+            <h1>Trạng thái kết nối</h1>
+            <p class="lede">
+              Chỉ hiển thị LIVE khi SSE đã kết nối; dữ liệu cũ luôn có timestamp và cảnh
+              báo stale.
+            </p>
+          </div>
+          <span class="status-chip status-live" id="connectionHeroBadge">LIVE</span>
+        </div>
+
+        <div class="connection-state-picker" role="group" aria-label="Chọn trạng thái kết nối">
+          <button type="button" data-connection-state="connecting">Connecting</button>
+          <button type="button" class="is-active" data-connection-state="live">Live</button>
+          <button type="button" data-connection-state="reconnecting">Reconnecting</button>
+          <button type="button" data-connection-state="offline">Offline</button>
+          <button type="button" data-connection-state="expired">Session expired</button>
+        </div>
+
+        <section class="connection-card panel" id="connectionCard" aria-live="polite">
+          <div class="connection-head">
+            <div>
+              <p class="eyebrow">ADMIN API + SSE</p>
+              <h2 id="connectionTitle">Đang nhận dữ liệu realtime</h2>
+            </div>
+            <span class="connection-label connection-live" id="connectionLabel">LIVE</span>
+          </div>
+          <p id="connectionDescription">
+            SSE đã xác nhận kết nối. Snapshot mới có thể cập nhật các chỉ số vận hành.
+          </p>
+          <dl class="connection-meta">
+            <div><dt>API</dt><dd id="apiState">Connected</dd></div>
+            <div><dt>SSE</dt><dd id="sseState">Connected</dd></div>
+            <div><dt>Lần thành công cuối</dt><dd id="lastSuccess">Vừa xong</dd></div>
+          </dl>
+          <div class="stale-warning" id="staleWarning" hidden>
+            Dữ liệu trên màn hình có thể đã cũ. Hành động ghi tạm khóa cho đến khi kết nối
+            ổn định.
+          </div>
+          <div class="connection-actions">
+            <button type="button" class="button button-primary" id="retryConnection">
+              THỬ KẾT NỐI LẠI
+            </button>
+            <button type="button" class="button button-outline" id="loginAgain" hidden>
+              VỀ MÀN ĐĂNG NHẬP
+            </button>
+          </div>
+        </section>
+
+        <section class="state-flow panel" aria-labelledby="state-flow-title">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">DISPLAY LOGIC</p>
+              <h2 id="state-flow-title">Điều kiện hiển thị</h2>
+            </div>
+          </div>
+          <ol>
+            <li><b>Connecting</b><span>Chưa có nhãn LIVE, khóa dữ liệu realtime.</span></li>
+            <li><b>Live</b><span>Chỉ đạt khi EventSource báo open.</span></li>
+            <li><b>Reconnecting</b><span>Giữ snapshot cũ, hiện thời gian cập nhật cuối.</span></li>
+            <li><b>Offline</b><span>Dừng retry nhanh, cho phép retry thủ công.</span></li>
+            <li><b>Session expired</b><span>Không retry SSE; điều hướng đăng nhập.</span></li>
+          </ol>
+        </section>
+      </section>
+
+      <section class="screen" id="screen-modal" data-screen="modal" hidden>
+        <div class="page-intro page-intro-compact">
+          <div>
+            <p class="eyebrow">RESPONSIVE DIALOG · KEYBOARD SAFE</p>
+            <h1>Modal an toàn tại 360 px</h1>
+            <p class="lede">
+              Có viewport margin, header/footer cố định, content cuộn nội bộ, focus trap và
+              ESC.
+            </p>
+          </div>
+          <span class="status-chip status-live">44 PX TARGETS</span>
+        </div>
+
+        <section class="modal-demo panel">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">INTERACTION TEST</p>
+              <h2>Mở modal mẫu</h2>
+            </div>
+          </div>
+          <div class="modal-demo-grid">
+            <article>
+              <span>SHORT CONTENT</span>
+              <h3>Xác nhận thay model</h3>
+              <p>Modal ngắn ở giữa màn hình, CTA luôn nhìn thấy.</p>
+              <button type="button" class="button button-primary" data-open-modal="short">
+                MỞ MODAL NGẮN
+              </button>
+            </article>
+            <article>
+              <span>LONG CONTENT</span>
+              <h3>Tài liệu hệ thống</h3>
+              <p>Modal dài dùng scroll nội bộ và thành full-screen trên mobile.</p>
+              <button type="button" class="button button-primary" data-open-modal="long">
+                MỞ MODAL DÀI
+              </button>
+            </article>
+          </div>
+          <div class="keyboard-check">
+            <b>Kiểm tra:</b>
+            Tab / Shift+Tab giữ focus trong modal · ESC đóng · focus trở về nút vừa mở.
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+    <div class="modal-backdrop" id="prototypeModal" hidden>
+      <section
+        class="prototype-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="modalTitle"
+        aria-describedby="modalDescription"
+        tabindex="-1"
+      >
+        <header class="prototype-modal-header">
+          <div>
+            <p class="eyebrow" id="modalEyebrow">SAFE DIALOG</p>
+            <h2 id="modalTitle">Tiêu đề modal</h2>
+          </div>
+          <button type="button" class="button button-outline modal-close" id="closeModal">
+            ĐÓNG
+          </button>
+        </header>
+        <div class="prototype-modal-body" id="modalBody">
+          <p id="modalDescription"></p>
+        </div>
+        <footer class="prototype-modal-footer">
+          <button type="button" class="button button-outline" id="cancelModal">HỦY</button>
+          <button type="button" class="button button-primary" id="confirmModal">XÁC NHẬN</button>
+        </footer>
+      </section>
+    </div>
+
+    <script src="app.js" defer></script>
+  </body>
+</html>
