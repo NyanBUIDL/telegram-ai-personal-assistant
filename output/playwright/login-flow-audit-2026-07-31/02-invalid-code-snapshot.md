@@ -1,0 +1,27 @@
+- main [ref=e3] [box=0,0,2560,1305]:
+  - generic [ref=e4] [box=0,0,1472,1305]:
+    - generic [ref=e9] [box=132,80,114,38]:
+      - strong [ref=e10] [box=132,80,114,19]: TELEGRAM//AI
+      - generic [ref=e11] [box=132,102,114,16]: ADMIN CONSOLE
+    - generic [ref=e12] [box=72,477,720,398]:
+      - paragraph [ref=e13] [box=72,477,720,16]: LOCAL OWNER ACCESS
+      - heading "Đăng nhập bảng vận hành." [level=1] [ref=e14] [box=72,505,720,279]: Đăng nhậpbảng vận hành.
+      - paragraph [ref=e15] [box=72,805,570,53]: Dashboard chỉ hoạt động trên máy cục bộ. Secret và session Telegram không được gửi tới trình duyệt.
+    - generic [ref=e16] [box=72,1201,1324,32]:
+      - generic [ref=e17] [box=72,1201,121,32]: LOOPBACK ONLY
+      - generic [ref=e18] [box=201,1201,132,32]: HTTPONLY COOKIE
+      - generic [ref=e19] [box=341,1201,123,32]: CSRF PROTECTED
+  - generic [ref=e21] [box=1776,305,480,694]:
+    - paragraph [ref=e25] [box=1822,447,388,16]: OWNER AUTHENTICATION
+    - heading "Mã đăng nhập 8 số" [level=2] [ref=e26] [box=1822,470,388,87]
+    - paragraph [ref=e27] [box=1822,574,388,70]:
+      - text: Mở PowerShell trong thư mục dự án và chạy
+      - code [ref=e28] [box=1822,602,336,15]: .\.venv\Scripts\tg-assistant.exe dashboard-code
+      - text: . Mã hết hạn sau 5 phút.
+    - generic [ref=e29] [box=1822,667,388,106]:
+      - generic [ref=e30] [box=1822,667,388,18]: Mã đăng nhập
+      - textbox "Mã đăng nhập" [invalid] [ref=e31] [box=1822,692,388,81]:
+        - /placeholder: "00000000"
+    - alert [ref=e36] [box=1822,785,388,49]: Mã đăng nhập sai hoặc đã hết hạn.
+    - button "Đăng nhập owner" [disabled] [ref=e32] [box=1822,856,388,44]
+    - generic [ref=e35] [box=1822,916,388,37]: Không nhập API key, OTP Telegram hoặc mật khẩu vào màn hình này.

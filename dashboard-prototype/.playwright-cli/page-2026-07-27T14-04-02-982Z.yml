@@ -1,0 +1,110 @@
+- generic [ref=e3]:
+  - complementary [ref=e4]:
+    - generic [ref=e9]:
+      - strong [ref=e10]: TELEGRAM//AI
+      - generic [ref=e11]: ADMIN CONSOLE
+    - navigation "Điều hướng chính" [ref=e12]:
+      - generic [ref=e13]:
+        - paragraph [ref=e14]: VẬN HÀNH
+        - button "Tổng quan" [ref=e15] [cursor=pointer]
+      - button "Kết nối" [ref=e20] [cursor=pointer]
+      - button "Nhóm Telegram 12" [ref=e25] [cursor=pointer]:
+        - generic [ref=e28]: Nhóm Telegram
+        - generic [ref=e29]: "12"
+      - button "Policy Engine" [ref=e31] [cursor=pointer]
+      - generic [ref=e35]:
+        - paragraph [ref=e36]: AI & DỮ LIỆU
+        - button "AI & RAG" [ref=e37] [cursor=pointer]
+      - button "Local Models" [ref=e42] [cursor=pointer]
+      - button "Kho tri thức" [ref=e47] [cursor=pointer]
+      - button "Bộ nhớ & lưu trữ" [active] [ref=e52] [cursor=pointer]
+      - generic [ref=e56]:
+        - paragraph [ref=e57]: KIỂM SOÁT
+        - button "Hành động chờ 4" [ref=e687] [cursor=pointer]:
+          - generic [ref=e61]: Hành động chờ
+          - generic [ref=e62]: "4"
+      - button "Scheduler & Workers" [ref=e64] [cursor=pointer]
+      - button "Audit Log" [ref=e69] [cursor=pointer]
+      - button "Bảo mật" [ref=e74] [cursor=pointer]
+      - button "Tài liệu & Hệ thống" [ref=e79] [cursor=pointer]
+    - generic [ref=e84]:
+      - generic [ref=e85]: NT
+      - generic [ref=e86]:
+        - generic [ref=e87]: Nguyễn Nhật Tân
+        - generic [ref=e88]: Owner · Online
+      - button "Đăng xuất" [ref=e89] [cursor=pointer]
+    - generic [ref=e92]:
+      - generic [ref=e93]: RUNTIME
+      - generic [ref=e94]: v0.8.4
+  - main [ref=e96]:
+    - generic [ref=e97]:
+      - generic [ref=e99]:
+        - paragraph [ref=e100]: TELEGRAM AI / BỘ NHỚ & LƯU TRỮ
+        - heading "Bộ nhớ & lưu trữ" [level=1] [ref=e977]
+      - generic [ref=e102]:
+        - button "Thông báo" [ref=e108] [cursor=pointer]
+        - button "Tạo hành động" [ref=e112] [cursor=pointer]
+    - generic [ref=e978]:
+      - generic [ref=e979]:
+        - generic [ref=e980]:
+          - generic [ref=e983]: Disk
+          - generic [ref=e984]: 68%
+          - generic "68%" [ref=e985]
+        - generic [ref=e987]:
+          - generic [ref=e990]: RAM
+          - generic [ref=e991]: 61%
+          - generic "61%" [ref=e992]
+        - generic [ref=e994]:
+          - generic [ref=e997]: Vector
+          - generic [ref=e998]: 14.2K
+          - generic "47%" [ref=e999]
+      - generic [ref=e1001]:
+        - generic [ref=e1002]:
+          - generic [ref=e1004]:
+            - paragraph [ref=e1005]: ALLOCATION
+            - heading "Phân bổ lưu trữ" [level=2] [ref=e1006]
+          - generic [ref=e1007]:
+            - generic [ref=e1008]:
+              - generic [ref=e1009]: MySQL messages
+              - generic [ref=e1010]: 38.4 GB
+              - generic "72%" [ref=e1011]
+            - generic [ref=e1013]:
+              - generic [ref=e1014]: Imported files
+              - generic [ref=e1015]: 12.8 GB
+              - generic "48%" [ref=e1016]
+            - generic [ref=e1018]:
+              - generic [ref=e1019]: Model registry
+              - generic [ref=e1020]: 19.6 GB
+              - generic "61%" [ref=e1021]
+            - generic [ref=e1023]:
+              - generic [ref=e1024]: Audit archive
+              - generic [ref=e1025]: 4.2 GB
+              - generic "26%" [ref=e1026]
+        - generic [ref=e1028]:
+          - generic [ref=e1029]:
+            - generic [ref=e1030]:
+              - paragraph [ref=e1031]: QUOTA POLICY
+              - heading "Giới hạn nguồn" [level=2] [ref=e1032]
+            - generic [ref=e1033]: 1 WARNING
+          - generic [ref=e1034]:
+            - generic [ref=e1035]:
+              - generic [ref=e1036]:
+                - generic [ref=e1037]: Knowledge source
+                - generic [ref=e1038]: 90% sẽ tạm dừng học
+              - generic [ref=e1039]: 86%
+            - generic [ref=e1040]:
+              - generic [ref=e1041]:
+                - generic [ref=e1042]: Audit archive
+                - generic [ref=e1043]: Rotate sau 180 ngày
+              - generic [ref=e1044]: OK
+            - generic [ref=e1045]:
+              - generic [ref=e1046]:
+                - generic [ref=e1047]: Model cache
+                - generic [ref=e1048]: Dọn model không dùng sau 30 ngày
+              - button "Model cache cleanup" [pressed] [ref=e1049] [cursor=pointer]:
+                - generic [ref=e1051]: "ON"
+      - generic [ref=e1052]:
+        - generic [ref=e1056]:
+          - paragraph [ref=e1057]: STORAGE CLEANUP
+          - heading "Quét trước. Preview sau. Owner duyệt cuối." [level=2] [ref=e1058]
+        - button "Quét dữ liệu" [ref=e1059] [cursor=pointer]

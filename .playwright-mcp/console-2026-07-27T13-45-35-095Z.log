@@ -1,0 +1,16 @@
+[     350ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://127.0.0.1:4173/node_modules/.vite/deps/react-dom_client.js?v=09d77599:20100
+[  641360ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://127.0.0.1:4173/node_modules/.vite/deps/react-dom_client.js?v=09d77599:20100
+[ 1844141ms] [WARNING] Failed to decode downloaded font: http://127.0.0.1:4173/fonts/DarleySans-Regular.otf @ http://127.0.0.1:4173/:0
+[ 1844142ms] [WARNING] OTS parsing error: invalid sfntVersion: 1008821359 @ http://127.0.0.1:4173/:0
+[ 3309419ms] [LOG] [vite] server connection lost. Polling for restart... @ http://127.0.0.1:4173/@vite/client:963
+[ 3310461ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://127.0.0.1:4173/node_modules/.vite/deps/react-dom_client.js?v=07aa4a2a:20100
+[ 5163500ms] [ERROR] [vite] SyntaxError: The requested module '/src/ExtendedViews.jsx?t=1785163473412' does not provide an export named 'TelegramFeaturesView' @ http://127.0.0.1:4173/@vite/client:881
+[ 5163504ms] [ERROR] [vite] Failed to reload /src/App.jsx. This could be due to syntax errors or importing non-existent modules. (see errors above) @ http://127.0.0.1:4173/@vite/client:881
+[ 5189357ms] [ERROR] [vite] SyntaxError: The requested module '/src/ExtendedViews.jsx?t=1785163473412' does not provide an export named 'TelegramFeaturesView' @ http://127.0.0.1:4173/@vite/client:881
+[ 5189357ms] [ERROR] [vite] Failed to reload /src/App.jsx. This could be due to syntax errors or importing non-existent modules. (see errors above) @ http://127.0.0.1:4173/@vite/client:881
+[ 5199103ms] [ERROR] [vite] SyntaxError: The requested module '/src/ExtendedViews.jsx?t=1785163473412' does not provide an export named 'TelegramFeaturesView' @ http://127.0.0.1:4173/@vite/client:881
+[ 5199104ms] [ERROR] [vite] Failed to reload /src/App.jsx. This could be due to syntax errors or importing non-existent modules. (see errors above) @ http://127.0.0.1:4173/@vite/client:881
+[ 5262187ms] [ERROR] [vite] SyntaxError: The requested module '/src/ExtendedViews.jsx?t=1785165189246' does not provide an export named 'TelegramFeaturesView' @ http://127.0.0.1:4173/@vite/client:881
+[ 5262188ms] [ERROR] [vite] Failed to reload /src/App.jsx. This could be due to syntax errors or importing non-existent modules. (see errors above) @ http://127.0.0.1:4173/@vite/client:881
+[ 5460421ms] [ERROR] [vite] SyntaxError: The requested module '/src/ExtendedViews.jsx?t=1785165346588' does not provide an export named 'TelegramFeaturesView' @ http://127.0.0.1:4173/@vite/client:881
+[ 5460421ms] [ERROR] [vite] Failed to reload /src/App.jsx. This could be due to syntax errors or importing non-existent modules. (see errors above) @ http://127.0.0.1:4173/@vite/client:881

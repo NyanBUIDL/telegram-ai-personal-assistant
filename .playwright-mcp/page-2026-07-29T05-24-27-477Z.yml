@@ -1,0 +1,336 @@
+- main [ref=f2e4]:
+  - generic [ref=f2e5]:
+    - generic [ref=f2e6]:
+      - button "Mở menu" [ref=f2e7] [cursor=pointer]
+      - heading "Local Models" [level=1] [ref=f2e2107]
+    - generic [ref=f2e12]:
+      - button "Thông báo" [ref=f2e14] [cursor=pointer]
+      - button "Hành động chờ" [ref=f2e17] [cursor=pointer]
+  - generic [ref=f2e2108]:
+    - generic [ref=f2e2109]:
+      - generic [ref=f2e2110]:
+        - paragraph [ref=f2e2111]: OLLAMA LOCAL · LIVE
+        - heading "Local Model Manager" [level=2] [ref=f2e2112]
+        - generic [ref=f2e2113]: Danh sách và thao tác được đọc trực tiếp từ Ollama trên máy này.
+      - generic [ref=f2e2114]:
+        - textbox "Tên model cần tải" [ref=f2e2115]:
+          - /placeholder: "Ví dụ: qwen3:8b"
+        - button "Tải model" [ref=f2e2116] [cursor=pointer]
+    - group "Lọc model local" [ref=f2e2119]:
+      - button "Đã cài (8)" [ref=f2e2120] [cursor=pointer]
+      - button "Đang dùng" [ref=f2e2121] [cursor=pointer]
+      - button "Phù hợp máy" [ref=f2e2122] [cursor=pointer]
+    - generic [ref=f2e2123]:
+      - article [ref=f2e2124]:
+        - generic [ref=f2e2125]:
+          - generic [ref=f2e2128]:
+            - heading "deepseek-v2:16b" [level=3] [ref=f2e2129]
+            - generic [ref=f2e2130]: deepseek2
+          - generic [ref=f2e2131]: INSTALLED
+        - generic [ref=f2e2132]:
+          - generic [ref=f2e2133]:
+            - term [ref=f2e2134]: Loại model
+            - definition [ref=f2e2135]: Chat
+          - generic [ref=f2e2136]:
+            - term [ref=f2e2137]: Capability
+            - definition [ref=f2e2138]: chat
+          - generic [ref=f2e2139]:
+            - term [ref=f2e2140]: Kích thước
+            - definition [ref=f2e2141]: 8.3 GB
+          - generic [ref=f2e2142]:
+            - term [ref=f2e2143]: RAM ước tính
+            - definition [ref=f2e2144]: 10.4 GB
+          - generic [ref=f2e2145]:
+            - term [ref=f2e2146]: VRAM ước tính
+            - definition [ref=f2e2147]: 8.3 GB
+          - generic [ref=f2e2148]:
+            - term [ref=f2e2149]: Độ phù hợp
+            - definition [ref=f2e2150]: Not Recommended
+          - generic [ref=f2e2151]:
+            - term [ref=f2e2152]: Tham số
+            - definition [ref=f2e2153]: 15.7B
+          - generic [ref=f2e2154]:
+            - term [ref=f2e2155]: Quantization
+            - definition [ref=f2e2156]: Q4_0
+        - generic [ref=f2e2157]:
+          - generic [ref=f2e2158]: Cập nhật 20:30 3/3/26
+          - group [ref=f2e2159]:
+            - generic "Xem chi tiết" [ref=f2e2160] [cursor=pointer]
+          - button "Preview xóa" [ref=f2e2161] [cursor=pointer]
+      - article [ref=f2e2164]:
+        - generic [ref=f2e2165]:
+          - generic [ref=f2e2168]:
+            - heading "gemini-3-flash-preview:latest" [level=3] [ref=f2e2169]
+            - generic [ref=f2e2170]: Ollama model
+          - generic [ref=f2e2171]: INSTALLED
+        - generic [ref=f2e2172]:
+          - generic [ref=f2e2173]:
+            - term [ref=f2e2174]: Loại model
+            - definition [ref=f2e2175]: Chat
+          - generic [ref=f2e2176]:
+            - term [ref=f2e2177]: Capability
+            - definition [ref=f2e2178]: chat
+          - generic [ref=f2e2179]:
+            - term [ref=f2e2180]: Kích thước
+            - definition [ref=f2e2181]: 367.0 B
+          - generic [ref=f2e2182]:
+            - term [ref=f2e2183]: RAM ước tính
+            - definition [ref=f2e2184]: 458 B
+          - generic [ref=f2e2185]:
+            - term [ref=f2e2186]: VRAM ước tính
+            - definition [ref=f2e2187]: 367 B
+          - generic [ref=f2e2188]:
+            - term [ref=f2e2189]: Độ phù hợp
+            - definition [ref=f2e2190]: Recommended
+          - generic [ref=f2e2191]:
+            - term [ref=f2e2192]: Tham số
+            - definition [ref=f2e2193]: —
+          - generic [ref=f2e2194]:
+            - term [ref=f2e2195]: Quantization
+            - definition [ref=f2e2196]: —
+        - generic [ref=f2e2197]:
+          - generic [ref=f2e2198]: Cập nhật 17:54 21/2/26
+          - group [ref=f2e2199]:
+            - generic "Xem chi tiết" [ref=f2e2200] [cursor=pointer]
+          - button "Preview xóa" [ref=f2e2201] [cursor=pointer]
+      - article [ref=f2e2204]:
+        - generic [ref=f2e2205]:
+          - generic [ref=f2e2208]:
+            - heading "glm-4.7-flash:latest" [level=3] [ref=f2e2209]
+            - generic [ref=f2e2210]: glm4moelite
+          - generic [ref=f2e2211]: INSTALLED
+        - generic [ref=f2e2212]:
+          - generic [ref=f2e2213]:
+            - term [ref=f2e2214]: Loại model
+            - definition [ref=f2e2215]: Chat
+          - generic [ref=f2e2216]:
+            - term [ref=f2e2217]: Capability
+            - definition [ref=f2e2218]: chat
+          - generic [ref=f2e2219]:
+            - term [ref=f2e2220]: Kích thước
+            - definition [ref=f2e2221]: 17.7 GB
+          - generic [ref=f2e2222]:
+            - term [ref=f2e2223]: RAM ước tính
+            - definition [ref=f2e2224]: 22.1 GB
+          - generic [ref=f2e2225]:
+            - term [ref=f2e2226]: VRAM ước tính
+            - definition [ref=f2e2227]: 17.7 GB
+          - generic [ref=f2e2228]:
+            - term [ref=f2e2229]: Độ phù hợp
+            - definition [ref=f2e2230]: Not Recommended
+          - generic [ref=f2e2231]:
+            - term [ref=f2e2232]: Tham số
+            - definition [ref=f2e2233]: 29.9B
+          - generic [ref=f2e2234]:
+            - term [ref=f2e2235]: Quantization
+            - definition [ref=f2e2236]: Q4_K_M
+        - generic [ref=f2e2237]:
+          - generic [ref=f2e2238]: Cập nhật 17:59 21/2/26
+          - group [ref=f2e2239]:
+            - generic "Xem chi tiết" [ref=f2e2240] [cursor=pointer]
+          - button "Preview xóa" [ref=f2e2241] [cursor=pointer]
+      - article [ref=f2e2244]:
+        - generic [ref=f2e2245]:
+          - generic [ref=f2e2248]:
+            - heading "glm-5:cloud" [level=3] [ref=f2e2249]
+            - generic [ref=f2e2250]: Ollama model
+          - generic [ref=f2e2251]: INSTALLED
+        - generic [ref=f2e2252]:
+          - generic [ref=f2e2253]:
+            - term [ref=f2e2254]: Loại model
+            - definition [ref=f2e2255]: Chat
+          - generic [ref=f2e2256]:
+            - term [ref=f2e2257]: Capability
+            - definition [ref=f2e2258]: chat
+          - generic [ref=f2e2259]:
+            - term [ref=f2e2260]: Kích thước
+            - definition [ref=f2e2261]: 323.0 B
+          - generic [ref=f2e2262]:
+            - term [ref=f2e2263]: RAM ước tính
+            - definition [ref=f2e2264]: 403 B
+          - generic [ref=f2e2265]:
+            - term [ref=f2e2266]: VRAM ước tính
+            - definition [ref=f2e2267]: 323 B
+          - generic [ref=f2e2268]:
+            - term [ref=f2e2269]: Độ phù hợp
+            - definition [ref=f2e2270]: Recommended
+          - generic [ref=f2e2271]:
+            - term [ref=f2e2272]: Tham số
+            - definition [ref=f2e2273]: —
+          - generic [ref=f2e2274]:
+            - term [ref=f2e2275]: Quantization
+            - definition [ref=f2e2276]: —
+        - generic [ref=f2e2277]:
+          - generic [ref=f2e2278]: Cập nhật 17:49 21/2/26
+          - group [ref=f2e2279]:
+            - generic "Xem chi tiết" [ref=f2e2280] [cursor=pointer]
+          - button "Preview xóa" [ref=f2e2281] [cursor=pointer]
+      - article [ref=f2e2284]:
+        - generic [ref=f2e2285]:
+          - generic [ref=f2e2288]:
+            - heading "kimi-k2.5:cloud" [level=3] [ref=f2e2289]
+            - generic [ref=f2e2290]: Ollama model
+          - generic [ref=f2e2291]: INSTALLED
+        - generic [ref=f2e2292]:
+          - generic [ref=f2e2293]:
+            - term [ref=f2e2294]: Loại model
+            - definition [ref=f2e2295]: Chat
+          - generic [ref=f2e2296]:
+            - term [ref=f2e2297]: Capability
+            - definition [ref=f2e2298]: chat
+          - generic [ref=f2e2299]:
+            - term [ref=f2e2300]: Kích thước
+            - definition [ref=f2e2301]: 340.0 B
+          - generic [ref=f2e2302]:
+            - term [ref=f2e2303]: RAM ước tính
+            - definition [ref=f2e2304]: 425 B
+          - generic [ref=f2e2305]:
+            - term [ref=f2e2306]: VRAM ước tính
+            - definition [ref=f2e2307]: 340 B
+          - generic [ref=f2e2308]:
+            - term [ref=f2e2309]: Độ phù hợp
+            - definition [ref=f2e2310]: Recommended
+          - generic [ref=f2e2311]:
+            - term [ref=f2e2312]: Tham số
+            - definition [ref=f2e2313]: —
+          - generic [ref=f2e2314]:
+            - term [ref=f2e2315]: Quantization
+            - definition [ref=f2e2316]: —
+        - generic [ref=f2e2317]:
+          - generic [ref=f2e2318]: Cập nhật 15:02 21/2/26
+          - group [ref=f2e2319]:
+            - generic "Xem chi tiết" [ref=f2e2320] [cursor=pointer]
+          - button "Preview xóa" [ref=f2e2321] [cursor=pointer]
+      - article [ref=f2e2324]:
+        - generic [ref=f2e2325]:
+          - generic [ref=f2e2328]:
+            - heading "llama3:8b" [level=3] [ref=f2e2329]
+            - generic [ref=f2e2330]: llama
+          - generic [ref=f2e2331]: INSTALLED
+        - generic [ref=f2e2332]:
+          - generic [ref=f2e2333]:
+            - term [ref=f2e2334]: Loại model
+            - definition [ref=f2e2335]: Chat
+          - generic [ref=f2e2336]:
+            - term [ref=f2e2337]: Capability
+            - definition [ref=f2e2338]: chat
+          - generic [ref=f2e2339]:
+            - term [ref=f2e2340]: Kích thước
+            - definition [ref=f2e2341]: 4.3 GB
+          - generic [ref=f2e2342]:
+            - term [ref=f2e2343]: RAM ước tính
+            - definition [ref=f2e2344]: 5.4 GB
+          - generic [ref=f2e2345]:
+            - term [ref=f2e2346]: VRAM ước tính
+            - definition [ref=f2e2347]: 4.3 GB
+          - generic [ref=f2e2348]:
+            - term [ref=f2e2349]: Độ phù hợp
+            - definition [ref=f2e2350]: Not Recommended
+          - generic [ref=f2e2351]:
+            - term [ref=f2e2352]: Tham số
+            - definition [ref=f2e2353]: 8.0B
+          - generic [ref=f2e2354]:
+            - term [ref=f2e2355]: Quantization
+            - definition [ref=f2e2356]: Q4_0
+        - generic [ref=f2e2357]:
+          - generic [ref=f2e2358]: Cập nhật 10:45 19/2/26
+          - group [ref=f2e2359]:
+            - generic "Xem chi tiết" [ref=f2e2360] [cursor=pointer]
+          - button "Preview xóa" [ref=f2e2361] [cursor=pointer]
+      - article [ref=f2e2364]:
+        - generic [ref=f2e2365]:
+          - generic [ref=f2e2368]:
+            - heading "nomic-embed-text:latest" [level=3] [ref=f2e2369]
+            - generic [ref=f2e2370]: nomic-bert
+          - generic [ref=f2e2371]: EMBED ACTIVE
+        - generic [ref=f2e2372]:
+          - generic [ref=f2e2373]:
+            - term [ref=f2e2374]: Loại model
+            - definition [ref=f2e2375]: Embedding
+          - generic [ref=f2e2376]:
+            - term [ref=f2e2377]: Capability
+            - definition [ref=f2e2378]: embedding
+          - generic [ref=f2e2379]:
+            - term [ref=f2e2380]: Kích thước
+            - definition [ref=f2e2381]: 261.6 MB
+          - generic [ref=f2e2382]:
+            - term [ref=f2e2383]: RAM ước tính
+            - definition [ref=f2e2384]: 327.0 MB
+          - generic [ref=f2e2385]:
+            - term [ref=f2e2386]: VRAM ước tính
+            - definition [ref=f2e2387]: 261.6 MB
+          - generic [ref=f2e2388]:
+            - term [ref=f2e2389]: Độ phù hợp
+            - definition [ref=f2e2390]: Recommended
+          - generic [ref=f2e2391]:
+            - term [ref=f2e2392]: Tham số
+            - definition [ref=f2e2393]: 137M
+          - generic [ref=f2e2394]:
+            - term [ref=f2e2395]: Quantization
+            - definition [ref=f2e2396]: F16
+        - generic [ref=f2e2397]:
+          - generic [ref=f2e2398]: Cập nhật 22:57 25/2/26
+          - group [ref=f2e2399]:
+            - generic "Xem chi tiết" [ref=f2e2400] [cursor=pointer]
+          - button "Preview xóa" [disabled] [ref=f2e2401]
+      - article [ref=f2e2404]:
+        - generic [ref=f2e2405]:
+          - generic [ref=f2e2408]:
+            - heading "qwen3:8b" [level=3] [ref=f2e2409]
+            - generic [ref=f2e2410]: qwen3
+          - generic [ref=f2e2411]: CHAT ACTIVE
+        - generic [ref=f2e2412]:
+          - generic [ref=f2e2413]:
+            - term [ref=f2e2414]: Loại model
+            - definition [ref=f2e2415]: Chat
+          - generic [ref=f2e2416]:
+            - term [ref=f2e2417]: Capability
+            - definition [ref=f2e2418]: chat
+          - generic [ref=f2e2419]:
+            - term [ref=f2e2420]: Kích thước
+            - definition [ref=f2e2421]: 4.9 GB
+          - generic [ref=f2e2422]:
+            - term [ref=f2e2423]: RAM ước tính
+            - definition [ref=f2e2424]: 6.1 GB
+          - generic [ref=f2e2425]:
+            - term [ref=f2e2426]: VRAM ước tính
+            - definition [ref=f2e2427]: 4.9 GB
+          - generic [ref=f2e2428]:
+            - term [ref=f2e2429]: Độ phù hợp
+            - definition [ref=f2e2430]: Not Recommended
+          - generic [ref=f2e2431]:
+            - term [ref=f2e2432]: Tham số
+            - definition [ref=f2e2433]: 8.2B
+          - generic [ref=f2e2434]:
+            - term [ref=f2e2435]: Quantization
+            - definition [ref=f2e2436]: Q4_K_M
+        - generic [ref=f2e2437]:
+          - generic [ref=f2e2438]: Cập nhật 10:22 19/2/26
+          - group [ref=f2e2439]:
+            - generic "Xem chi tiết" [ref=f2e2440] [cursor=pointer]
+          - button "Preview xóa" [disabled] [ref=f2e2441]
+    - generic [ref=f2e2444]:
+      - generic [ref=f2e2445]:
+        - generic [ref=f2e2446]:
+          - paragraph [ref=f2e2447]: ACTIVATION · LIVE
+          - heading "Chọn model hoạt động" [level=2] [ref=f2e2448]
+        - generic [ref=f2e2449]: REINDEX-AWARE
+      - generic [ref=f2e2450]:
+        - generic [ref=f2e2451]:
+          - generic [ref=f2e2452]: Chat model
+          - combobox "Chat model" [ref=f2e2453] [cursor=pointer]:
+            - option "deepseek-v2:16b"
+            - option "gemini-3-flash-preview:latest"
+            - option "glm-4.7-flash:latest"
+            - option "glm-5:cloud"
+            - option "kimi-k2.5:cloud"
+            - option "llama3:8b"
+            - option "qwen3:8b" [selected]
+        - generic [ref=f2e2454]:
+          - generic [ref=f2e2455]: Embedding model
+          - combobox "Embedding model" [ref=f2e2456] [cursor=pointer]:
+            - option "nomic-embed-text:latest" [selected]
+        - button "Xem ảnh hưởng" [ref=f2e2457] [cursor=pointer]
+      - generic [ref=f2e2460]:
+        - generic [ref=f2e2463]: Embedding impact
+        - generic [ref=f2e2464]: Backend tự xác định vector dimension và tách kho Qdrant theo embedding model.

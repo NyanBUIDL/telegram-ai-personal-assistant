@@ -1,0 +1,118 @@
+- generic [ref=f1e516]:
+  - complementary [ref=f1e517]:
+    - generic [ref=f1e522]:
+      - strong [ref=f1e523]: TELEGRAM//AI
+      - generic [ref=f1e524]: ADMIN CONSOLE
+    - navigation "Điều hướng chính" [ref=f1e525]:
+      - generic [ref=f1e526]:
+        - paragraph [ref=f1e527]: VẬN HÀNH
+        - button "Tổng quan" [ref=f1e528] [cursor=pointer]
+      - button "Kết nối" [ref=f1e533] [cursor=pointer]
+      - button "Nhóm Telegram" [ref=f1e538] [cursor=pointer]
+      - button "Policy Engine" [ref=f1e543] [cursor=pointer]
+      - generic [ref=f1e547]:
+        - paragraph [ref=f1e548]: AI & DỮ LIỆU
+        - button "AI & RAG" [ref=f1e549] [cursor=pointer]
+      - button "Local Models" [ref=f1e554] [cursor=pointer]
+      - button "Kho tri thức" [ref=f1e559] [cursor=pointer]
+      - button "Bộ nhớ & lưu trữ" [ref=f1e564] [cursor=pointer]
+      - generic [ref=f1e568]:
+        - paragraph [ref=f1e569]: KIỂM SOÁT
+        - button "Hành động chờ" [ref=f1e570] [cursor=pointer]
+      - button "Scheduler & Workers" [ref=f1e575] [cursor=pointer]
+      - button "Audit Log" [ref=f1e580] [cursor=pointer]
+      - button "Bảo mật" [ref=f1e585] [cursor=pointer]
+      - button "Tài liệu & Hệ thống" [ref=f1e590] [cursor=pointer]
+      - generic [ref=f1e594]:
+        - paragraph [ref=f1e595]: TRỢ LÝ CHÍNH
+        - button "Chức năng Telegram" [ref=f1e596] [cursor=pointer]
+    - generic [ref=f1e601]:
+      - generic [ref=f1e602]: OW
+      - generic [ref=f1e603]:
+        - generic [ref=f1e604]: Owner 1134327192
+        - generic [ref=f1e605]: Local · Realtime
+      - button "Đăng xuất" [ref=f1e606] [cursor=pointer]
+    - generic [ref=f1e609]:
+      - generic [ref=f1e610]: RUNTIME
+      - generic [ref=f1e611]: v0.1.0
+  - main [ref=f1e613]:
+    - generic [ref=f1e614]:
+      - generic [ref=f1e616]:
+        - paragraph [ref=f1e617]: TELEGRAM AI / KẾT NỐI
+        - heading "Kết nối" [level=1] [ref=f1e618]
+      - generic [ref=f1e619]:
+        - generic [ref=f1e620]: LIVE
+        - button "Thông báo" [ref=f1e622] [cursor=pointer]
+        - button "Hành động chờ" [ref=f1e625] [cursor=pointer]
+    - generic [ref=f1e629]:
+      - generic [ref=f1e630]:
+        - generic [ref=f1e634]:
+          - generic [ref=f1e635]: Admin API và SSE đang hoạt động
+          - generic [ref=f1e636]: Snapshot mới có thể cập nhật các chỉ số vận hành.
+        - generic [ref=f1e637]: LIVE
+      - generic [ref=f1e639]:
+        - article [ref=f1e640]:
+          - generic [ref=f1e641]:
+            - generic [ref=f1e643]:
+              - heading "Admin API" [level=3] [ref=f1e644]
+              - generic [ref=f1e645]: Loopback owner console
+            - generic [ref=f1e646]: ONLINE
+          - generic [ref=f1e647]:
+            - generic [ref=f1e648]:
+              - generic [ref=f1e649]: Trạng thái runtime
+              - textbox "Trạng thái runtime" [ref=f1e650]: 127.0.0.1:8765
+            - generic [ref=f1e651]:
+              - generic [ref=f1e652]: Bảo mật
+              - textbox "Bảo mật" [ref=f1e653]: Secret không hiển thị
+        - article [ref=f1e654]:
+          - generic [ref=f1e655]:
+            - generic [ref=f1e657]:
+              - heading "MySQL" [level=3] [ref=f1e658]
+              - generic [ref=f1e659]: Source of truth
+            - generic [ref=f1e660]: ONLINE
+          - generic [ref=f1e661]:
+            - generic [ref=f1e662]:
+              - generic [ref=f1e663]: Trạng thái runtime
+              - textbox "Trạng thái runtime" [ref=f1e664]: 302 nguồn
+            - generic [ref=f1e665]:
+              - generic [ref=f1e666]: Bảo mật
+              - textbox "Bảo mật" [ref=f1e667]: Secret không hiển thị
+        - article [ref=f1e668]:
+          - generic [ref=f1e669]:
+            - generic [ref=f1e671]:
+              - heading "Qdrant" [level=3] [ref=f1e672]
+              - generic [ref=f1e673]: Derived vector index
+            - generic [ref=f1e674]: ONLINE
+          - generic [ref=f1e675]:
+            - generic [ref=f1e676]:
+              - generic [ref=f1e677]: Trạng thái runtime
+              - textbox "Trạng thái runtime" [ref=f1e678]: 55.0 MB
+            - generic [ref=f1e679]:
+              - generic [ref=f1e680]: Bảo mật
+              - textbox "Bảo mật" [ref=f1e681]: Secret không hiển thị
+        - article [ref=f1e682]:
+          - generic [ref=f1e683]:
+            - generic [ref=f1e685]:
+              - heading "AI provider" [level=3] [ref=f1e686]
+              - generic [ref=f1e687]: gpt-5.6-terra
+            - generic [ref=f1e688]: OPENAI
+          - generic [ref=f1e689]:
+            - generic [ref=f1e690]:
+              - generic [ref=f1e691]: Trạng thái runtime
+              - textbox "Trạng thái runtime" [ref=f1e692]: nomic-embed-text:latest
+            - generic [ref=f1e693]:
+              - generic [ref=f1e694]: Bảo mật
+              - textbox "Bảo mật" [ref=f1e695]: Secret không hiển thị
+        - article [ref=f1e696]:
+          - generic [ref=f1e697]:
+            - generic [ref=f1e699]:
+              - heading "SSE realtime" [level=3] [ref=f1e700]
+              - generic [ref=f1e701]: Dashboard snapshot stream
+            - generic [ref=f1e702]: LIVE
+          - generic [ref=f1e703]:
+            - generic [ref=f1e704]:
+              - generic [ref=f1e705]: Trạng thái runtime
+              - textbox "Trạng thái runtime" [ref=f1e706]: "Lần thành công cuối: 16:00 31/7/26"
+            - generic [ref=f1e707]:
+              - generic [ref=f1e708]: Bảo mật
+              - textbox "Bảo mật" [ref=f1e709]: Secret không hiển thị

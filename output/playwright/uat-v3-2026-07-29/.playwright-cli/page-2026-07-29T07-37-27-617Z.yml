@@ -1,0 +1,62 @@
+- generic [ref=f1e3]:
+  - complementary [ref=f1e4]:
+    - generic [ref=f1e9]:
+      - strong [ref=f1e10]: TELEGRAM//AI
+      - generic [ref=f1e11]: ADMIN CONSOLE
+    - navigation "Điều hướng chính" [ref=f1e12]:
+      - generic [ref=f1e13]:
+        - paragraph [ref=f1e14]: VẬN HÀNH
+        - button "Tổng quan" [ref=f1e15] [cursor=pointer]
+      - button "Kết nối" [ref=f1e20] [cursor=pointer]
+      - button "Nhóm Telegram" [ref=f1e25] [cursor=pointer]
+      - button "Policy Engine" [ref=f1e30] [cursor=pointer]
+      - generic [ref=f1e34]:
+        - paragraph [ref=f1e35]: AI & DỮ LIỆU
+        - button "AI & RAG" [ref=f1e36] [cursor=pointer]
+      - button "Local Models" [ref=f1e41] [cursor=pointer]
+      - button "Kho tri thức" [ref=f1e7635] [cursor=pointer]
+      - button "Bộ nhớ & lưu trữ" [ref=f1e51] [cursor=pointer]
+      - generic [ref=f1e55]:
+        - paragraph [ref=f1e56]: KIỂM SOÁT
+        - button "Hành động chờ" [active] [ref=f1e10063] [cursor=pointer]
+      - button "Scheduler & Workers" [ref=f1e62] [cursor=pointer]
+      - button "Audit Log" [ref=f1e67] [cursor=pointer]
+      - button "Bảo mật" [ref=f1e72] [cursor=pointer]
+      - button "Tài liệu & Hệ thống" [ref=f1e77] [cursor=pointer]
+      - generic [ref=f1e81]:
+        - paragraph [ref=f1e82]: TRỢ LÝ CHÍNH
+        - button "Chức năng Telegram" [ref=f1e83] [cursor=pointer]
+    - generic [ref=f1e88]:
+      - generic [ref=f1e89]: OW
+      - generic [ref=f1e90]:
+        - generic [ref=f1e91]: Owner 1134327192
+        - generic [ref=f1e92]: Local · Realtime
+      - button "Đăng xuất" [ref=f1e93] [cursor=pointer]
+    - generic [ref=f1e96]:
+      - generic [ref=f1e97]: RUNTIME
+      - generic [ref=f1e98]: v0.1.0
+  - main [ref=f1e100]:
+    - generic [ref=f1e101]:
+      - generic [ref=f1e103]:
+        - paragraph [ref=f1e104]: TELEGRAM AI / HÀNH ĐỘNG CHỜ
+        - heading "Hành động chờ" [level=1] [ref=f1e10314]
+      - generic [ref=f1e106]:
+        - generic [ref=f1e107]: LIVE
+        - button "Thông báo" [ref=f1e109] [cursor=pointer]
+        - button "Hành động chờ" [ref=f1e112] [cursor=pointer]
+    - generic [ref=f1e10315]:
+      - generic [ref=f1e10316]:
+        - generic [ref=f1e10317]:
+          - paragraph [ref=f1e10318]: OWNER CONTROL · LIVE
+          - heading "Hành động và xác nhận" [level=2] [ref=f1e10319]
+        - generic [ref=f1e10320]: 0 ACTION
+      - combobox [ref=f1e10322] [cursor=pointer]:
+        - option "Tất cả" [selected]
+        - option "Đang chờ"
+        - option "Đã xác nhận"
+        - option "Đã thực thi"
+        - option "Lỗi"
+        - option "Đã hủy"
+      - generic [ref=f1e10670]:
+        - generic [ref=f1e10673]: Không có hành động
+        - generic [ref=f1e10674]: Không có bản ghi ở trạng thái đã chọn.

@@ -1,0 +1,82 @@
+- generic [ref=f11e3]:
+  - complementary [ref=f11e4]:
+    - generic [ref=f11e9]:
+      - strong [ref=f11e10]: TELEGRAM//AI
+      - generic [ref=f11e11]: ADMIN CONSOLE
+    - navigation "Điều hướng chính" [ref=f11e12]:
+      - paragraph [ref=f11e13]: WORKSPACE
+      - button "Tổng quan" [ref=f11e14] [cursor=pointer]
+      - button "Nhóm Telegram 12" [ref=f11e18] [cursor=pointer]:
+        - generic [ref=f11e21]: Nhóm Telegram
+        - generic [ref=f11e22]: "12"
+      - button "Hành động chờ 3" [ref=f11e23] [cursor=pointer]:
+        - generic [ref=f11e26]: Hành động chờ
+        - generic [ref=f11e27]: "3"
+      - button "Kho tri thức" [active] [ref=f11e28] [cursor=pointer]
+      - button "Hệ thống" [ref=f11e32] [cursor=pointer]
+    - generic [ref=f11e37]:
+      - generic [ref=f11e38]: NT
+      - generic [ref=f11e39]:
+        - generic [ref=f11e40]: Nguyễn Nhật Tân
+        - generic [ref=f11e41]: Owner · Online
+      - button "Đăng xuất" [ref=f11e42] [cursor=pointer]
+    - generic [ref=f11e45]:
+      - generic [ref=f11e46]: RUNTIME
+      - generic [ref=f11e47]: v0.8.4
+  - main [ref=f11e49]:
+    - generic [ref=f11e50]:
+      - generic [ref=f11e52]:
+        - paragraph [ref=f11e53]: TELEGRAM AI / KHO TRI THỨC
+        - heading "Kho tri thức" [level=1] [ref=f11e466]
+      - generic [ref=f11e55]:
+        - button "Thông báo" [ref=f11e61] [cursor=pointer]
+        - button "Tạo hành động" [ref=f11e65] [cursor=pointer]
+    - generic [ref=f11e467]:
+      - generic [ref=f11e468]:
+        - generic [ref=f11e469]:
+          - generic [ref=f11e470]: KNOWLEDGE CORPUS
+          - heading "14,238 chunks đã sẵn sàng cho RAG." [level=2] [ref=f11e473]
+          - paragraph [ref=f11e474]: MySQL giữ nội dung gốc. Qdrant chỉ lưu vector và tham chiếu đã được commit.
+          - button "Đồng bộ ngay" [ref=f11e475] [cursor=pointer]
+        - generic [ref=f11e478]:
+          - strong [ref=f11e479]: 98.7%
+          - generic [ref=f11e480]: vector healthy
+      - generic [ref=f11e481]:
+        - article [ref=f11e482]:
+          - generic [ref=f11e485]: Telegram messages
+          - strong [ref=f11e486]: 8,402
+          - generic [ref=f11e487]: 2 phút trước
+        - article [ref=f11e488]:
+          - generic [ref=f11e491]: Owner notes
+          - strong [ref=f11e492]: 2,188
+          - generic [ref=f11e493]: 12 phút trước
+        - article [ref=f11e494]:
+          - generic [ref=f11e497]: Policy documents
+          - strong [ref=f11e498]: 1,624
+          - generic [ref=f11e499]: Hôm qua
+        - article [ref=f11e500]:
+          - generic [ref=f11e503]: Imported files
+          - strong [ref=f11e504]: 2,024
+          - generic [ref=f11e505]: 3 giờ trước
+      - generic [ref=f11e506]:
+        - generic [ref=f11e507]:
+          - generic [ref=f11e508]:
+            - paragraph [ref=f11e509]: FRESHNESS
+            - heading "Nguồn dữ liệu" [level=2] [ref=f11e510]
+          - generic [ref=f11e511]: 4/4 HEALTHY
+        - generic [ref=f11e512]:
+          - generic [ref=f11e515]: mysql://messages
+          - generic [ref=f11e516]: "Batch #1840"
+          - generic [ref=f11e517]: COMMITTED
+        - generic [ref=f11e518]:
+          - generic [ref=f11e521]: mysql://owner_notes
+          - generic [ref=f11e522]: "Batch #1841"
+          - generic [ref=f11e523]: COMMITTED
+        - generic [ref=f11e524]:
+          - generic [ref=f11e527]: file://policy
+          - generic [ref=f11e528]: "Batch #1842"
+          - generic [ref=f11e529]: COMMITTED
+        - generic [ref=f11e530]:
+          - generic [ref=f11e533]: file://imports
+          - generic [ref=f11e534]: "Batch #1843"
+          - generic [ref=f11e535]: COMMITTED

@@ -1,0 +1,77 @@
+- generic [ref=f3e3]:
+  - complementary [ref=f3e4]:
+    - generic [ref=f3e9]:
+      - strong [ref=f3e10]: TELEGRAM//AI
+      - generic [ref=f3e11]: ADMIN CONSOLE
+    - navigation "Điều hướng chính" [ref=f3e12]:
+      - paragraph [ref=f3e13]: WORKSPACE
+      - button "Tổng quan" [ref=f3e14] [cursor=pointer]
+      - button "Nhóm Telegram 12" [ref=f3e18] [cursor=pointer]:
+        - generic [ref=f3e21]: Nhóm Telegram
+        - generic [ref=f3e22]: "12"
+      - button "Hành động chờ 2" [ref=f3e536] [cursor=pointer]:
+        - generic [ref=f3e26]: Hành động chờ
+        - generic [ref=f3e27]: "2"
+      - button "Kho tri thức" [ref=f3e28] [cursor=pointer]
+      - button "Hệ thống" [ref=f3e32] [cursor=pointer]
+    - generic [ref=f3e37]:
+      - generic [ref=f3e38]: NT
+      - generic [ref=f3e39]:
+        - generic [ref=f3e40]: Nguyễn Nhật Tân
+        - generic [ref=f3e41]: Owner · Online
+      - button "Đăng xuất" [ref=f3e42] [cursor=pointer]
+    - generic [ref=f3e45]:
+      - generic [ref=f3e46]: RUNTIME
+      - generic [ref=f3e47]: v0.8.4
+  - main [ref=f3e49]:
+    - generic [ref=f3e50]:
+      - generic [ref=f3e52]:
+        - paragraph [ref=f3e53]: TELEGRAM AI / HÀNH ĐỘNG CHỜ
+        - heading "Hành động chờ" [level=1] [ref=f3e433]
+      - generic [ref=f3e55]:
+        - button "Thông báo" [ref=f3e61] [cursor=pointer]
+        - button "Tạo hành động" [ref=f3e65] [cursor=pointer]
+    - generic [ref=f3e434]:
+      - generic [ref=f3e435]:
+        - generic [ref=f3e436]:
+          - generic [ref=f3e437]:
+            - paragraph [ref=f3e438]: OWNER CONFIRMATION
+            - heading "Hành động chờ duyệt" [level=2] [ref=f3e439]
+          - generic [ref=f3e440]: 2 CHỜ
+        - table [ref=f3e442]:
+          - rowgroup [ref=f3e443]:
+            - row [ref=f3e444]:
+              - columnheader "Hành động" [ref=f3e445]
+              - columnheader "Nguồn" [ref=f3e446]
+              - columnheader "Hết hạn" [ref=f3e447]
+              - columnheader "Thao tác" [ref=f3e448]
+          - rowgroup [ref=f3e450]:
+            - row [ref=f3e465]:
+              - cell "Khóa thành viên @airdrop_bot ACT-2406 · AI Builders Saigon" [ref=f3e466]:
+                - generic [ref=f3e469]:
+                  - generic [ref=f3e470]: Khóa thành viên @airdrop_bot
+                  - generic [ref=f3e471]: ACT-2406 · AI Builders Saigon
+              - cell "AUTO Moderation" [ref=f3e472]
+              - cell [ref=f3e473]
+              - cell [ref=f3e477]:
+                - button "Xem & duyệt" [ref=f3e478] [cursor=pointer]
+            - row [ref=f3e479]:
+              - cell "Đăng thông báo lịch bảo trì ACT-2405 · TG Assistant Ops" [ref=f3e480]:
+                - generic [ref=f3e483]:
+                  - generic [ref=f3e484]: Đăng thông báo lịch bảo trì
+                  - generic [ref=f3e485]: ACT-2405 · TG Assistant Ops
+              - cell "Control Bot" [ref=f3e486]
+              - cell [ref=f3e487]
+              - cell [ref=f3e491]:
+                - button "Xem & duyệt" [ref=f3e492] [cursor=pointer]
+      - complementary [ref=f3e493]:
+        - paragraph [ref=f3e496]: SAFETY FIRST
+        - heading "Preview trước. Owner duyệt. Worker kiểm tra lại." [level=2] [ref=f3e497]
+        - paragraph [ref=f3e498]: Mọi hành động nhạy cảm đều được xác minh owner, policy và quyền Telegram thực tế ngay trước khi thực thi.
+        - list [ref=f3e499]:
+          - listitem [ref=f3e500]: Không tự động xóa hoặc khóa
+          - listitem [ref=f3e503]: PendingAction có thời hạn
+          - listitem [ref=f3e506]: Audit log không thể bỏ qua
+  - status [ref=f3e537]:
+    - generic [ref=f3e540]: ACT-2407 đã được duyệt và chuyển cho worker.
+    - button "Đóng thông báo" [ref=f3e541] [cursor=pointer]

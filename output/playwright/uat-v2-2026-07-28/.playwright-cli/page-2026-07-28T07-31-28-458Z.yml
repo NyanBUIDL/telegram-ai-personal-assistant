@@ -1,0 +1,149 @@
+- main [ref=e133]:
+  - generic [ref=e134]:
+    - generic [ref=e135]:
+      - button "Mở menu" [ref=e3713] [cursor=pointer]
+      - heading "Local Models" [level=1] [ref=e3728]
+    - generic [ref=e139]:
+      - generic [ref=e140]: LIVE
+      - button "Thông báo" [ref=e142] [cursor=pointer]
+      - button "Hành động chờ" [ref=e145] [cursor=pointer]
+  - generic [ref=e3729]:
+    - generic [ref=e3730]:
+      - generic [ref=e3731]:
+        - paragraph [ref=e3732]: OLLAMA LOCAL · LIVE
+        - heading "Local Model Manager" [level=2] [ref=e3733]
+        - generic [ref=e3734]: Danh sách và thao tác được đọc trực tiếp từ Ollama trên máy này.
+      - generic [ref=e3735]:
+        - textbox "Tên model cần tải" [ref=e3736]:
+          - /placeholder: "Ví dụ: qwen3:8b"
+        - button "Tải model" [ref=e3737] [cursor=pointer]
+    - generic [ref=e3740]:
+      - article [ref=e3741]:
+        - generic [ref=e3742]:
+          - generic [ref=e3745]:
+            - heading "deepseek-v2:16b" [level=3] [ref=e3746]
+            - text: deepseek2
+          - generic [ref=e3747]: INSTALLED
+        - generic [ref=e3748]:
+          - generic [ref=e3749]: Kích thước8.3 GB
+          - generic [ref=e3750]: Tham số15.7B
+          - generic [ref=e3751]: QuantizationQ4_0
+          - generic [ref=e3752]: Cập nhật20:30 3/3/26
+        - button "Preview xóa" [ref=e3754] [cursor=pointer]
+      - article [ref=e3757]:
+        - generic [ref=e3758]:
+          - generic [ref=e3761]:
+            - heading "gemini-3-flash-preview:latest" [level=3] [ref=e3762]
+            - text: Ollama model
+          - generic [ref=e3763]: INSTALLED
+        - generic [ref=e3764]:
+          - generic [ref=e3765]: Kích thước367.0 B
+          - generic [ref=e3766]: Tham số—
+          - generic [ref=e3767]: Quantization—
+          - generic [ref=e3768]: Cập nhật17:54 21/2/26
+        - button "Preview xóa" [ref=e3770] [cursor=pointer]
+      - article [ref=e3773]:
+        - generic [ref=e3774]:
+          - generic [ref=e3777]:
+            - heading "glm-4.7-flash:latest" [level=3] [ref=e3778]
+            - text: glm4moelite
+          - generic [ref=e3779]: INSTALLED
+        - generic [ref=e3780]:
+          - generic [ref=e3781]: Kích thước17.7 GB
+          - generic [ref=e3782]: Tham số29.9B
+          - generic [ref=e3783]: QuantizationQ4_K_M
+          - generic [ref=e3784]: Cập nhật17:59 21/2/26
+        - button "Preview xóa" [ref=e3786] [cursor=pointer]
+      - article [ref=e3789]:
+        - generic [ref=e3790]:
+          - generic [ref=e3793]:
+            - heading "glm-5:cloud" [level=3] [ref=e3794]
+            - text: Ollama model
+          - generic [ref=e3795]: INSTALLED
+        - generic [ref=e3796]:
+          - generic [ref=e3797]: Kích thước323.0 B
+          - generic [ref=e3798]: Tham số—
+          - generic [ref=e3799]: Quantization—
+          - generic [ref=e3800]: Cập nhật17:49 21/2/26
+        - button "Preview xóa" [ref=e3802] [cursor=pointer]
+      - article [ref=e3805]:
+        - generic [ref=e3806]:
+          - generic [ref=e3809]:
+            - heading "kimi-k2.5:cloud" [level=3] [ref=e3810]
+            - text: Ollama model
+          - generic [ref=e3811]: INSTALLED
+        - generic [ref=e3812]:
+          - generic [ref=e3813]: Kích thước340.0 B
+          - generic [ref=e3814]: Tham số—
+          - generic [ref=e3815]: Quantization—
+          - generic [ref=e3816]: Cập nhật15:02 21/2/26
+        - button "Preview xóa" [ref=e3818] [cursor=pointer]
+      - article [ref=e3821]:
+        - generic [ref=e3822]:
+          - generic [ref=e3825]:
+            - heading "llama3:8b" [level=3] [ref=e3826]
+            - text: llama
+          - generic [ref=e3827]: INSTALLED
+        - generic [ref=e3828]:
+          - generic [ref=e3829]: Kích thước4.3 GB
+          - generic [ref=e3830]: Tham số8.0B
+          - generic [ref=e3831]: QuantizationQ4_0
+          - generic [ref=e3832]: Cập nhật10:45 19/2/26
+        - button "Preview xóa" [ref=e3834] [cursor=pointer]
+      - article [ref=e3837]:
+        - generic [ref=e3838]:
+          - generic [ref=e3841]:
+            - heading "nomic-embed-text:latest" [level=3] [ref=e3842]
+            - text: nomic-bert
+          - generic [ref=e3843]: EMBED ACTIVE
+        - generic [ref=e3844]:
+          - generic [ref=e3845]: Kích thước261.6 MB
+          - generic [ref=e3846]: Tham số137M
+          - generic [ref=e3847]: QuantizationF16
+          - generic [ref=e3848]: Cập nhật22:57 25/2/26
+        - button "Preview xóa" [disabled] [ref=e3850]
+      - article [ref=e3853]:
+        - generic [ref=e3854]:
+          - generic [ref=e3857]:
+            - heading "qwen3:8b" [level=3] [ref=e3858]
+            - text: qwen3
+          - generic [ref=e3859]: CHAT ACTIVE
+        - generic [ref=e3860]:
+          - generic [ref=e3861]: Kích thước4.9 GB
+          - generic [ref=e3862]: Tham số8.2B
+          - generic [ref=e3863]: QuantizationQ4_K_M
+          - generic [ref=e3864]: Cập nhật10:22 19/2/26
+        - button "Preview xóa" [disabled] [ref=e3866]
+    - generic [ref=e3869]:
+      - generic [ref=e3870]:
+        - generic [ref=e3871]:
+          - paragraph [ref=e3872]: ACTIVATION · LIVE
+          - heading "Chọn model hoạt động" [level=2] [ref=e3873]
+        - generic [ref=e3874]: REINDEX-AWARE
+      - generic [ref=e3875]:
+        - generic [ref=e3876]:
+          - generic [ref=e3877]: Chat model
+          - combobox "Chat model" [ref=e3878] [cursor=pointer]:
+            - option "deepseek-v2:16b"
+            - option "gemini-3-flash-preview:latest"
+            - option "glm-4.7-flash:latest"
+            - option "glm-5:cloud"
+            - option "kimi-k2.5:cloud"
+            - option "llama3:8b"
+            - option "nomic-embed-text:latest"
+            - option "qwen3:8b" [selected]
+        - generic [ref=e3879]:
+          - generic [ref=e3880]: Embedding model
+          - combobox "Embedding model" [ref=e3881] [cursor=pointer]:
+            - option "deepseek-v2:16b"
+            - option "gemini-3-flash-preview:latest"
+            - option "glm-4.7-flash:latest"
+            - option "glm-5:cloud"
+            - option "kimi-k2.5:cloud"
+            - option "llama3:8b"
+            - option "nomic-embed-text:latest" [selected]
+            - option "qwen3:8b"
+        - button "Kích hoạt Ollama" [ref=e3882] [cursor=pointer]
+      - generic [ref=e3885]:
+        - generic [ref=e3888]: Embedding impact
+        - generic [ref=e3889]: Backend tự xác định vector dimension và tách kho Qdrant theo embedding model.

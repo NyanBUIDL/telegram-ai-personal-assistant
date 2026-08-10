@@ -1,0 +1,1671 @@
+- main [ref=f1e13]:
+  - generic [ref=f1e14]:
+    - generic [ref=f1e15]:
+      - button "Mở menu" [ref=f1e16] [cursor=pointer]
+      - generic [ref=f1e19]:
+        - paragraph [ref=f1e20]: TELEGRAM AI / KHO TRI THỨC
+        - heading "Kho tri thức" [level=1] [ref=f1e355]
+    - generic [ref=f1e22]:
+      - generic [ref=f1e23]: LIVE
+      - button "Thông báo" [ref=f1e25] [cursor=pointer]
+      - button "Hành động chờ" [ref=f1e28] [cursor=pointer]
+  - generic [ref=f1e356]:
+    - generic [ref=f1e357]:
+      - generic [ref=f1e358]:
+        - generic [ref=f1e361]: Tổng nguồn
+        - generic [ref=f1e362]: "298"
+        - generic [ref=f1e363]: MYSQL
+      - generic [ref=f1e364]:
+        - generic [ref=f1e367]: Đã học
+        - generic [ref=f1e368]: "98"
+        - generic [ref=f1e369]: 32.9% ĐỘ PHỦ
+      - generic [ref=f1e370]:
+        - generic [ref=f1e373]: Đang chờ / tạm dừng
+        - generic [ref=f1e374]: "0"
+        - generic [ref=f1e375]: QUEUE
+      - generic [ref=f1e376]:
+        - generic [ref=f1e379]: Chưa học / không có nội dung
+        - generic [ref=f1e380]: "200"
+        - generic [ref=f1e381]: ĐÃ RÀ SOÁT
+    - generic [ref=f1e382]:
+      - generic [ref=f1e383]:
+        - paragraph [ref=f1e384]: UNIFIED TELEGRAM BRAIN · LIVE
+        - heading "98/298 nguồn đang đóng góp vào bộ não chung." [level=2] [ref=f1e385]
+        - generic [ref=f1e386]: “Học” ở đây là đồng bộ nội dung được cấp quyền vào MySQL, làm sạch và tạo embedding để tìm kiếm ngữ nghĩa. Hệ thống không tự fine-tune model AI.
+        - generic [ref=f1e387]: "Quyền tự học: 100 nguồn · MySQL: 85.822 tin · Vector: 75.296 · lần học gần nhất: 00:03 25/7/26"
+      - button "Đưa nguồn còn thiếu vào bộ não" [ref=f1e388] [cursor=pointer]
+    - generic [ref=f1e391]:
+      - generic [ref=f1e392]:
+        - generic [ref=f1e393]:
+          - paragraph [ref=f1e394]: LEARNING INVENTORY · LIVE
+          - heading "Kho tri thức" [level=2] [ref=f1e395]
+        - generic [ref=f1e396]:
+          - group "Kiểu hiển thị nguồn" [ref=f1e397]:
+            - button "Bảng" [ref=f1e398] [cursor=pointer]
+            - button "Card" [ref=f1e399] [cursor=pointer]
+          - button "Xuất toàn bộ CSV" [ref=f1e400] [cursor=pointer]
+      - generic [ref=f1e403]:
+        - textbox [ref=f1e407]:
+          - /placeholder: Tìm tên, @username, Chat ID hoặc ghi chú…
+        - combobox [ref=f1e408] [cursor=pointer]:
+          - option "Tất cả trạng thái" [selected]
+          - option "Đã học"
+          - option "Đã học, lần cập nhật gần nhất lỗi"
+          - option "Đang chờ"
+          - option "Đang học"
+          - option "Lỗi"
+          - option "Chưa học"
+          - option "Không lấy được nội dung"
+        - combobox "Loại nguồn" [ref=f1e409] [cursor=pointer]:
+          - option "Mọi loại nguồn" [selected]
+          - option "Group"
+          - option "Supergroup"
+          - option "Channel"
+        - combobox "Quyền tự học" [ref=f1e410] [cursor=pointer]:
+          - 'option "AUTO: tất cả" [selected]'
+          - option "AUTO đang bật"
+          - option "AUTO đang tắt"
+        - combobox "Sắp xếp nguồn" [ref=f1e411] [cursor=pointer]:
+          - option "Sắp xếp theo tên" [selected]
+          - option "Theo trạng thái"
+          - option "Theo số tin"
+          - option "Theo vector"
+          - option "Theo dung lượng"
+          - option "Theo lần học"
+        - combobox "Chiều sắp xếp" [ref=f1e412] [cursor=pointer]:
+          - option "Tăng dần" [selected]
+          - option "Giảm dần"
+        - generic [ref=f1e413]:
+          - button "Pause tất cả" [ref=f1e414] [cursor=pointer]
+          - button "Resume tất cả" [ref=f1e417] [cursor=pointer]
+      - table [ref=f1e421]:
+        - rowgroup [ref=f1e422]:
+          - row [ref=f1e423]:
+            - columnheader [ref=f1e424]:
+              - checkbox "Chọn tất cả nguồn trên trang" [ref=f1e425]
+            - columnheader "Nguồn" [ref=f1e426]
+            - columnheader "Trạng thái" [ref=f1e427]
+            - columnheader "MySQL" [ref=f1e428]
+            - columnheader "Vector" [ref=f1e429]
+            - columnheader "Dung lượng" [ref=f1e430]
+            - columnheader "Thao tác" [ref=f1e431]
+        - rowgroup [ref=f1e432]:
+          - row [ref=f1e433]:
+            - cell [ref=f1e434]:
+              - checkbox "Chọn 5 Phút Crypto | Channel" [ref=f1e435]
+            - cell "5 Phút Crypto | Channel -1001376587105 · channel" [ref=f1e436]:
+              - text: 5 Phút Crypto | Channel
+              - generic [ref=f1e437]: "-1001376587105 · channel"
+            - cell "Learned AUTO ON" [ref=f1e438]:
+              - generic [ref=f1e439]: Learned
+              - generic [ref=f1e440]: AUTO ON
+            - cell "1.012 1.012 có nội dung" [ref=f1e441]:
+              - text: "1.012"
+              - generic [ref=f1e442]: 1.012 có nội dung
+            - cell "1.003" [ref=f1e443]
+            - cell "941 KB" [ref=f1e444]
+            - cell [ref=f1e445]:
+              - generic [ref=f1e446]:
+                - button "Ghi chú" [ref=f1e447] [cursor=pointer]
+                - button "Vector" [ref=f1e450] [cursor=pointer]
+          - row [ref=f1e453]:
+            - cell [ref=f1e454]:
+              - checkbox "Chọn 68 e dóp" [ref=f1e455]
+            - cell "68 e dóp -735232785 · group" [ref=f1e456]:
+              - text: 68 e dóp
+              - generic [ref=f1e457]: "-735232785 · group"
+            - cell "Not Learned AUTO OFF" [ref=f1e458]:
+              - generic [ref=f1e459]: Not Learned
+              - generic [ref=f1e460]: AUTO OFF
+            - cell "0 0 có nội dung" [ref=f1e461]:
+              - text: "0"
+              - generic [ref=f1e462]: 0 có nội dung
+            - cell "0" [ref=f1e463]
+            - cell "0 B" [ref=f1e464]
+            - cell [ref=f1e465]:
+              - generic [ref=f1e466]:
+                - button "Ghi chú" [ref=f1e467] [cursor=pointer]
+                - button "Vector" [disabled] [ref=f1e470]
+          - row [ref=f1e473]:
+            - cell [ref=f1e474]:
+              - checkbox "Chọn 68 Private Group" [ref=f1e475]
+            - cell "68 Private Group -806661590 · group" [ref=f1e476]:
+              - text: 68 Private Group
+              - generic [ref=f1e477]: "-806661590 · group"
+            - cell "Not Learned AUTO OFF" [ref=f1e478]:
+              - generic [ref=f1e479]: Not Learned
+              - generic [ref=f1e480]: AUTO OFF
+            - cell "0 0 có nội dung" [ref=f1e481]:
+              - text: "0"
+              - generic [ref=f1e482]: 0 có nội dung
+            - cell "0" [ref=f1e483]
+            - cell "0 B" [ref=f1e484]
+            - cell [ref=f1e485]:
+              - generic [ref=f1e486]:
+                - button "Ghi chú" [ref=f1e487] [cursor=pointer]
+                - button "Vector" [disabled] [ref=f1e490]
+          - row [ref=f1e493]:
+            - cell [ref=f1e494]:
+              - checkbox "Chọn 68 Research Signal" [ref=f1e495]
+            - cell "68 Research Signal -892143851 · group" [ref=f1e496]:
+              - text: 68 Research Signal
+              - generic [ref=f1e497]: "-892143851 · group"
+            - cell "Not Learned AUTO OFF" [ref=f1e498]:
+              - generic [ref=f1e499]: Not Learned
+              - generic [ref=f1e500]: AUTO OFF
+            - cell "0 0 có nội dung" [ref=f1e501]:
+              - text: "0"
+              - generic [ref=f1e502]: 0 có nội dung
+            - cell "0" [ref=f1e503]
+            - cell "0 B" [ref=f1e504]
+            - cell [ref=f1e505]:
+              - generic [ref=f1e506]:
+                - button "Ghi chú" [ref=f1e507] [cursor=pointer]
+                - button "Vector" [disabled] [ref=f1e510]
+          - row [ref=f1e513]:
+            - cell [ref=f1e514]:
+              - checkbox "Chọn 68 Trading & Seapad" [ref=f1e515]
+            - cell "68 Trading & Seapad -1002247863182 · supergroup" [ref=f1e516]:
+              - text: 68 Trading & Seapad
+              - generic [ref=f1e517]: "-1002247863182 · supergroup"
+            - cell "Not Learned AUTO OFF" [ref=f1e518]:
+              - generic [ref=f1e519]: Not Learned
+              - generic [ref=f1e520]: AUTO OFF
+            - cell "0 0 có nội dung" [ref=f1e521]:
+              - text: "0"
+              - generic [ref=f1e522]: 0 có nội dung
+            - cell "0" [ref=f1e523]
+            - cell "0 B" [ref=f1e524]
+            - cell [ref=f1e525]:
+              - generic [ref=f1e526]:
+                - button "Ghi chú" [ref=f1e527] [cursor=pointer]
+                - button "Vector" [disabled] [ref=f1e530]
+          - row [ref=f1e533]:
+            - cell [ref=f1e534]:
+              - checkbox "Chọn 68 Trading & Seapad" [ref=f1e535]
+            - cell "68 Trading & Seapad -4185012332 · group" [ref=f1e536]:
+              - text: 68 Trading & Seapad
+              - generic [ref=f1e537]: "-4185012332 · group"
+            - cell "Not Learned AUTO OFF" [ref=f1e538]:
+              - generic [ref=f1e539]: Not Learned
+              - generic [ref=f1e540]: AUTO OFF
+            - cell "0 0 có nội dung" [ref=f1e541]:
+              - text: "0"
+              - generic [ref=f1e542]: 0 có nội dung
+            - cell "0" [ref=f1e543]
+            - cell "0 B" [ref=f1e544]
+            - cell [ref=f1e545]:
+              - generic [ref=f1e546]:
+                - button "Ghi chú" [ref=f1e547] [cursor=pointer]
+                - button "Vector" [disabled] [ref=f1e550]
+          - row [ref=f1e553]:
+            - cell [ref=f1e554]:
+              - checkbox "Chọn 68 Trading <> CoinW" [ref=f1e555]
+            - cell "68 Trading <> CoinW -4029915915 · group" [ref=f1e556]:
+              - text: 68 Trading <> CoinW
+              - generic [ref=f1e557]: "-4029915915 · group"
+            - cell "Not Learned AUTO OFF" [ref=f1e558]:
+              - generic [ref=f1e559]: Not Learned
+              - generic [ref=f1e560]: AUTO OFF
+            - cell "0 0 có nội dung" [ref=f1e561]:
+              - text: "0"
+              - generic [ref=f1e562]: 0 có nội dung
+            - cell "0" [ref=f1e563]
+            - cell "0 B" [ref=f1e564]
+            - cell [ref=f1e565]:
+              - generic [ref=f1e566]:
+                - button "Ghi chú" [ref=f1e567] [cursor=pointer]
+                - button "Vector" [disabled] [ref=f1e570]
+          - row [ref=f1e573]:
+            - cell [ref=f1e574]:
+              - checkbox "Chọn 68KV Research Diary" [ref=f1e575]
+            - cell "68KV Research Diary -1001417604302 · channel" [ref=f1e576]:
+              - text: 68KV Research Diary
+              - generic [ref=f1e577]: "-1001417604302 · channel"
+            - cell "Not Learned AUTO OFF" [ref=f1e578]:
+              - generic [ref=f1e579]: Not Learned
+              - generic [ref=f1e580]: AUTO OFF
+            - cell "0 0 có nội dung" [ref=f1e581]:
+              - text: "0"
+              - generic [ref=f1e582]: 0 có nội dung
+            - cell "0" [ref=f1e583]
+            - cell "0 B" [ref=f1e584]
+            - cell [ref=f1e585]:
+              - generic [ref=f1e586]:
+                - button "Ghi chú" [ref=f1e587] [cursor=pointer]
+                - button "Vector" [disabled] [ref=f1e590]
+          - row [ref=f1e593]:
+            - cell [ref=f1e594]:
+              - checkbox "Chọn 68T AIRDROP TỔNG HỢP" [ref=f1e595]
+            - cell "68T AIRDROP TỔNG HỢP -4285057566 · group" [ref=f1e596]:
+              - text: 68T AIRDROP TỔNG HỢP
+              - generic [ref=f1e597]: "-4285057566 · group"
+            - cell "Not Learned AUTO OFF" [ref=f1e598]:
+              - generic [ref=f1e599]: Not Learned
+              - generic [ref=f1e600]: AUTO OFF
+            - cell "0 0 có nội dung" [ref=f1e601]:
+              - text: "0"
+              - generic [ref=f1e602]: 0 có nội dung
+            - cell "0" [ref=f1e603]
+            - cell "0 B" [ref=f1e604]
+            - cell [ref=f1e605]:
+              - generic [ref=f1e606]:
+                - button "Ghi chú" [ref=f1e607] [cursor=pointer]
+                - button "Vector" [disabled] [ref=f1e610]
+          - row [ref=f1e613]:
+            - cell [ref=f1e614]:
+              - checkbox "Chọn 68T Capital Airdrop Group" [ref=f1e615]
+            - cell "68T Capital Airdrop Group -1001930192988 · supergroup" [ref=f1e616]:
+              - text: 68T Capital Airdrop Group
+              - generic [ref=f1e617]: "-1001930192988 · supergroup"
+            - cell "Not Learned AUTO OFF" [ref=f1e618]:
+              - generic [ref=f1e619]: Not Learned
+              - generic [ref=f1e620]: AUTO OFF
+            - cell "0 0 có nội dung" [ref=f1e621]:
+              - text: "0"
+              - generic [ref=f1e622]: 0 có nội dung
+            - cell "0" [ref=f1e623]
+            - cell "0 B" [ref=f1e624]
+            - cell [ref=f1e625]:
+              - generic [ref=f1e626]:
+                - button "Ghi chú" [ref=f1e627] [cursor=pointer]
+                - button "Vector" [disabled] [ref=f1e630]
+          - row [ref=f1e633]:
+            - cell [ref=f1e634]:
+              - checkbox "Chọn 68T Capital Airdrop Group" [ref=f1e635]
+            - cell "68T Capital Airdrop Group -892773607 · group" [ref=f1e636]:
+              - text: 68T Capital Airdrop Group
+              - generic [ref=f1e637]: "-892773607 · group"
+            - cell "Not Learned AUTO OFF" [ref=f1e638]:
+              - generic [ref=f1e639]: Not Learned
+              - generic [ref=f1e640]: AUTO OFF
+            - cell "0 0 có nội dung" [ref=f1e641]:
+              - text: "0"
+              - generic [ref=f1e642]: 0 có nội dung
+            - cell "0" [ref=f1e643]
+            - cell "0 B" [ref=f1e644]
+            - cell [ref=f1e645]:
+              - generic [ref=f1e646]:
+                - button "Ghi chú" [ref=f1e647] [cursor=pointer]
+                - button "Vector" [disabled] [ref=f1e650]
+          - row [ref=f1e653]:
+            - cell [ref=f1e654]:
+              - checkbox "Chọn 68T Fund Project" [ref=f1e655]
+            - cell "68T Fund Project -1001922089638 · channel" [ref=f1e656]:
+              - text: 68T Fund Project
+              - generic [ref=f1e657]: "-1001922089638 · channel"
+            - cell "Not Learned AUTO OFF" [ref=f1e658]:
+              - generic [ref=f1e659]: Not Learned
+              - generic [ref=f1e660]: AUTO OFF
+            - cell "0 0 có nội dung" [ref=f1e661]:
+              - text: "0"
+              - generic [ref=f1e662]: 0 có nội dung
+            - cell "0" [ref=f1e663]
+            - cell "0 B" [ref=f1e664]
+            - cell [ref=f1e665]:
+              - generic [ref=f1e666]:
+                - button "Ghi chú" [ref=f1e667] [cursor=pointer]
+                - button "Vector" [disabled] [ref=f1e670]
+          - row [ref=f1e673]:
+            - cell [ref=f1e674]:
+              - checkbox "Chọn 68TRADING & BYBIT AID 85910" [ref=f1e675]
+            - cell "68TRADING & BYBIT AID 85910 -4238265610 · group" [ref=f1e676]:
+              - text: 68TRADING & BYBIT AID 85910
+              - generic [ref=f1e677]: "-4238265610 · group"
+            - cell "Not Learned AUTO OFF" [ref=f1e678]:
+              - generic [ref=f1e679]: Not Learned
+              - generic [ref=f1e680]: AUTO OFF
+            - cell "0 0 có nội dung" [ref=f1e681]:
+              - text: "0"
+              - generic [ref=f1e682]: 0 có nội dung
+            - cell "0" [ref=f1e683]
+            - cell "0 B" [ref=f1e684]
+            - cell [ref=f1e685]:
+              - generic [ref=f1e686]:
+                - button "Ghi chú" [ref=f1e687] [cursor=pointer]
+                - button "Vector" [disabled] [ref=f1e690]
+          - row [ref=f1e693]:
+            - cell [ref=f1e694]:
+              - checkbox "Chọn 68Trading & Spores" [ref=f1e695]
+            - cell "68Trading & Spores -1001992337397 · supergroup" [ref=f1e696]:
+              - text: 68Trading & Spores
+              - generic [ref=f1e697]: "-1001992337397 · supergroup"
+            - cell "Not Learned AUTO OFF" [ref=f1e698]:
+              - generic [ref=f1e699]: Not Learned
+              - generic [ref=f1e700]: AUTO OFF
+            - cell "0 0 có nội dung" [ref=f1e701]:
+              - text: "0"
+              - generic [ref=f1e702]: 0 có nội dung
+            - cell "0" [ref=f1e703]
+            - cell "0 B" [ref=f1e704]
+            - cell [ref=f1e705]:
+              - generic [ref=f1e706]:
+                - button "Ghi chú" [ref=f1e707] [cursor=pointer]
+                - button "Vector" [disabled] [ref=f1e710]
+          - row [ref=f1e713]:
+            - cell [ref=f1e714]:
+              - checkbox "Chọn 68trading Content" [ref=f1e715]
+            - cell "68trading Content -767134249 · group" [ref=f1e716]:
+              - text: 68trading Content
+              - generic [ref=f1e717]: "-767134249 · group"
+            - cell "Not Learned AUTO OFF" [ref=f1e718]:
+              - generic [ref=f1e719]: Not Learned
+              - generic [ref=f1e720]: AUTO OFF
+            - cell "0 0 có nội dung" [ref=f1e721]:
+              - text: "0"
+              - generic [ref=f1e722]: 0 có nội dung
+            - cell "0" [ref=f1e723]
+            - cell "0 B" [ref=f1e724]
+            - cell [ref=f1e725]:
+              - generic [ref=f1e726]:
+                - button "Ghi chú" [ref=f1e727] [cursor=pointer]
+                - button "Vector" [disabled] [ref=f1e730]
+          - row [ref=f1e733]:
+            - cell [ref=f1e734]:
+              - checkbox "Chọn 68trading gangz" [ref=f1e735]
+            - cell "68trading gangz -1001698114338 · supergroup" [ref=f1e736]:
+              - text: 68trading gangz
+              - generic [ref=f1e737]: "-1001698114338 · supergroup"
+            - cell "Learned AUTO ON" [ref=f1e738]:
+              - generic [ref=f1e739]: Learned
+              - generic [ref=f1e740]: AUTO ON
+            - cell "1.000 998 có nội dung" [ref=f1e741]:
+              - text: "1.000"
+              - generic [ref=f1e742]: 998 có nội dung
+            - cell "958" [ref=f1e743]
+            - cell "137 KB" [ref=f1e744]
+            - cell [ref=f1e745]:
+              - generic [ref=f1e746]:
+                - button "Ghi chú" [ref=f1e747] [cursor=pointer]
+                - button "Vector" [ref=f1e750] [cursor=pointer]
+          - row [ref=f1e753]:
+            - cell [ref=f1e754]:
+              - checkbox "Chọn 68trading gangz" [ref=f1e755]
+            - cell "68trading gangz -752237857 · group" [ref=f1e756]:
+              - text: 68trading gangz
+              - generic [ref=f1e757]: "-752237857 · group"
+            - cell "Not Learned AUTO OFF" [ref=f1e758]:
+              - generic [ref=f1e759]: Not Learned
+              - generic [ref=f1e760]: AUTO OFF
+            - cell "0 0 có nội dung" [ref=f1e761]:
+              - text: "0"
+              - generic [ref=f1e762]: 0 có nội dung
+            - cell "0" [ref=f1e763]
+            - cell "0 B" [ref=f1e764]
+            - cell [ref=f1e765]:
+              - generic [ref=f1e766]:
+                - button "Ghi chú" [ref=f1e767] [cursor=pointer]
+                - button "Vector" [disabled] [ref=f1e770]
+          - row [ref=f1e773]:
+            - cell [ref=f1e774]:
+              - checkbox "Chọn 68trading Gangz V2" [ref=f1e775]
+            - cell "68trading Gangz V2 -1001875525730 · supergroup" [ref=f1e776]:
+              - text: 68trading Gangz V2
+              - generic [ref=f1e777]: "-1001875525730 · supergroup"
+            - cell "Not Learned AUTO OFF" [ref=f1e778]:
+              - generic [ref=f1e779]: Not Learned
+              - generic [ref=f1e780]: AUTO OFF
+            - cell "0 0 có nội dung" [ref=f1e781]:
+              - text: "0"
+              - generic [ref=f1e782]: 0 có nội dung
+            - cell "0" [ref=f1e783]
+            - cell "0 B" [ref=f1e784]
+            - cell [ref=f1e785]:
+              - generic [ref=f1e786]:
+                - button "Ghi chú" [ref=f1e787] [cursor=pointer]
+                - button "Vector" [disabled] [ref=f1e790]
+          - row [ref=f1e793]:
+            - cell [ref=f1e794]:
+              - checkbox "Chọn [ALFA] Pirate Clash Guilds" [ref=f1e795]
+            - cell "[ALFA] Pirate Clash Guilds -1002135086290 · supergroup" [ref=f1e796]:
+              - text: "[ALFA] Pirate Clash Guilds"
+              - generic [ref=f1e797]: "-1002135086290 · supergroup"
+            - cell "Not Learned AUTO OFF" [ref=f1e798]:
+              - generic [ref=f1e799]: Not Learned
+              - generic [ref=f1e800]: AUTO OFF
+            - cell "0 0 có nội dung" [ref=f1e801]:
+              - text: "0"
+              - generic [ref=f1e802]: 0 có nội dung
+            - cell "0" [ref=f1e803]
+            - cell "0 B" [ref=f1e804]
+            - cell [ref=f1e805]:
+              - generic [ref=f1e806]:
+                - button "Ghi chú" [ref=f1e807] [cursor=pointer]
+                - button "Vector" [disabled] [ref=f1e810]
+          - row [ref=f1e813]:
+            - cell [ref=f1e814]:
+              - checkbox "Chọn [Web3 Matching] - Team Chạy Event" [ref=f1e815]
+            - cell "[Web3 Matching] - Team Chạy Event -839265733 · group" [ref=f1e816]:
+              - text: "[Web3 Matching] - Team Chạy Event"
+              - generic [ref=f1e817]: "-839265733 · group"
+            - cell "Not Learned AUTO OFF" [ref=f1e818]:
+              - generic [ref=f1e819]: Not Learned
+              - generic [ref=f1e820]: AUTO OFF
+            - cell "0 0 có nội dung" [ref=f1e821]:
+              - text: "0"
+              - generic [ref=f1e822]: 0 có nội dung
+            - cell "0" [ref=f1e823]
+            - cell "0 B" [ref=f1e824]
+            - cell [ref=f1e825]:
+              - generic [ref=f1e826]:
+                - button "Ghi chú" [ref=f1e827] [cursor=pointer]
+                - button "Vector" [disabled] [ref=f1e830]
+          - row [ref=f1e833]:
+            - cell [ref=f1e834]:
+              - checkbox "Chọn A8 Builder Jam (Hackathon)" [ref=f1e835]
+            - cell "A8 Builder Jam (Hackathon) -1002284492904 · supergroup" [ref=f1e836]:
+              - text: A8 Builder Jam (Hackathon)
+              - generic [ref=f1e837]: "-1002284492904 · supergroup"
+            - cell "Not Learned AUTO OFF" [ref=f1e838]:
+              - generic [ref=f1e839]: Not Learned
+              - generic [ref=f1e840]: AUTO OFF
+            - cell "0 0 có nội dung" [ref=f1e841]:
+              - text: "0"
+              - generic [ref=f1e842]: 0 có nội dung
+            - cell "0" [ref=f1e843]
+            - cell "0 B" [ref=f1e844]
+            - cell [ref=f1e845]:
+              - generic [ref=f1e846]:
+                - button "Ghi chú" [ref=f1e847] [cursor=pointer]
+                - button "Vector" [disabled] [ref=f1e850]
+          - row [ref=f1e853]:
+            - cell [ref=f1e854]:
+              - checkbox "Chọn A8 Builder Jam | Media Partners" [ref=f1e855]
+            - cell "A8 Builder Jam | Media Partners -1002456549543 · supergroup" [ref=f1e856]:
+              - text: A8 Builder Jam | Media Partners
+              - generic [ref=f1e857]: "-1002456549543 · supergroup"
+            - cell "Not Learned AUTO OFF" [ref=f1e858]:
+              - generic [ref=f1e859]: Not Learned
+              - generic [ref=f1e860]: AUTO OFF
+            - cell "0 0 có nội dung" [ref=f1e861]:
+              - text: "0"
+              - generic [ref=f1e862]: 0 có nội dung
+            - cell "0" [ref=f1e863]
+            - cell "0 B" [ref=f1e864]
+            - cell [ref=f1e865]:
+              - generic [ref=f1e866]:
+                - button "Ghi chú" [ref=f1e867] [cursor=pointer]
+                - button "Vector" [disabled] [ref=f1e870]
+          - row [ref=f1e873]:
+            - cell [ref=f1e874]:
+              - checkbox "Chọn A8 Builder Jam | Media Partners" [ref=f1e875]
+            - cell "A8 Builder Jam | Media Partners -4525008149 · group" [ref=f1e876]:
+              - text: A8 Builder Jam | Media Partners
+              - generic [ref=f1e877]: "-4525008149 · group"
+            - cell "Not Learned AUTO OFF" [ref=f1e878]:
+              - generic [ref=f1e879]: Not Learned
+              - generic [ref=f1e880]: AUTO OFF
+            - cell "0 0 có nội dung" [ref=f1e881]:
+              - text: "0"
+              - generic [ref=f1e882]: 0 có nội dung
+            - cell "0" [ref=f1e883]
+            - cell "0 B" [ref=f1e884]
+            - cell [ref=f1e885]:
+              - generic [ref=f1e886]:
+                - button "Ghi chú" [ref=f1e887] [cursor=pointer]
+                - button "Vector" [disabled] [ref=f1e890]
+          - row [ref=f1e893]:
+            - cell [ref=f1e894]:
+              - checkbox "Chọn A8 Discord Content" [ref=f1e895]
+            - cell "A8 Discord Content -518417172 · group" [ref=f1e896]:
+              - text: A8 Discord Content
+              - generic [ref=f1e897]: "-518417172 · group"
+            - cell "Not Learned AUTO OFF" [ref=f1e898]:
+              - generic [ref=f1e899]: Not Learned
+              - generic [ref=f1e900]: AUTO OFF
+            - cell "0 0 có nội dung" [ref=f1e901]:
+              - text: "0"
+              - generic [ref=f1e902]: 0 có nội dung
+            - cell "0" [ref=f1e903]
+            - cell "0 B" [ref=f1e904]
+            - cell [ref=f1e905]:
+              - generic [ref=f1e906]:
+                - button "Ghi chú" [ref=f1e907] [cursor=pointer]
+                - button "Vector" [disabled] [ref=f1e910]
+          - row [ref=f1e913]:
+            - cell [ref=f1e914]:
+              - checkbox "Chọn Acala Official Announcement" [ref=f1e915]
+            - cell "Acala Official Announcement -1001289653414 · channel" [ref=f1e916]:
+              - text: Acala Official Announcement
+              - generic [ref=f1e917]: "-1001289653414 · channel"
+            - cell "Not Learned AUTO OFF" [ref=f1e918]:
+              - generic [ref=f1e919]: Not Learned
+              - generic [ref=f1e920]: AUTO OFF
+            - cell "0 0 có nội dung" [ref=f1e921]:
+              - text: "0"
+              - generic [ref=f1e922]: 0 có nội dung
+            - cell "0" [ref=f1e923]
+            - cell "0 B" [ref=f1e924]
+            - cell [ref=f1e925]:
+              - generic [ref=f1e926]:
+                - button "Ghi chú" [ref=f1e927] [cursor=pointer]
+                - button "Vector" [disabled] [ref=f1e930]
+          - row [ref=f1e933]:
+            - cell [ref=f1e934]:
+              - checkbox "Chọn Airdrop & Retroactive Việt Nam" [ref=f1e935]
+            - cell "Airdrop & Retroactive Việt Nam -1001853296156 · channel" [ref=f1e936]:
+              - text: Airdrop & Retroactive Việt Nam
+              - generic [ref=f1e937]: "-1001853296156 · channel"
+            - cell "Learned AUTO ON" [ref=f1e938]:
+              - generic [ref=f1e939]: Learned
+              - generic [ref=f1e940]: AUTO ON
+            - cell "1.013 990 có nội dung" [ref=f1e941]:
+              - text: "1.013"
+              - generic [ref=f1e942]: 990 có nội dung
+            - cell "898" [ref=f1e943]
+            - cell "328 KB" [ref=f1e944]
+            - cell [ref=f1e945]:
+              - generic [ref=f1e946]:
+                - button "Ghi chú" [ref=f1e947] [cursor=pointer]
+                - button "Vector" [ref=f1e950] [cursor=pointer]
+          - row [ref=f1e953]:
+            - cell [ref=f1e954]:
+              - checkbox "Chọn ALL HANDS GMVN (SSID X KYROS)" [ref=f1e955]
+            - cell "ALL HANDS GMVN (SSID X KYROS) -1002387027694 · supergroup" [ref=f1e956]:
+              - text: ALL HANDS GMVN (SSID X KYROS)
+              - generic [ref=f1e957]: "-1002387027694 · supergroup"
+            - cell "Not Learned AUTO OFF" [ref=f1e958]:
+              - generic [ref=f1e959]: Not Learned
+              - generic [ref=f1e960]: AUTO OFF
+            - cell "0 0 có nội dung" [ref=f1e961]:
+              - text: "0"
+              - generic [ref=f1e962]: 0 có nội dung
+            - cell "0" [ref=f1e963]
+            - cell "0 B" [ref=f1e964]
+            - cell [ref=f1e965]:
+              - generic [ref=f1e966]:
+                - button "Ghi chú" [ref=f1e967] [cursor=pointer]
+                - button "Vector" [disabled] [ref=f1e970]
+          - row [ref=f1e973]:
+            - cell [ref=f1e974]:
+              - checkbox "Chọn ALL THINGS SPEAKERSHIP GM 2024" [ref=f1e975]
+            - cell "ALL THINGS SPEAKERSHIP GM 2024 -1002172440770 · supergroup" [ref=f1e976]:
+              - text: ALL THINGS SPEAKERSHIP GM 2024
+              - generic [ref=f1e977]: "-1002172440770 · supergroup"
+            - cell "Not Learned AUTO OFF" [ref=f1e978]:
+              - generic [ref=f1e979]: Not Learned
+              - generic [ref=f1e980]: AUTO OFF
+            - cell "0 0 có nội dung" [ref=f1e981]:
+              - text: "0"
+              - generic [ref=f1e982]: 0 có nội dung
+            - cell "0" [ref=f1e983]
+            - cell "0 B" [ref=f1e984]
+            - cell [ref=f1e985]:
+              - generic [ref=f1e986]:
+                - button "Ghi chú" [ref=f1e987] [cursor=pointer]
+                - button "Vector" [disabled] [ref=f1e990]
+          - row [ref=f1e993]:
+            - cell [ref=f1e994]:
+              - checkbox "Chọn ALL THINGS SPEAKERSHIP GM 2024" [ref=f1e995]
+            - cell "ALL THINGS SPEAKERSHIP GM 2024 -4083419773 · group" [ref=f1e996]:
+              - text: ALL THINGS SPEAKERSHIP GM 2024
+              - generic [ref=f1e997]: "-4083419773 · group"
+            - cell "Not Learned AUTO OFF" [ref=f1e998]:
+              - generic [ref=f1e999]: Not Learned
+              - generic [ref=f1e1000]: AUTO OFF
+            - cell "0 0 có nội dung" [ref=f1e1001]:
+              - text: "0"
+              - generic [ref=f1e1002]: 0 có nội dung
+            - cell "0" [ref=f1e1003]
+            - cell "0 B" [ref=f1e1004]
+            - cell [ref=f1e1005]:
+              - generic [ref=f1e1006]:
+                - button "Ghi chú" [ref=f1e1007] [cursor=pointer]
+                - button "Vector" [disabled] [ref=f1e1010]
+          - row [ref=f1e1013]:
+            - cell [ref=f1e1014]:
+              - checkbox "Chọn Ancient8 Builder Jam" [ref=f1e1015]
+            - cell "Ancient8 Builder Jam -1002433328361 · supergroup" [ref=f1e1016]:
+              - text: Ancient8 Builder Jam
+              - generic [ref=f1e1017]: "-1002433328361 · supergroup"
+            - cell "Learned AUTO ON" [ref=f1e1018]:
+              - generic [ref=f1e1019]: Learned
+              - generic [ref=f1e1020]: AUTO ON
+            - cell "471 394 có nội dung" [ref=f1e1021]:
+              - text: "471"
+              - generic [ref=f1e1022]: 394 có nội dung
+            - cell "385" [ref=f1e1023]
+            - cell "44 KB" [ref=f1e1024]
+            - cell [ref=f1e1025]:
+              - generic [ref=f1e1026]:
+                - button "Ghi chú" [ref=f1e1027] [cursor=pointer]
+                - button "Vector" [ref=f1e1030] [cursor=pointer]
+          - row [ref=f1e1033]:
+            - cell [ref=f1e1034]:
+              - checkbox "Chọn Ancient8 Builder Jam - Channel" [ref=f1e1035]
+            - cell "Ancient8 Builder Jam - Channel -1002368268810 · channel" [ref=f1e1036]:
+              - text: Ancient8 Builder Jam - Channel
+              - generic [ref=f1e1037]: "-1002368268810 · channel"
+            - cell "Not Learned AUTO OFF" [ref=f1e1038]:
+              - generic [ref=f1e1039]: Not Learned
+              - generic [ref=f1e1040]: AUTO OFF
+            - cell "0 0 có nội dung" [ref=f1e1041]:
+              - text: "0"
+              - generic [ref=f1e1042]: 0 có nội dung
+            - cell "0" [ref=f1e1043]
+            - cell "0 B" [ref=f1e1044]
+            - cell [ref=f1e1045]:
+              - generic [ref=f1e1046]:
+                - button "Ghi chú" [ref=f1e1047] [cursor=pointer]
+                - button "Vector" [disabled] [ref=f1e1050]
+          - row [ref=f1e1053]:
+            - cell [ref=f1e1054]:
+              - checkbox "Chọn Ancient8 Lounge" [ref=f1e1055]
+            - cell "Ancient8 Lounge -1001643869474 · supergroup" [ref=f1e1056]:
+              - text: Ancient8 Lounge
+              - generic [ref=f1e1057]: "-1001643869474 · supergroup"
+            - cell "Not Learned AUTO OFF" [ref=f1e1058]:
+              - generic [ref=f1e1059]: Not Learned
+              - generic [ref=f1e1060]: AUTO OFF
+            - cell "0 0 có nội dung" [ref=f1e1061]:
+              - text: "0"
+              - generic [ref=f1e1062]: 0 có nội dung
+            - cell "0" [ref=f1e1063]
+            - cell "0 B" [ref=f1e1064]
+            - cell [ref=f1e1065]:
+              - generic [ref=f1e1066]:
+                - button "Ghi chú" [ref=f1e1067] [cursor=pointer]
+                - button "Vector" [disabled] [ref=f1e1070]
+          - row [ref=f1e1073]:
+            - cell [ref=f1e1074]:
+              - checkbox "Chọn AntiAntiNFTs Club - Channel 🪬" [ref=f1e1075]
+            - cell "AntiAntiNFTs Club - Channel 🪬 -1001791859684 · channel" [ref=f1e1076]:
+              - text: AntiAntiNFTs Club - Channel 🪬
+              - generic [ref=f1e1077]: "-1001791859684 · channel"
+            - cell "Learned AUTO ON" [ref=f1e1078]:
+              - generic [ref=f1e1079]: Learned
+              - generic [ref=f1e1080]: AUTO ON
+            - cell "1.000 991 có nội dung" [ref=f1e1081]:
+              - text: "1.000"
+              - generic [ref=f1e1082]: 991 có nội dung
+            - cell "938" [ref=f1e1083]
+            - cell "337 KB" [ref=f1e1084]
+            - cell [ref=f1e1085]:
+              - generic [ref=f1e1086]:
+                - button "Ghi chú" [ref=f1e1087] [cursor=pointer]
+                - button "Vector" [ref=f1e1090] [cursor=pointer]
+          - row [ref=f1e1093]:
+            - cell [ref=f1e1094]:
+              - checkbox "Chọn Asia Market Report" [ref=f1e1095]
+            - cell "Asia Market Report -1002022048823 · supergroup" [ref=f1e1096]:
+              - text: Asia Market Report
+              - generic [ref=f1e1097]: "-1002022048823 · supergroup"
+            - cell "Not Learned AUTO OFF" [ref=f1e1098]:
+              - generic [ref=f1e1099]: Not Learned
+              - generic [ref=f1e1100]: AUTO OFF
+            - cell "0 0 có nội dung" [ref=f1e1101]:
+              - text: "0"
+              - generic [ref=f1e1102]: 0 có nội dung
+            - cell "0" [ref=f1e1103]
+            - cell "0 B" [ref=f1e1104]
+            - cell [ref=f1e1105]:
+              - generic [ref=f1e1106]:
+                - button "Ghi chú" [ref=f1e1107] [cursor=pointer]
+                - button "Vector" [disabled] [ref=f1e1110]
+          - row [ref=f1e1113]:
+            - cell [ref=f1e1114]:
+              - checkbox "Chọn Bad-min-ton 🏸 (ex Dapp.exe 🚲 & Bóng dưa chuột 🏏)" [ref=f1e1115]
+            - cell "Bad-min-ton 🏸 (ex Dapp.exe 🚲 & Bóng dưa chuột 🏏) -1002051944598 · supergroup" [ref=f1e1116]:
+              - text: Bad-min-ton 🏸 (ex Dapp.exe 🚲 & Bóng dưa chuột 🏏)
+              - generic [ref=f1e1117]: "-1002051944598 · supergroup"
+            - cell "Learned AUTO ON" [ref=f1e1118]:
+              - generic [ref=f1e1119]: Learned
+              - generic [ref=f1e1120]: AUTO ON
+            - cell "1.004 1.002 có nội dung" [ref=f1e1121]:
+              - text: "1.004"
+              - generic [ref=f1e1122]: 1.002 có nội dung
+            - cell "736" [ref=f1e1123]
+            - cell "26 KB" [ref=f1e1124]
+            - cell [ref=f1e1125]:
+              - generic [ref=f1e1126]:
+                - button "Ghi chú" [ref=f1e1127] [cursor=pointer]
+                - button "Vector" [ref=f1e1130] [cursor=pointer]
+          - row [ref=f1e1133]:
+            - cell [ref=f1e1134]:
+              - checkbox "Chọn Binance AMA <> 68 Trading" [ref=f1e1135]
+            - cell "Binance AMA <> 68 Trading -1001623123463 · supergroup" [ref=f1e1136]:
+              - text: Binance AMA <> 68 Trading
+              - generic [ref=f1e1137]: "-1001623123463 · supergroup"
+            - cell "Not Learned AUTO OFF" [ref=f1e1138]:
+              - generic [ref=f1e1139]: Not Learned
+              - generic [ref=f1e1140]: AUTO OFF
+            - cell "0 0 có nội dung" [ref=f1e1141]:
+              - text: "0"
+              - generic [ref=f1e1142]: 0 có nội dung
+            - cell "0" [ref=f1e1143]
+            - cell "0 B" [ref=f1e1144]
+            - cell [ref=f1e1145]:
+              - generic [ref=f1e1146]:
+                - button "Ghi chú" [ref=f1e1147] [cursor=pointer]
+                - button "Vector" [disabled] [ref=f1e1150]
+          - row [ref=f1e1153]:
+            - cell [ref=f1e1154]:
+              - checkbox "Chọn Binance AMA <> 68 Trading" [ref=f1e1155]
+            - cell "Binance AMA <> 68 Trading -819386170 · group" [ref=f1e1156]:
+              - text: Binance AMA <> 68 Trading
+              - generic [ref=f1e1157]: "-819386170 · group"
+            - cell "Not Learned AUTO OFF" [ref=f1e1158]:
+              - generic [ref=f1e1159]: Not Learned
+              - generic [ref=f1e1160]: AUTO OFF
+            - cell "0 0 có nội dung" [ref=f1e1161]:
+              - text: "0"
+              - generic [ref=f1e1162]: 0 có nội dung
+            - cell "0" [ref=f1e1163]
+            - cell "0 B" [ref=f1e1164]
+            - cell [ref=f1e1165]:
+              - generic [ref=f1e1166]:
+                - button "Ghi chú" [ref=f1e1167] [cursor=pointer]
+                - button "Vector" [disabled] [ref=f1e1170]
+          - row [ref=f1e1173]:
+            - cell [ref=f1e1174]:
+              - checkbox "Chọn Binance Announcements" [ref=f1e1175]
+            - cell "Binance Announcements -1001146915409 · channel" [ref=f1e1176]:
+              - text: Binance Announcements
+              - generic [ref=f1e1177]: "-1001146915409 · channel"
+            - cell "Learned AUTO ON" [ref=f1e1178]:
+              - generic [ref=f1e1179]: Learned
+              - generic [ref=f1e1180]: AUTO ON
+            - cell "1.004 1.004 có nội dung" [ref=f1e1181]:
+              - text: "1.004"
+              - generic [ref=f1e1182]: 1.004 có nội dung
+            - cell "763" [ref=f1e1183]
+            - cell "308 KB" [ref=f1e1184]
+            - cell [ref=f1e1185]:
+              - generic [ref=f1e1186]:
+                - button "Ghi chú" [ref=f1e1187] [cursor=pointer]
+                - button "Vector" [ref=f1e1190] [cursor=pointer]
+          - row [ref=f1e1193]:
+            - cell [ref=f1e1194]:
+              - checkbox "Chọn Binance Futures Liquidations" [ref=f1e1195]
+            - cell "Binance Futures Liquidations -1001260161873 · channel" [ref=f1e1196]:
+              - text: Binance Futures Liquidations
+              - generic [ref=f1e1197]: "-1001260161873 · channel"
+            - cell "Learned AUTO ON" [ref=f1e1198]:
+              - generic [ref=f1e1199]: Learned
+              - generic [ref=f1e1200]: AUTO ON
+            - cell "1.673 1.671 có nội dung" [ref=f1e1201]:
+              - text: "1.673"
+              - generic [ref=f1e1202]: 1.671 có nội dung
+            - cell "1.430" [ref=f1e1203]
+            - cell "74 KB" [ref=f1e1204]
+            - cell [ref=f1e1205]:
+              - generic [ref=f1e1206]:
+                - button "Ghi chú" [ref=f1e1207] [cursor=pointer]
+                - button "Vector" [ref=f1e1210] [cursor=pointer]
+          - row [ref=f1e1213]:
+            - cell [ref=f1e1214]:
+              - checkbox "Chọn Binance Moonbix Announcements" [ref=f1e1215]
+            - cell "Binance Moonbix Announcements -1002215700757 · channel" [ref=f1e1216]:
+              - text: Binance Moonbix Announcements
+              - generic [ref=f1e1217]: "-1002215700757 · channel"
+            - cell "Not Learned AUTO OFF" [ref=f1e1218]:
+              - generic [ref=f1e1219]: Not Learned
+              - generic [ref=f1e1220]: AUTO OFF
+            - cell "0 0 có nội dung" [ref=f1e1221]:
+              - text: "0"
+              - generic [ref=f1e1222]: 0 có nội dung
+            - cell "0" [ref=f1e1223]
+            - cell "0 B" [ref=f1e1224]
+            - cell [ref=f1e1225]:
+              - generic [ref=f1e1226]:
+                - button "Ghi chú" [ref=f1e1227] [cursor=pointer]
+                - button "Vector" [disabled] [ref=f1e1230]
+          - row [ref=f1e1233]:
+            - cell [ref=f1e1234]:
+              - checkbox "Chọn Bitlayer<>KOLVietnam" [ref=f1e1235]
+            - cell "Bitlayer<>KOLVietnam -1002018049263 · supergroup" [ref=f1e1236]:
+              - text: Bitlayer<>KOLVietnam
+              - generic [ref=f1e1237]: "-1002018049263 · supergroup"
+            - cell "Learned AUTO ON" [ref=f1e1238]:
+              - generic [ref=f1e1239]: Learned
+              - generic [ref=f1e1240]: AUTO ON
+            - cell "1.000 995 có nội dung" [ref=f1e1241]:
+              - text: "1.000"
+              - generic [ref=f1e1242]: 995 có nội dung
+            - cell "863" [ref=f1e1243]
+            - cell "30 KB" [ref=f1e1244]
+            - cell [ref=f1e1245]:
+              - generic [ref=f1e1246]:
+                - button "Ghi chú" [ref=f1e1247] [cursor=pointer]
+                - button "Vector" [ref=f1e1250] [cursor=pointer]
+          - row [ref=f1e1253]:
+            - cell [ref=f1e1254]:
+              - checkbox "Chọn BlockSec <> GM VIETNAM" [ref=f1e1255]
+            - cell "BlockSec <> GM VIETNAM -1001990435894 · supergroup" [ref=f1e1256]:
+              - text: BlockSec <> GM VIETNAM
+              - generic [ref=f1e1257]: "-1001990435894 · supergroup"
+            - cell "Not Learned AUTO OFF" [ref=f1e1258]:
+              - generic [ref=f1e1259]: Not Learned
+              - generic [ref=f1e1260]: AUTO OFF
+            - cell "0 0 có nội dung" [ref=f1e1261]:
+              - text: "0"
+              - generic [ref=f1e1262]: 0 có nội dung
+            - cell "0" [ref=f1e1263]
+            - cell "0 B" [ref=f1e1264]
+            - cell [ref=f1e1265]:
+              - generic [ref=f1e1266]:
+                - button "Ghi chú" [ref=f1e1267] [cursor=pointer]
+                - button "Vector" [disabled] [ref=f1e1270]
+          - row [ref=f1e1273]:
+            - cell [ref=f1e1274]:
+              - 'checkbox "Chọn Blum: All Crypto – One App" [ref=f1e1275]'
+            - 'cell "Blum: All Crypto – One App -1002039438207 · channel" [ref=f1e1276]':
+              - text: "Blum: All Crypto – One App"
+              - generic [ref=f1e1277]: "-1002039438207 · channel"
+            - cell "Learned AUTO ON" [ref=f1e1278]:
+              - generic [ref=f1e1279]: Learned
+              - generic [ref=f1e1280]: AUTO ON
+            - cell "1.001 959 có nội dung" [ref=f1e1281]:
+              - text: "1.001"
+              - generic [ref=f1e1282]: 959 có nội dung
+            - cell "891" [ref=f1e1283]
+            - cell "392 KB" [ref=f1e1284]
+            - cell [ref=f1e1285]:
+              - generic [ref=f1e1286]:
+                - button "Ghi chú" [ref=f1e1287] [cursor=pointer]
+                - button "Vector" [ref=f1e1290] [cursor=pointer]
+          - row [ref=f1e1293]:
+            - cell [ref=f1e1294]:
+              - checkbox "Chọn Boom Community" [ref=f1e1295]
+            - cell "Boom Community -1001928309549 · supergroup" [ref=f1e1296]:
+              - text: Boom Community
+              - generic [ref=f1e1297]: "-1001928309549 · supergroup"
+            - cell "Learned AUTO ON" [ref=f1e1298]:
+              - generic [ref=f1e1299]: Learned
+              - generic [ref=f1e1300]: AUTO ON
+            - cell "1.007 1.007 có nội dung" [ref=f1e1301]:
+              - text: "1.007"
+              - generic [ref=f1e1302]: 1.007 có nội dung
+            - cell "1.005" [ref=f1e1303]
+            - cell "43 KB" [ref=f1e1304]
+            - cell [ref=f1e1305]:
+              - generic [ref=f1e1306]:
+                - button "Ghi chú" [ref=f1e1307] [cursor=pointer]
+                - button "Vector" [ref=f1e1310] [cursor=pointer]
+          - row [ref=f1e1313]:
+            - cell [ref=f1e1314]:
+              - checkbox "Chọn Bot C68 Project" [ref=f1e1315]
+            - cell "Bot C68 Project -1001831154382 · supergroup" [ref=f1e1316]:
+              - text: Bot C68 Project
+              - generic [ref=f1e1317]: "-1001831154382 · supergroup"
+            - cell "Not Learned AUTO OFF" [ref=f1e1318]:
+              - generic [ref=f1e1319]: Not Learned
+              - generic [ref=f1e1320]: AUTO OFF
+            - cell "0 0 có nội dung" [ref=f1e1321]:
+              - text: "0"
+              - generic [ref=f1e1322]: 0 có nội dung
+            - cell "0" [ref=f1e1323]
+            - cell "0 B" [ref=f1e1324]
+            - cell [ref=f1e1325]:
+              - generic [ref=f1e1326]:
+                - button "Ghi chú" [ref=f1e1327] [cursor=pointer]
+                - button "Vector" [disabled] [ref=f1e1330]
+          - row [ref=f1e1333]:
+            - cell [ref=f1e1334]:
+              - checkbox "Chọn Bot C68 Project" [ref=f1e1335]
+            - cell "Bot C68 Project -800217170 · group" [ref=f1e1336]:
+              - text: Bot C68 Project
+              - generic [ref=f1e1337]: "-800217170 · group"
+            - cell "Not Learned AUTO OFF" [ref=f1e1338]:
+              - generic [ref=f1e1339]: Not Learned
+              - generic [ref=f1e1340]: AUTO OFF
+            - cell "0 0 có nội dung" [ref=f1e1341]:
+              - text: "0"
+              - generic [ref=f1e1342]: 0 có nội dung
+            - cell "0" [ref=f1e1343]
+            - cell "0 B" [ref=f1e1344]
+            - cell [ref=f1e1345]:
+              - generic [ref=f1e1346]:
+                - button "Ghi chú" [ref=f1e1347] [cursor=pointer]
+                - button "Vector" [disabled] [ref=f1e1350]
+          - row [ref=f1e1353]:
+            - cell [ref=f1e1354]:
+              - checkbox "Chọn Brian Daily Trader" [ref=f1e1355]
+            - cell "Brian Daily Trader -1001733799925 · channel" [ref=f1e1356]:
+              - text: Brian Daily Trader
+              - generic [ref=f1e1357]: "-1001733799925 · channel"
+            - cell "Not Learned AUTO OFF" [ref=f1e1358]:
+              - generic [ref=f1e1359]: Not Learned
+              - generic [ref=f1e1360]: AUTO OFF
+            - cell "0 0 có nội dung" [ref=f1e1361]:
+              - text: "0"
+              - generic [ref=f1e1362]: 0 có nội dung
+            - cell "0" [ref=f1e1363]
+            - cell "0 B" [ref=f1e1364]
+            - cell [ref=f1e1365]:
+              - generic [ref=f1e1366]:
+                - button "Ghi chú" [ref=f1e1367] [cursor=pointer]
+                - button "Vector" [disabled] [ref=f1e1370]
+          - row [ref=f1e1373]:
+            - cell [ref=f1e1374]:
+              - checkbox "Chọn Brian DoMarr | Kyros Ventures" [ref=f1e1375]
+            - cell "Brian DoMarr | Kyros Ventures -1001724211352 · channel" [ref=f1e1376]:
+              - text: Brian DoMarr | Kyros Ventures
+              - generic [ref=f1e1377]: "-1001724211352 · channel"
+            - cell "Not Learned AUTO OFF" [ref=f1e1378]:
+              - generic [ref=f1e1379]: Not Learned
+              - generic [ref=f1e1380]: AUTO OFF
+            - cell "0 0 có nội dung" [ref=f1e1381]:
+              - text: "0"
+              - generic [ref=f1e1382]: 0 có nội dung
+            - cell "0" [ref=f1e1383]
+            - cell "0 B" [ref=f1e1384]
+            - cell [ref=f1e1385]:
+              - generic [ref=f1e1386]:
+                - button "Ghi chú" [ref=f1e1387] [cursor=pointer]
+                - button "Vector" [disabled] [ref=f1e1390]
+          - row [ref=f1e1393]:
+            - cell [ref=f1e1394]:
+              - checkbox "Chọn Buidlpad Official" [ref=f1e1395]
+            - cell "Buidlpad Official -1002331322961 · channel" [ref=f1e1396]:
+              - text: Buidlpad Official
+              - generic [ref=f1e1397]: "-1002331322961 · channel"
+            - cell "Learned AUTO ON" [ref=f1e1398]:
+              - generic [ref=f1e1399]: Learned
+              - generic [ref=f1e1400]: AUTO ON
+            - cell "140 135 có nội dung" [ref=f1e1401]:
+              - text: "140"
+              - generic [ref=f1e1402]: 135 có nội dung
+            - cell "131" [ref=f1e1403]
+            - cell "69 KB" [ref=f1e1404]
+            - cell [ref=f1e1405]:
+              - generic [ref=f1e1406]:
+                - button "Ghi chú" [ref=f1e1407] [cursor=pointer]
+                - button "Vector" [ref=f1e1410] [cursor=pointer]
+          - row [ref=f1e1413]:
+            - cell [ref=f1e1414]:
+              - checkbox "Chọn C98 Customer Service" [ref=f1e1415]
+            - cell "C98 Customer Service -4692506935 · group" [ref=f1e1416]:
+              - text: C98 Customer Service
+              - generic [ref=f1e1417]: "-4692506935 · group"
+            - cell "Not Learned AUTO OFF" [ref=f1e1418]:
+              - generic [ref=f1e1419]: Not Learned
+              - generic [ref=f1e1420]: AUTO OFF
+            - cell "0 0 có nội dung" [ref=f1e1421]:
+              - text: "0"
+              - generic [ref=f1e1422]: 0 có nội dung
+            - cell "0" [ref=f1e1423]
+            - cell "0 B" [ref=f1e1424]
+            - cell [ref=f1e1425]:
+              - generic [ref=f1e1426]:
+                - button "Ghi chú" [ref=f1e1427] [cursor=pointer]
+                - button "Vector" [disabled] [ref=f1e1430]
+      - generic [ref=f1e1433]:
+        - generic [ref=f1e1434]: Trang 1/6 · 298 nguồn
+        - generic [ref=f1e1435]:
+          - generic [ref=f1e1436]: Số dòng
+          - combobox "Số dòng" [ref=f1e1437] [cursor=pointer]:
+            - option "10"
+            - option "25"
+            - option "50" [selected]
+            - option "100"
+        - generic [ref=f1e1438]:
+          - button "Trước" [disabled] [ref=f1e1439]
+          - button "Sau" [ref=f1e1442] [cursor=pointer]
+    - generic [ref=f1e1445]:
+      - generic [ref=f1e1446]:
+        - generic [ref=f1e1447]:
+          - paragraph [ref=f1e1448]: BACKGROUND JOBS · LIVE
+          - heading "Tiến trình học" [level=2] [ref=f1e1449]
+        - generic [ref=f1e1450]: 20 JOB
+      - generic [ref=f1e1451]:
+        - article [ref=f1e1452]:
+          - generic [ref=f1e1453]:
+            - generic [ref=f1e1454]:
+              - generic [ref=f1e1455]: JOB 30a8fdcc-5cf4-4bc8-8e7a-c7c75ab257af
+              - heading "Binance Futures Liquidations" [level=3] [ref=f1e1456]
+            - generic [ref=f1e1457]: Hoàn tất
+          - generic [ref=f1e1458]:
+            - generic [ref=f1e1459]:
+              - generic [ref=f1e1460]: Hoàn tất
+              - generic [ref=f1e1461]: 100%
+            - progressbar "Tiến độ 100%" [ref=f1e1462]
+          - generic [ref=f1e1464]:
+            - generic [ref=f1e1465]:
+              - term [ref=f1e1466]: Processed / total
+              - definition [ref=f1e1467]: —
+            - generic [ref=f1e1468]:
+              - term [ref=f1e1469]: Tin đã sync
+              - definition [ref=f1e1470]: "9"
+            - generic [ref=f1e1471]:
+              - term [ref=f1e1472]: Vector đã tạo
+              - definition [ref=f1e1473]: "1.000"
+            - generic [ref=f1e1474]:
+              - term [ref=f1e1475]: Thời lượng
+              - definition [ref=f1e1476]: 0 giây
+            - generic [ref=f1e1477]:
+              - term [ref=f1e1478]: Cập nhật
+              - definition [ref=f1e1479]: 23:50 24/7/26
+            - generic [ref=f1e1480]:
+              - term [ref=f1e1481]: Attempts
+              - definition [ref=f1e1482]: 1/3
+          - generic [ref=f1e1483]:
+            - text: Lỗi gần nhất
+            - paragraph [ref=f1e1484]: Không có
+        - article [ref=f1e1486]:
+          - generic [ref=f1e1487]:
+            - generic [ref=f1e1488]:
+              - generic [ref=f1e1489]: JOB 03409800-6590-4c49-92c5-83f357200ee7
+              - heading "Upside - Chat" [level=3] [ref=f1e1490]
+            - generic [ref=f1e1491]: Hoàn tất
+          - generic [ref=f1e1492]:
+            - generic [ref=f1e1493]:
+              - generic [ref=f1e1494]: Hoàn tất
+              - generic [ref=f1e1495]: 100%
+            - progressbar "Tiến độ 100%" [ref=f1e1496]
+          - generic [ref=f1e1498]:
+            - generic [ref=f1e1499]:
+              - term [ref=f1e1500]: Processed / total
+              - definition [ref=f1e1501]: —
+            - generic [ref=f1e1502]:
+              - term [ref=f1e1503]: Tin đã sync
+              - definition [ref=f1e1504]: "0"
+            - generic [ref=f1e1505]:
+              - term [ref=f1e1506]: Vector đã tạo
+              - definition [ref=f1e1507]: "738"
+            - generic [ref=f1e1508]:
+              - term [ref=f1e1509]: Thời lượng
+              - definition [ref=f1e1510]: 0 giây
+            - generic [ref=f1e1511]:
+              - term [ref=f1e1512]: Cập nhật
+              - definition [ref=f1e1513]: 23:41 24/7/26
+            - generic [ref=f1e1514]:
+              - term [ref=f1e1515]: Attempts
+              - definition [ref=f1e1516]: 1/3
+          - generic [ref=f1e1517]:
+            - text: Lỗi gần nhất
+            - paragraph [ref=f1e1518]: Không có
+        - article [ref=f1e1520]:
+          - generic [ref=f1e1521]:
+            - generic [ref=f1e1522]:
+              - generic [ref=f1e1523]: JOB 9e310414-718c-4e5f-a0d1-734313fc26cb
+              - heading "SD Capital 2" [level=3] [ref=f1e1524]
+            - generic [ref=f1e1525]: Hoàn tất
+          - generic [ref=f1e1526]:
+            - generic [ref=f1e1527]:
+              - generic [ref=f1e1528]: Hoàn tất
+              - generic [ref=f1e1529]: 100%
+            - progressbar "Tiến độ 100%" [ref=f1e1530]
+          - generic [ref=f1e1532]:
+            - generic [ref=f1e1533]:
+              - term [ref=f1e1534]: Processed / total
+              - definition [ref=f1e1535]: —
+            - generic [ref=f1e1536]:
+              - term [ref=f1e1537]: Tin đã sync
+              - definition [ref=f1e1538]: "0"
+            - generic [ref=f1e1539]:
+              - term [ref=f1e1540]: Vector đã tạo
+              - definition [ref=f1e1541]: "8"
+            - generic [ref=f1e1542]:
+              - term [ref=f1e1543]: Thời lượng
+              - definition [ref=f1e1544]: 0 giây
+            - generic [ref=f1e1545]:
+              - term [ref=f1e1546]: Cập nhật
+              - definition [ref=f1e1547]: 23:57 24/7/26
+            - generic [ref=f1e1548]:
+              - term [ref=f1e1549]: Attempts
+              - definition [ref=f1e1550]: 1/3
+          - generic [ref=f1e1551]:
+            - text: Lỗi gần nhất
+            - paragraph [ref=f1e1552]: Không có
+        - article [ref=f1e1554]:
+          - generic [ref=f1e1555]:
+            - generic [ref=f1e1556]:
+              - generic [ref=f1e1557]: JOB 3544595e-391c-4249-b242-0d89b27ea422
+              - heading "Trade Coin Underground" [level=3] [ref=f1e1558]
+            - generic [ref=f1e1559]: Hoàn tất
+          - generic [ref=f1e1560]:
+            - generic [ref=f1e1561]:
+              - generic [ref=f1e1562]: Hoàn tất
+              - generic [ref=f1e1563]: 100%
+            - progressbar "Tiến độ 100%" [ref=f1e1564]
+          - generic [ref=f1e1566]:
+            - generic [ref=f1e1567]:
+              - term [ref=f1e1568]: Processed / total
+              - definition [ref=f1e1569]: —
+            - generic [ref=f1e1570]:
+              - term [ref=f1e1571]: Tin đã sync
+              - definition [ref=f1e1572]: "0"
+            - generic [ref=f1e1573]:
+              - term [ref=f1e1574]: Vector đã tạo
+              - definition [ref=f1e1575]: "895"
+            - generic [ref=f1e1576]:
+              - term [ref=f1e1577]: Thời lượng
+              - definition [ref=f1e1578]: 0 giây
+            - generic [ref=f1e1579]:
+              - term [ref=f1e1580]: Cập nhật
+              - definition [ref=f1e1581]: 23:51 24/7/26
+            - generic [ref=f1e1582]:
+              - term [ref=f1e1583]: Attempts
+              - definition [ref=f1e1584]: 1/3
+          - generic [ref=f1e1585]:
+            - text: Lỗi gần nhất
+            - paragraph [ref=f1e1586]: Không có
+        - article [ref=f1e1588]:
+          - generic [ref=f1e1589]:
+            - generic [ref=f1e1590]:
+              - generic [ref=f1e1591]: JOB 07099a69-d394-4e45-a591-71b0405ed8d8
+              - heading "NGHIỀN TRADING CHANNEL🚀" [level=3] [ref=f1e1592]
+            - generic [ref=f1e1593]: Hoàn tất
+          - generic [ref=f1e1594]:
+            - generic [ref=f1e1595]:
+              - generic [ref=f1e1596]: Hoàn tất
+              - generic [ref=f1e1597]: 100%
+            - progressbar "Tiến độ 100%" [ref=f1e1598]
+          - generic [ref=f1e1600]:
+            - generic [ref=f1e1601]:
+              - term [ref=f1e1602]: Processed / total
+              - definition [ref=f1e1603]: —
+            - generic [ref=f1e1604]:
+              - term [ref=f1e1605]: Tin đã sync
+              - definition [ref=f1e1606]: "0"
+            - generic [ref=f1e1607]:
+              - term [ref=f1e1608]: Vector đã tạo
+              - definition [ref=f1e1609]: "936"
+            - generic [ref=f1e1610]:
+              - term [ref=f1e1611]: Thời lượng
+              - definition [ref=f1e1612]: 0 giây
+            - generic [ref=f1e1613]:
+              - term [ref=f1e1614]: Cập nhật
+              - definition [ref=f1e1615]: 23:42 24/7/26
+            - generic [ref=f1e1616]:
+              - term [ref=f1e1617]: Attempts
+              - definition [ref=f1e1618]: 1/3
+          - generic [ref=f1e1619]:
+            - text: Lỗi gần nhất
+            - paragraph [ref=f1e1620]: Không có
+        - article [ref=f1e1622]:
+          - generic [ref=f1e1623]:
+            - generic [ref=f1e1624]:
+              - generic [ref=f1e1625]: JOB 6d0b48eb-d032-4905-a648-4e575943b37c
+              - heading "🧧 Rose Premium Signal 🌹" [level=3] [ref=f1e1626]
+            - generic [ref=f1e1627]: Hoàn tất
+          - generic [ref=f1e1628]:
+            - generic [ref=f1e1629]:
+              - generic [ref=f1e1630]: Hoàn tất
+              - generic [ref=f1e1631]: 100%
+            - progressbar "Tiến độ 100%" [ref=f1e1632]
+          - generic [ref=f1e1634]:
+            - generic [ref=f1e1635]:
+              - term [ref=f1e1636]: Processed / total
+              - definition [ref=f1e1637]: —
+            - generic [ref=f1e1638]:
+              - term [ref=f1e1639]: Tin đã sync
+              - definition [ref=f1e1640]: "2"
+            - generic [ref=f1e1641]:
+              - term [ref=f1e1642]: Vector đã tạo
+              - definition [ref=f1e1643]: "879"
+            - generic [ref=f1e1644]:
+              - term [ref=f1e1645]: Thời lượng
+              - definition [ref=f1e1646]: 0 giây
+            - generic [ref=f1e1647]:
+              - term [ref=f1e1648]: Cập nhật
+              - definition [ref=f1e1649]: 23:55 24/7/26
+            - generic [ref=f1e1650]:
+              - term [ref=f1e1651]: Attempts
+              - definition [ref=f1e1652]: 1/3
+          - generic [ref=f1e1653]:
+            - text: Lỗi gần nhất
+            - paragraph [ref=f1e1654]: Không có
+        - article [ref=f1e1656]:
+          - generic [ref=f1e1657]:
+            - generic [ref=f1e1658]:
+              - generic [ref=f1e1659]: JOB 7f32a8b4-18c4-4be3-a76d-0516025a5b68
+              - heading "Coin68 SEO" [level=3] [ref=f1e1660]
+            - generic [ref=f1e1661]: Hoàn tất
+          - generic [ref=f1e1662]:
+            - generic [ref=f1e1663]:
+              - generic [ref=f1e1664]: Hoàn tất
+              - generic [ref=f1e1665]: 100%
+            - progressbar "Tiến độ 100%" [ref=f1e1666]
+          - generic [ref=f1e1668]:
+            - generic [ref=f1e1669]:
+              - term [ref=f1e1670]: Processed / total
+              - definition [ref=f1e1671]: —
+            - generic [ref=f1e1672]:
+              - term [ref=f1e1673]: Tin đã sync
+              - definition [ref=f1e1674]: "0"
+            - generic [ref=f1e1675]:
+              - term [ref=f1e1676]: Vector đã tạo
+              - definition [ref=f1e1677]: "969"
+            - generic [ref=f1e1678]:
+              - term [ref=f1e1679]: Thời lượng
+              - definition [ref=f1e1680]: 0 giây
+            - generic [ref=f1e1681]:
+              - term [ref=f1e1682]: Cập nhật
+              - definition [ref=f1e1683]: 23:56 24/7/26
+            - generic [ref=f1e1684]:
+              - term [ref=f1e1685]: Attempts
+              - definition [ref=f1e1686]: 1/3
+          - generic [ref=f1e1687]:
+            - text: Lỗi gần nhất
+            - paragraph [ref=f1e1688]: Không có
+        - article [ref=f1e1690]:
+          - generic [ref=f1e1691]:
+            - generic [ref=f1e1692]:
+              - generic [ref=f1e1693]: JOB 507c4131-78aa-438c-981a-304e5ff4b4a5
+              - heading "方程式新闻 BWEnews" [level=3] [ref=f1e1694]
+            - generic [ref=f1e1695]: Hoàn tất
+          - generic [ref=f1e1696]:
+            - generic [ref=f1e1697]:
+              - generic [ref=f1e1698]: Hoàn tất
+              - generic [ref=f1e1699]: 100%
+            - progressbar "Tiến độ 100%" [ref=f1e1700]
+          - generic [ref=f1e1702]:
+            - generic [ref=f1e1703]:
+              - term [ref=f1e1704]: Processed / total
+              - definition [ref=f1e1705]: —
+            - generic [ref=f1e1706]:
+              - term [ref=f1e1707]: Tin đã sync
+              - definition [ref=f1e1708]: "0"
+            - generic [ref=f1e1709]:
+              - term [ref=f1e1710]: Vector đã tạo
+              - definition [ref=f1e1711]: "999"
+            - generic [ref=f1e1712]:
+              - term [ref=f1e1713]: Thời lượng
+              - definition [ref=f1e1714]: 0 giây
+            - generic [ref=f1e1715]:
+              - term [ref=f1e1716]: Cập nhật
+              - definition [ref=f1e1717]: 23:53 24/7/26
+            - generic [ref=f1e1718]:
+              - term [ref=f1e1719]: Attempts
+              - definition [ref=f1e1720]: 1/3
+          - generic [ref=f1e1721]:
+            - text: Lỗi gần nhất
+            - paragraph [ref=f1e1722]: Không có
+        - article [ref=f1e1724]:
+          - generic [ref=f1e1725]:
+            - generic [ref=f1e1726]:
+              - generic [ref=f1e1727]: JOB 5274e52e-ce5f-42b3-ad1c-43845ab05297
+              - heading "Fomo Sapiens Group" [level=3] [ref=f1e1728]
+            - generic [ref=f1e1729]: Hoàn tất
+          - generic [ref=f1e1730]:
+            - generic [ref=f1e1731]:
+              - generic [ref=f1e1732]: Hoàn tất
+              - generic [ref=f1e1733]: 100%
+            - progressbar "Tiến độ 100%" [ref=f1e1734]
+          - generic [ref=f1e1736]:
+            - generic [ref=f1e1737]:
+              - term [ref=f1e1738]: Processed / total
+              - definition [ref=f1e1739]: —
+            - generic [ref=f1e1740]:
+              - term [ref=f1e1741]: Tin đã sync
+              - definition [ref=f1e1742]: "0"
+            - generic [ref=f1e1743]:
+              - term [ref=f1e1744]: Vector đã tạo
+              - definition [ref=f1e1745]: "956"
+            - generic [ref=f1e1746]:
+              - term [ref=f1e1747]: Thời lượng
+              - definition [ref=f1e1748]: 0 giây
+            - generic [ref=f1e1749]:
+              - term [ref=f1e1750]: Cập nhật
+              - definition [ref=f1e1751]: 23:54 24/7/26
+            - generic [ref=f1e1752]:
+              - term [ref=f1e1753]: Attempts
+              - definition [ref=f1e1754]: 1/3
+          - generic [ref=f1e1755]:
+            - text: Lỗi gần nhất
+            - paragraph [ref=f1e1756]: Không có
+        - article [ref=f1e1758]:
+          - generic [ref=f1e1759]:
+            - generic [ref=f1e1760]:
+              - generic [ref=f1e1761]: JOB 0e448f34-b4ad-4bc5-9410-4f229d65e66a
+              - heading "X201 Labs" [level=3] [ref=f1e1762]
+            - generic [ref=f1e1763]: Hoàn tất
+          - generic [ref=f1e1764]:
+            - generic [ref=f1e1765]:
+              - generic [ref=f1e1766]: Hoàn tất
+              - generic [ref=f1e1767]: 100%
+            - progressbar "Tiến độ 100%" [ref=f1e1768]
+          - generic [ref=f1e1770]:
+            - generic [ref=f1e1771]:
+              - term [ref=f1e1772]: Processed / total
+              - definition [ref=f1e1773]: —
+            - generic [ref=f1e1774]:
+              - term [ref=f1e1775]: Tin đã sync
+              - definition [ref=f1e1776]: "0"
+            - generic [ref=f1e1777]:
+              - term [ref=f1e1778]: Vector đã tạo
+              - definition [ref=f1e1779]: "737"
+            - generic [ref=f1e1780]:
+              - term [ref=f1e1781]: Thời lượng
+              - definition [ref=f1e1782]: 0 giây
+            - generic [ref=f1e1783]:
+              - term [ref=f1e1784]: Cập nhật
+              - definition [ref=f1e1785]: 23:43 24/7/26
+            - generic [ref=f1e1786]:
+              - term [ref=f1e1787]: Attempts
+              - definition [ref=f1e1788]: 1/3
+          - generic [ref=f1e1789]:
+            - text: Lỗi gần nhất
+            - paragraph [ref=f1e1790]: Không có
+        - article [ref=f1e1792]:
+          - generic [ref=f1e1793]:
+            - generic [ref=f1e1794]:
+              - generic [ref=f1e1795]: JOB 0e53420e-726f-4594-bdbe-1e8048d54da0
+              - heading "Phốt Việt Nam - Thời sự 24/7🎗" [level=3] [ref=f1e1796]
+            - generic [ref=f1e1797]: Hoàn tất
+          - generic [ref=f1e1798]:
+            - generic [ref=f1e1799]:
+              - generic [ref=f1e1800]: Hoàn tất
+              - generic [ref=f1e1801]: 100%
+            - progressbar "Tiến độ 100%" [ref=f1e1802]
+          - generic [ref=f1e1804]:
+            - generic [ref=f1e1805]:
+              - term [ref=f1e1806]: Processed / total
+              - definition [ref=f1e1807]: —
+            - generic [ref=f1e1808]:
+              - term [ref=f1e1809]: Tin đã sync
+              - definition [ref=f1e1810]: "0"
+            - generic [ref=f1e1811]:
+              - term [ref=f1e1812]: Vector đã tạo
+              - definition [ref=f1e1813]: "619"
+            - generic [ref=f1e1814]:
+              - term [ref=f1e1815]: Thời lượng
+              - definition [ref=f1e1816]: 0 giây
+            - generic [ref=f1e1817]:
+              - term [ref=f1e1818]: Cập nhật
+              - definition [ref=f1e1819]: 23:43 24/7/26
+            - generic [ref=f1e1820]:
+              - term [ref=f1e1821]: Attempts
+              - definition [ref=f1e1822]: 1/3
+          - generic [ref=f1e1823]:
+            - text: Lỗi gần nhất
+            - paragraph [ref=f1e1824]: Không có
+        - article [ref=f1e1826]:
+          - generic [ref=f1e1827]:
+            - generic [ref=f1e1828]:
+              - generic [ref=f1e1829]: JOB 89062ad1-cf5b-4644-852b-732a857471c3
+              - heading "J2TEAM Community Chat" [level=3] [ref=f1e1830]
+            - generic [ref=f1e1831]: Hoàn tất
+          - generic [ref=f1e1832]:
+            - generic [ref=f1e1833]:
+              - generic [ref=f1e1834]: Hoàn tất
+              - generic [ref=f1e1835]: 100%
+            - progressbar "Tiến độ 100%" [ref=f1e1836]
+          - generic [ref=f1e1838]:
+            - generic [ref=f1e1839]:
+              - term [ref=f1e1840]: Processed / total
+              - definition [ref=f1e1841]: —
+            - generic [ref=f1e1842]:
+              - term [ref=f1e1843]: Tin đã sync
+              - definition [ref=f1e1844]: "58"
+            - generic [ref=f1e1845]:
+              - term [ref=f1e1846]: Vector đã tạo
+              - definition [ref=f1e1847]: "936"
+            - generic [ref=f1e1848]:
+              - term [ref=f1e1849]: Thời lượng
+              - definition [ref=f1e1850]: 0 giây
+            - generic [ref=f1e1851]:
+              - term [ref=f1e1852]: Cập nhật
+              - definition [ref=f1e1853]: 23:56 24/7/26
+            - generic [ref=f1e1854]:
+              - term [ref=f1e1855]: Attempts
+              - definition [ref=f1e1856]: 1/3
+          - generic [ref=f1e1857]:
+            - text: Lỗi gần nhất
+            - paragraph [ref=f1e1858]: Không có
+        - article [ref=f1e1860]:
+          - generic [ref=f1e1861]:
+            - generic [ref=f1e1862]:
+              - generic [ref=f1e1863]: JOB 1c1cac76-e2eb-4b22-8e97-2c358aca3a31
+              - heading "infinityhedge" [level=3] [ref=f1e1864]
+            - generic [ref=f1e1865]: Hoàn tất
+          - generic [ref=f1e1866]:
+            - generic [ref=f1e1867]:
+              - generic [ref=f1e1868]: Hoàn tất
+              - generic [ref=f1e1869]: 100%
+            - progressbar "Tiến độ 100%" [ref=f1e1870]
+          - generic [ref=f1e1872]:
+            - generic [ref=f1e1873]:
+              - term [ref=f1e1874]: Processed / total
+              - definition [ref=f1e1875]: —
+            - generic [ref=f1e1876]:
+              - term [ref=f1e1877]: Tin đã sync
+              - definition [ref=f1e1878]: "0"
+            - generic [ref=f1e1879]:
+              - term [ref=f1e1880]: Vector đã tạo
+              - definition [ref=f1e1881]: "991"
+            - generic [ref=f1e1882]:
+              - term [ref=f1e1883]: Thời lượng
+              - definition [ref=f1e1884]: 0 giây
+            - generic [ref=f1e1885]:
+              - term [ref=f1e1886]: Cập nhật
+              - definition [ref=f1e1887]: 23:48 24/7/26
+            - generic [ref=f1e1888]:
+              - term [ref=f1e1889]: Attempts
+              - definition [ref=f1e1890]: 1/3
+          - generic [ref=f1e1891]:
+            - text: Lỗi gần nhất
+            - paragraph [ref=f1e1892]: Không có
+        - article [ref=f1e1894]:
+          - generic [ref=f1e1895]:
+            - generic [ref=f1e1896]:
+              - generic [ref=f1e1897]: JOB 89efb283-e730-4578-bb0b-697d4057157e
+              - heading "Trade Coin Chiến Lược" [level=3] [ref=f1e1898]
+            - generic [ref=f1e1899]: Hoàn tất
+          - generic [ref=f1e1900]:
+            - generic [ref=f1e1901]:
+              - generic [ref=f1e1902]: Hoàn tất
+              - generic [ref=f1e1903]: 100%
+            - progressbar "Tiến độ 100%" [ref=f1e1904]
+          - generic [ref=f1e1906]:
+            - generic [ref=f1e1907]:
+              - term [ref=f1e1908]: Processed / total
+              - definition [ref=f1e1909]: —
+            - generic [ref=f1e1910]:
+              - term [ref=f1e1911]: Tin đã sync
+              - definition [ref=f1e1912]: "0"
+            - generic [ref=f1e1913]:
+              - term [ref=f1e1914]: Vector đã tạo
+              - definition [ref=f1e1915]: "784"
+            - generic [ref=f1e1916]:
+              - term [ref=f1e1917]: Thời lượng
+              - definition [ref=f1e1918]: 0 giây
+            - generic [ref=f1e1919]:
+              - term [ref=f1e1920]: Cập nhật
+              - definition [ref=f1e1921]: 23:57 24/7/26
+            - generic [ref=f1e1922]:
+              - term [ref=f1e1923]: Attempts
+              - definition [ref=f1e1924]: 1/3
+          - generic [ref=f1e1925]:
+            - text: Lỗi gần nhất
+            - paragraph [ref=f1e1926]: Không có
+        - article [ref=f1e1928]:
+          - generic [ref=f1e1929]:
+            - generic [ref=f1e1930]:
+              - generic [ref=f1e1931]: JOB 12610b6d-0141-4782-b20e-6b525f2a8529
+              - heading "Upside" [level=3] [ref=f1e1932]
+            - generic [ref=f1e1933]: Hoàn tất
+          - generic [ref=f1e1934]:
+            - generic [ref=f1e1935]:
+              - generic [ref=f1e1936]: Hoàn tất
+              - generic [ref=f1e1937]: 100%
+            - progressbar "Tiến độ 100%" [ref=f1e1938]
+          - generic [ref=f1e1940]:
+            - generic [ref=f1e1941]:
+              - term [ref=f1e1942]: Processed / total
+              - definition [ref=f1e1943]: —
+            - generic [ref=f1e1944]:
+              - term [ref=f1e1945]: Tin đã sync
+              - definition [ref=f1e1946]: "0"
+            - generic [ref=f1e1947]:
+              - term [ref=f1e1948]: Vector đã tạo
+              - definition [ref=f1e1949]: "825"
+            - generic [ref=f1e1950]:
+              - term [ref=f1e1951]: Thời lượng
+              - definition [ref=f1e1952]: 0 giây
+            - generic [ref=f1e1953]:
+              - term [ref=f1e1954]: Cập nhật
+              - definition [ref=f1e1955]: 23:44 24/7/26
+            - generic [ref=f1e1956]:
+              - term [ref=f1e1957]: Attempts
+              - definition [ref=f1e1958]: 1/3
+          - generic [ref=f1e1959]:
+            - text: Lỗi gần nhất
+            - paragraph [ref=f1e1960]: Không có
+        - article [ref=f1e1962]:
+          - generic [ref=f1e1963]:
+            - generic [ref=f1e1964]:
+              - generic [ref=f1e1965]: JOB b07f6071-2314-4722-a8e1-0166c9f7e795
+              - heading "Rạp chiếu L6" [level=3] [ref=f1e1966]
+            - generic [ref=f1e1967]: Hoàn tất
+          - generic [ref=f1e1968]:
+            - generic [ref=f1e1969]:
+              - generic [ref=f1e1970]: Hoàn tất
+              - generic [ref=f1e1971]: 100%
+            - progressbar "Tiến độ 100%" [ref=f1e1972]
+          - generic [ref=f1e1974]:
+            - generic [ref=f1e1975]:
+              - term [ref=f1e1976]: Processed / total
+              - definition [ref=f1e1977]: —
+            - generic [ref=f1e1978]:
+              - term [ref=f1e1979]: Tin đã sync
+              - definition [ref=f1e1980]: "0"
+            - generic [ref=f1e1981]:
+              - term [ref=f1e1982]: Vector đã tạo
+              - definition [ref=f1e1983]: "796"
+            - generic [ref=f1e1984]:
+              - term [ref=f1e1985]: Thời lượng
+              - definition [ref=f1e1986]: 0 giây
+            - generic [ref=f1e1987]:
+              - term [ref=f1e1988]: Cập nhật
+              - definition [ref=f1e1989]: 23:57 24/7/26
+            - generic [ref=f1e1990]:
+              - term [ref=f1e1991]: Attempts
+              - definition [ref=f1e1992]: 1/3
+          - generic [ref=f1e1993]:
+            - text: Lỗi gần nhất
+            - paragraph [ref=f1e1994]: Không có
+        - article [ref=f1e1996]:
+          - generic [ref=f1e1997]:
+            - generic [ref=f1e1998]:
+              - generic [ref=f1e1999]: JOB 16c7cf94-0ede-4264-aa1b-227219f86f5a
+              - heading "Pavel Durov" [level=3] [ref=f1e2000]
+            - generic [ref=f1e2001]: Hoàn tất
+          - generic [ref=f1e2002]:
+            - generic [ref=f1e2003]:
+              - generic [ref=f1e2004]: Hoàn tất
+              - generic [ref=f1e2005]: 100%
+            - progressbar "Tiến độ 100%" [ref=f1e2006]
+          - generic [ref=f1e2008]:
+            - generic [ref=f1e2009]:
+              - term [ref=f1e2010]: Processed / total
+              - definition [ref=f1e2011]: —
+            - generic [ref=f1e2012]:
+              - term [ref=f1e2013]: Tin đã sync
+              - definition [ref=f1e2014]: "0"
+            - generic [ref=f1e2015]:
+              - term [ref=f1e2016]: Vector đã tạo
+              - definition [ref=f1e2017]: "385"
+            - generic [ref=f1e2018]:
+              - term [ref=f1e2019]: Thời lượng
+              - definition [ref=f1e2020]: 0 giây
+            - generic [ref=f1e2021]:
+              - term [ref=f1e2022]: Cập nhật
+              - definition [ref=f1e2023]: 23:44 24/7/26
+            - generic [ref=f1e2024]:
+              - term [ref=f1e2025]: Attempts
+              - definition [ref=f1e2026]: 1/3
+          - generic [ref=f1e2027]:
+            - text: Lỗi gần nhất
+            - paragraph [ref=f1e2028]: Không có
+        - article [ref=f1e2030]:
+          - generic [ref=f1e2031]:
+            - generic [ref=f1e2032]:
+              - generic [ref=f1e2033]: JOB ffdc8d8d-7e48-47dc-a757-b8f2d8def9d7
+              - heading "5 Phút Crypto | Channel" [level=3] [ref=f1e2034]
+            - generic [ref=f1e2035]: Hoàn tất
+          - generic [ref=f1e2036]:
+            - generic [ref=f1e2037]:
+              - generic [ref=f1e2038]: Hoàn tất
+              - generic [ref=f1e2039]: 100%
+            - progressbar "Tiến độ 100%" [ref=f1e2040]
+          - generic [ref=f1e2042]:
+            - generic [ref=f1e2043]:
+              - term [ref=f1e2044]: Processed / total
+              - definition [ref=f1e2045]: —
+            - generic [ref=f1e2046]:
+              - term [ref=f1e2047]: Tin đã sync
+              - definition [ref=f1e2048]: "0"
+            - generic [ref=f1e2049]:
+              - term [ref=f1e2050]: Vector đã tạo
+              - definition [ref=f1e2051]: "994"
+            - generic [ref=f1e2052]:
+              - term [ref=f1e2053]: Thời lượng
+              - definition [ref=f1e2054]: 0 giây
+            - generic [ref=f1e2055]:
+              - term [ref=f1e2056]: Cập nhật
+              - definition [ref=f1e2057]: 00:03 25/7/26
+            - generic [ref=f1e2058]:
+              - term [ref=f1e2059]: Attempts
+              - definition [ref=f1e2060]: 1/3
+          - generic [ref=f1e2061]:
+            - text: Lỗi gần nhất
+            - paragraph [ref=f1e2062]: Không có
+        - article [ref=f1e2064]:
+          - generic [ref=f1e2065]:
+            - generic [ref=f1e2066]:
+              - generic [ref=f1e2067]: JOB c6af90a5-cab4-450a-8a65-d2f4224ad451
+              - heading "📊 CryptoNews 24/7 Real-Time Updates" [level=3] [ref=f1e2068]
+            - generic [ref=f1e2069]: Hoàn tất
+          - generic [ref=f1e2070]:
+            - generic [ref=f1e2071]:
+              - generic [ref=f1e2072]: Hoàn tất
+              - generic [ref=f1e2073]: 100%
+            - progressbar "Tiến độ 100%" [ref=f1e2074]
+          - generic [ref=f1e2076]:
+            - generic [ref=f1e2077]:
+              - term [ref=f1e2078]: Processed / total
+              - definition [ref=f1e2079]: —
+            - generic [ref=f1e2080]:
+              - term [ref=f1e2081]: Tin đã sync
+              - definition [ref=f1e2082]: "1"
+            - generic [ref=f1e2083]:
+              - term [ref=f1e2084]: Vector đã tạo
+              - definition [ref=f1e2085]: "994"
+            - generic [ref=f1e2086]:
+              - term [ref=f1e2087]: Thời lượng
+              - definition [ref=f1e2088]: 0 giây
+            - generic [ref=f1e2089]:
+              - term [ref=f1e2090]: Cập nhật
+              - definition [ref=f1e2091]: 23:58 24/7/26
+            - generic [ref=f1e2092]:
+              - term [ref=f1e2093]: Attempts
+              - definition [ref=f1e2094]: 1/3
+          - generic [ref=f1e2095]:
+            - text: Lỗi gần nhất
+            - paragraph [ref=f1e2096]: Không có
+        - article [ref=f1e2098]:
+          - generic [ref=f1e2099]:
+            - generic [ref=f1e2100]:
+              - generic [ref=f1e2101]: JOB 1a561c98-e3d9-4738-a718-e38fc71b12b0
+              - heading "Rose 🌹" [level=3] [ref=f1e2102]
+            - generic [ref=f1e2103]: Hoàn tất
+          - generic [ref=f1e2104]:
+            - generic [ref=f1e2105]:
+              - generic [ref=f1e2106]: Hoàn tất
+              - generic [ref=f1e2107]: 100%
+            - progressbar "Tiến độ 100%" [ref=f1e2108]
+          - generic [ref=f1e2110]:
+            - generic [ref=f1e2111]:
+              - term [ref=f1e2112]: Processed / total
+              - definition [ref=f1e2113]: —
+            - generic [ref=f1e2114]:
+              - term [ref=f1e2115]: Tin đã sync
+              - definition [ref=f1e2116]: "0"
+            - generic [ref=f1e2117]:
+              - term [ref=f1e2118]: Vector đã tạo
+              - definition [ref=f1e2119]: "953"
+            - generic [ref=f1e2120]:
+              - term [ref=f1e2121]: Thời lượng
+              - definition [ref=f1e2122]: 0 giây
+            - generic [ref=f1e2123]:
+              - term [ref=f1e2124]: Cập nhật
+              - definition [ref=f1e2125]: 23:45 24/7/26
+            - generic [ref=f1e2126]:
+              - term [ref=f1e2127]: Attempts
+              - definition [ref=f1e2128]: 1/3
+          - generic [ref=f1e2129]:
+            - text: Lỗi gần nhất
+            - paragraph [ref=f1e2130]: Không có

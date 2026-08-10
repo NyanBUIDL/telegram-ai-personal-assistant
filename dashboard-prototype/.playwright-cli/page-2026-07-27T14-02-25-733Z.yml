@@ -1,0 +1,96 @@
+- generic [ref=e3]:
+  - complementary [ref=e4]:
+    - generic [ref=e9]:
+      - strong [ref=e10]: TELEGRAM//AI
+      - generic [ref=e11]: ADMIN CONSOLE
+    - navigation "Điều hướng chính" [ref=e12]:
+      - generic [ref=e13]:
+        - paragraph [ref=e14]: VẬN HÀNH
+        - button "Tổng quan" [ref=e15] [cursor=pointer]
+      - button "Kết nối" [ref=e20] [cursor=pointer]
+      - button "Nhóm Telegram 12" [ref=e25] [cursor=pointer]:
+        - generic [ref=e28]: Nhóm Telegram
+        - generic [ref=e29]: "12"
+      - button "Policy Engine" [active] [ref=e31] [cursor=pointer]
+      - generic [ref=e35]:
+        - paragraph [ref=e36]: AI & DỮ LIỆU
+        - button "AI & RAG" [ref=e37] [cursor=pointer]
+      - button "Local Models" [ref=e42] [cursor=pointer]
+      - button "Kho tri thức" [ref=e47] [cursor=pointer]
+      - button "Bộ nhớ & lưu trữ" [ref=e52] [cursor=pointer]
+      - generic [ref=e56]:
+        - paragraph [ref=e57]: KIỂM SOÁT
+        - button "Hành động chờ 4" [ref=e687] [cursor=pointer]:
+          - generic [ref=e61]: Hành động chờ
+          - generic [ref=e62]: "4"
+      - button "Scheduler & Workers" [ref=e64] [cursor=pointer]
+      - button "Audit Log" [ref=e69] [cursor=pointer]
+      - button "Bảo mật" [ref=e74] [cursor=pointer]
+      - button "Tài liệu & Hệ thống" [ref=e79] [cursor=pointer]
+    - generic [ref=e84]:
+      - generic [ref=e85]: NT
+      - generic [ref=e86]:
+        - generic [ref=e87]: Nguyễn Nhật Tân
+        - generic [ref=e88]: Owner · Online
+      - button "Đăng xuất" [ref=e89] [cursor=pointer]
+    - generic [ref=e92]:
+      - generic [ref=e93]: RUNTIME
+      - generic [ref=e94]: v0.8.4
+  - main [ref=e96]:
+    - generic [ref=e97]:
+      - generic [ref=e99]:
+        - paragraph [ref=e100]: TELEGRAM AI / POLICY ENGINE
+        - heading "Policy Engine" [level=1] [ref=e695]
+      - generic [ref=e102]:
+        - button "Thông báo" [ref=e108] [cursor=pointer]
+        - button "Tạo hành động" [ref=e112] [cursor=pointer]
+    - generic [ref=e696]:
+      - generic [ref=e697]:
+        - generic [ref=e698]:
+          - generic [ref=e699]:
+            - paragraph [ref=e700]: DECISION STACK
+            - heading "Các lớp policy" [level=2] [ref=e701]
+          - generic [ref=e702]: 4 LAYERS
+        - generic [ref=e703]:
+          - button "01 System safety Secrets, unsafe data flow, unknown owner DENY" [ref=e704] [cursor=pointer]:
+            - generic [ref=e705]: "01"
+            - generic [ref=e706]:
+              - generic [ref=e707]: System safety
+              - generic [ref=e708]: Secrets, unsafe data flow, unknown owner
+            - generic [ref=e709]: DENY
+          - button "02 Group moderation Spam score ≥ 0.82 hoặc quyền admin chưa rõ REVIEW" [ref=e710] [cursor=pointer]:
+            - generic [ref=e711]: "02"
+            - generic [ref=e712]:
+              - generic [ref=e713]: Group moderation
+              - generic [ref=e714]: Spam score ≥ 0.82 hoặc quyền admin chưa rõ
+            - generic [ref=e715]: REVIEW
+          - button "03 AI routing LOCAL ONLY luôn chặn cloud fallback LOCAL" [ref=e716] [cursor=pointer]:
+            - generic [ref=e717]: "03"
+            - generic [ref=e718]:
+              - generic [ref=e719]: AI routing
+              - generic [ref=e720]: LOCAL ONLY luôn chặn cloud fallback
+            - generic [ref=e721]: LOCAL
+          - button "04 Destructive actions Delete, ban, cleanup cần owner xác nhận PENDING" [ref=e722] [cursor=pointer]:
+            - generic [ref=e723]: "04"
+            - generic [ref=e724]:
+              - generic [ref=e725]: Destructive actions
+              - generic [ref=e726]: Delete, ban, cleanup cần owner xác nhận
+            - generic [ref=e727]: PENDING
+      - generic [ref=e728]:
+        - generic [ref=e730]:
+          - paragraph [ref=e731]: POLICY LAB
+          - heading "Simulator" [level=2] [ref=e732]
+        - generic [ref=e735]:
+          - generic [ref=e736]:
+            - generic [ref=e737]: Group
+            - combobox "Group" [ref=e738] [cursor=pointer]:
+              - option "Crypto Insider VN" [selected]
+              - option "AI Builders Saigon"
+          - generic [ref=e739]:
+            - generic [ref=e740]: Action / content
+            - textbox "Action / content" [ref=e741]: Tin nhắn chứa API key và link airdrop
+          - button "Chạy mô phỏng" [ref=e742] [cursor=pointer]
+          - generic [ref=e745]: Chưa có kết quả mô phỏng.
+        - generic [ref=e749]:
+          - button "Sao chép rule" [ref=e750] [cursor=pointer]
+          - button "Lưu draft" [ref=e753] [cursor=pointer]

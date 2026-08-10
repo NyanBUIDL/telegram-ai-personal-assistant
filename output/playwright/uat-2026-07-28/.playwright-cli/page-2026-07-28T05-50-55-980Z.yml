@@ -1,0 +1,267 @@
+- generic [ref=f1e12]:
+  - complementary [ref=f1e13]:
+    - generic [ref=f1e18]:
+      - strong [ref=f1e19]: TELEGRAM//AI
+      - generic [ref=f1e20]: ADMIN CONSOLE
+    - navigation "Điều hướng chính" [ref=f1e21]:
+      - generic [ref=f1e22]:
+        - paragraph [ref=f1e23]: VẬN HÀNH
+        - button "Tổng quan" [ref=f1e24] [cursor=pointer]
+      - button "Kết nối" [ref=f1e29] [cursor=pointer]
+      - button "Nhóm Telegram" [ref=f1e34] [cursor=pointer]
+      - button "Policy Engine" [ref=f1e39] [cursor=pointer]
+      - generic [ref=f1e43]:
+        - paragraph [ref=f1e44]: AI & DỮ LIỆU
+        - button "AI & RAG" [ref=f1e45] [cursor=pointer]
+      - button "Local Models" [ref=f1e50] [cursor=pointer]
+      - button "Kho tri thức" [ref=f1e55] [cursor=pointer]
+      - button "Bộ nhớ & lưu trữ" [ref=f1e60] [cursor=pointer]
+      - generic [ref=f1e64]:
+        - paragraph [ref=f1e65]: KIỂM SOÁT
+        - button "Hành động chờ" [ref=f1e66] [cursor=pointer]
+      - button "Scheduler & Workers" [ref=f1e71] [cursor=pointer]
+      - button "Audit Log" [ref=f1e76] [cursor=pointer]
+      - button "Bảo mật" [ref=f1e81] [cursor=pointer]
+      - button "Tài liệu & Hệ thống" [ref=f1e86] [cursor=pointer]
+      - generic [ref=f1e90]:
+        - paragraph [ref=f1e91]: TRỢ LÝ CHÍNH
+        - button "Chức năng Telegram" [ref=f1e92] [cursor=pointer]
+    - generic [ref=f1e97]:
+      - generic [ref=f1e98]: OW
+      - generic [ref=f1e99]:
+        - generic [ref=f1e100]: Owner 1134327192
+        - generic [ref=f1e101]: Local · Realtime
+      - button "Đăng xuất" [ref=f1e102] [cursor=pointer]
+    - generic [ref=f1e105]:
+      - generic [ref=f1e106]: RUNTIME
+      - generic [ref=f1e107]: v0.1.0
+  - main [ref=f1e109]:
+    - generic [ref=f1e110]:
+      - generic [ref=f1e112]:
+        - paragraph [ref=f1e113]: TELEGRAM AI / NHÓM TELEGRAM
+        - heading "Nhóm Telegram" [level=1] [ref=f1e3813]
+      - generic [ref=f1e115]:
+        - generic [ref=f1e116]: LIVE
+        - button "Thông báo" [ref=f1e118] [cursor=pointer]
+        - button "Hành động chờ" [ref=f1e121] [cursor=pointer]
+    - generic [ref=f1e3814]:
+      - generic [ref=f1e3815]:
+        - generic [ref=f1e3816]:
+          - paragraph [ref=f1e3817]: TELEGRAM DIRECTORY · LIVE
+          - heading "Nhóm và channel" [level=2] [ref=f1e3818]
+        - generic [ref=f1e3819]: 298 NGUỒN
+      - generic [ref=f1e3820]:
+        - textbox [ref=f1e3824]:
+          - /placeholder: Tìm tên, @username hoặc Chat ID…
+        - tablist "Phân loại nhóm" [ref=f1e3825]:
+          - tab "Nhóm đã bật AI" [ref=f1e3826] [cursor=pointer]
+          - tab "Có quyền · chưa bật AI" [ref=f1e3827] [cursor=pointer]
+          - tab "Tất cả nhóm" [selected] [ref=f1e3828] [cursor=pointer]
+      - table [ref=f1e4339]:
+        - rowgroup [ref=f1e4340]:
+          - row [ref=f1e4341]:
+            - columnheader "Nhóm / channel" [ref=f1e4342]
+            - columnheader "Policy" [ref=f1e4343]
+            - columnheader "AI mode" [ref=f1e4344]
+            - columnheader "/ask" [ref=f1e4345]
+            - columnheader "AUTO link" [ref=f1e4346]
+            - columnheader "Học dữ liệu" [ref=f1e4347]
+            - columnheader "Tin / vector" [ref=f1e4348]
+            - columnheader "Thao tác" [ref=f1e4349]
+        - rowgroup [ref=f1e4351]:
+          - row [ref=f1e4638]:
+            - cell "CH Trade Coin Chiến Lược -1001420702892 · channel · @TradeCoinChienLuoc" [ref=f1e4639]:
+              - generic [ref=f1e4640]:
+                - generic [ref=f1e4641]: CH
+                - generic [ref=f1e4642]:
+                  - generic [ref=f1e4643]: Trade Coin Chiến Lược
+                  - generic [ref=f1e4644]: "-1001420702892 · channel · @TradeCoinChienLuoc"
+            - cell "ALLOW" [ref=f1e4645]
+            - cell "INHERIT" [ref=f1e4647]
+            - cell "OFF" [ref=f1e4649]
+            - cell "OFF" [ref=f1e4651]
+            - cell "Learned 4 ngày trước" [ref=f1e4653]:
+              - generic [ref=f1e4654]: Learned
+              - generic [ref=f1e4655]: 4 ngày trước
+            - cell "1.019 796 vector" [ref=f1e4656]:
+              - text: "1.019"
+              - generic [ref=f1e4657]: 796 vector
+            - cell [ref=f1e4658]:
+              - button "Quản lý" [ref=f1e4659] [cursor=pointer]
+          - row [ref=f1e4660]:
+            - cell "GR SD Capital (Full Signal) -1002061763654 · supergroup · không username" [ref=f1e4661]:
+              - generic [ref=f1e4662]:
+                - generic [ref=f1e4663]: GR
+                - generic [ref=f1e4664]:
+                  - generic [ref=f1e4665]: SD Capital (Full Signal)
+                  - generic [ref=f1e4666]: "-1002061763654 · supergroup · không username"
+            - cell "ALLOW" [ref=f1e4667]
+            - cell "INHERIT" [ref=f1e4669]
+            - cell "OFF" [ref=f1e4671]
+            - cell "OFF" [ref=f1e4673]
+            - cell "Learned 4 ngày trước" [ref=f1e4675]:
+              - generic [ref=f1e4676]: Learned
+              - generic [ref=f1e4677]: 4 ngày trước
+            - cell "1.323 1.211 vector" [ref=f1e4678]:
+              - text: "1.323"
+              - generic [ref=f1e4679]: 1.211 vector
+            - cell [ref=f1e4680]:
+              - button "Quản lý" [ref=f1e4681] [cursor=pointer]
+          - row [ref=f1e4682]:
+            - cell "CH Binance Announcements -1001146915409 · channel · @binance_announcements" [ref=f1e4683]:
+              - generic [ref=f1e4684]:
+                - generic [ref=f1e4685]: CH
+                - generic [ref=f1e4686]:
+                  - generic [ref=f1e4687]: Binance Announcements
+                  - generic [ref=f1e4688]: "-1001146915409 · channel · @binance_announcements"
+            - cell "ALLOW" [ref=f1e4689]
+            - cell "INHERIT" [ref=f1e4691]
+            - cell "OFF" [ref=f1e4693]
+            - cell "OFF" [ref=f1e4695]
+            - cell "Learned 4 ngày trước" [ref=f1e4697]:
+              - generic [ref=f1e4698]: Learned
+              - generic [ref=f1e4699]: 4 ngày trước
+            - cell "1.002 761 vector" [ref=f1e4700]:
+              - text: "1.002"
+              - generic [ref=f1e4701]: 761 vector
+            - cell [ref=f1e4702]:
+              - button "Quản lý" [ref=f1e4703] [cursor=pointer]
+          - row [ref=f1e4704]:
+            - cell "CH TradeCoinVN | News -1001163793012 · channel · @vietnamtradecoinchannel" [ref=f1e4705]:
+              - generic [ref=f1e4706]:
+                - generic [ref=f1e4707]: CH
+                - generic [ref=f1e4708]:
+                  - generic [ref=f1e4709]: TradeCoinVN | News
+                  - generic [ref=f1e4710]: "-1001163793012 · channel · @vietnamtradecoinchannel"
+            - cell "ALLOW" [ref=f1e4711]
+            - cell "INHERIT" [ref=f1e4713]
+            - cell "OFF" [ref=f1e4715]
+            - cell "OFF" [ref=f1e4717]
+            - cell "Learned 4 ngày trước" [ref=f1e4719]:
+              - generic [ref=f1e4720]: Learned
+              - generic [ref=f1e4721]: 4 ngày trước
+            - cell "1.006 900 vector" [ref=f1e4722]:
+              - text: "1.006"
+              - generic [ref=f1e4723]: 900 vector
+            - cell [ref=f1e4724]:
+              - button "Quản lý" [ref=f1e4725] [cursor=pointer]
+          - row [ref=f1e4726]:
+            - cell "GR Coin68 SEO -1001130118725 · supergroup · không username" [ref=f1e4727]:
+              - generic [ref=f1e4728]:
+                - generic [ref=f1e4729]: GR
+                - generic [ref=f1e4730]:
+                  - generic [ref=f1e4731]: Coin68 SEO
+                  - generic [ref=f1e4732]: "-1001130118725 · supergroup · không username"
+            - cell "ALLOW" [ref=f1e4733]
+            - cell "INHERIT" [ref=f1e4735]
+            - cell "OFF" [ref=f1e4737]
+            - cell "OFF" [ref=f1e4739]
+            - cell "Learned 4 ngày trước" [ref=f1e4741]:
+              - generic [ref=f1e4742]: Learned
+              - generic [ref=f1e4743]: 4 ngày trước
+            - cell "1.000 969 vector" [ref=f1e4744]:
+              - text: "1.000"
+              - generic [ref=f1e4745]: 969 vector
+            - cell [ref=f1e4746]:
+              - button "Quản lý" [ref=f1e4747] [cursor=pointer]
+          - row [ref=f1e4748]:
+            - cell "CH Hacker News -1001099505434 · channel · @hackernewslive" [ref=f1e4749]:
+              - generic [ref=f1e4750]:
+                - generic [ref=f1e4751]: CH
+                - generic [ref=f1e4752]:
+                  - generic [ref=f1e4753]: Hacker News
+                  - generic [ref=f1e4754]: "-1001099505434 · channel · @hackernewslive"
+            - cell "ALLOW" [ref=f1e4755]
+            - cell "INHERIT" [ref=f1e4757]
+            - cell "OFF" [ref=f1e4759]
+            - cell "OFF" [ref=f1e4761]
+            - cell "Learned 4 ngày trước" [ref=f1e4763]:
+              - generic [ref=f1e4764]: Learned
+              - generic [ref=f1e4765]: 4 ngày trước
+            - cell "1.073 1.051 vector" [ref=f1e4766]:
+              - text: "1.073"
+              - generic [ref=f1e4767]: 1.051 vector
+            - cell [ref=f1e4768]:
+              - button "Quản lý" [ref=f1e4769] [cursor=pointer]
+          - row [ref=f1e4770]:
+            - cell "CH Rich Kid Trading -1001206212318 · channel · @Richkidtradings" [ref=f1e4771]:
+              - generic [ref=f1e4772]:
+                - generic [ref=f1e4773]: CH
+                - generic [ref=f1e4774]:
+                  - generic [ref=f1e4775]: Rich Kid Trading
+                  - generic [ref=f1e4776]: "-1001206212318 · channel · @Richkidtradings"
+            - cell "ALLOW" [ref=f1e4777]
+            - cell "INHERIT" [ref=f1e4779]
+            - cell "OFF" [ref=f1e4781]
+            - cell "OFF" [ref=f1e4783]
+            - cell "Learned 4 ngày trước" [ref=f1e4785]:
+              - generic [ref=f1e4786]: Learned
+              - generic [ref=f1e4787]: 4 ngày trước
+            - cell "1.009 809 vector" [ref=f1e4788]:
+              - text: "1.009"
+              - generic [ref=f1e4789]: 809 vector
+            - cell [ref=f1e4790]:
+              - button "Quản lý" [ref=f1e4791] [cursor=pointer]
+          - row [ref=f1e4792]:
+            - cell "GR Hội cựu chiến binh C-sủi -1002516665529 · supergroup · không username" [ref=f1e4793]:
+              - generic [ref=f1e4794]:
+                - generic [ref=f1e4795]: GR
+                - generic [ref=f1e4796]:
+                  - generic [ref=f1e4797]: Hội cựu chiến binh C-sủi
+                  - generic [ref=f1e4798]: "-1002516665529 · supergroup · không username"
+            - cell "ALLOW" [ref=f1e4799]
+            - cell "INHERIT" [ref=f1e4801]
+            - cell "ON" [ref=f1e4803]
+            - cell "OFF" [ref=f1e4805]
+            - cell "Learned 4 ngày trước" [ref=f1e4807]:
+              - generic [ref=f1e4808]: Learned
+              - generic [ref=f1e4809]: 4 ngày trước
+            - cell "1.110 960 vector" [ref=f1e4810]:
+              - text: "1.110"
+              - generic [ref=f1e4811]: 960 vector
+            - cell [ref=f1e4812]:
+              - button "Quản lý" [ref=f1e4813] [cursor=pointer]
+          - row [ref=f1e4814]:
+            - cell "CH HC Tradecoin | Channel -1001285942150 · channel · @hctradecoin_channel" [ref=f1e4815]:
+              - generic [ref=f1e4816]:
+                - generic [ref=f1e4817]: CH
+                - generic [ref=f1e4818]:
+                  - generic [ref=f1e4819]: HC Tradecoin | Channel
+                  - generic [ref=f1e4820]: "-1001285942150 · channel · @hctradecoin_channel"
+            - cell "ALLOW" [ref=f1e4821]
+            - cell "INHERIT" [ref=f1e4823]
+            - cell "OFF" [ref=f1e4825]
+            - cell "OFF" [ref=f1e4827]
+            - cell "Learned 4 ngày trước" [ref=f1e4829]:
+              - generic [ref=f1e4830]: Learned
+              - generic [ref=f1e4831]: 4 ngày trước
+            - cell "1.003 953 vector" [ref=f1e4832]:
+              - text: "1.003"
+              - generic [ref=f1e4833]: 953 vector
+            - cell [ref=f1e4834]:
+              - button "Quản lý" [ref=f1e4835] [cursor=pointer]
+          - row [ref=f1e4836]:
+            - cell "CH VN Back Alpha | Onchain -1001550439264 · channel · @Vnback_Onchain" [ref=f1e4837]:
+              - generic [ref=f1e4838]:
+                - generic [ref=f1e4839]: CH
+                - generic [ref=f1e4840]:
+                  - generic [ref=f1e4841]: VN Back Alpha | Onchain
+                  - generic [ref=f1e4842]: "-1001550439264 · channel · @Vnback_Onchain"
+            - cell "ALLOW" [ref=f1e4843]
+            - cell "INHERIT" [ref=f1e4845]
+            - cell "OFF" [ref=f1e4847]
+            - cell "OFF" [ref=f1e4849]
+            - cell "Learned 4 ngày trước" [ref=f1e4851]:
+              - generic [ref=f1e4852]: Learned
+              - generic [ref=f1e4853]: 4 ngày trước
+            - cell "1.002 849 vector" [ref=f1e4854]:
+              - text: "1.002"
+              - generic [ref=f1e4855]: 849 vector
+            - cell [ref=f1e4856]:
+              - button "Quản lý" [ref=f1e4857] [cursor=pointer]
+      - generic [ref=f1e4063]:
+        - generic [ref=f1e4064]: Trang 2/30 · 298 nguồn
+        - generic [ref=f1e4065]:
+          - button "Trước" [ref=f1e4066] [cursor=pointer]
+          - text: "2"
+          - button "Sau" [active] [ref=f1e4069] [cursor=pointer]

@@ -1,0 +1,97 @@
+- generic [ref=f1e3]:
+  - complementary [ref=f1e4]:
+    - generic [ref=f1e9]:
+      - strong [ref=f1e10]: TELEGRAM//AI
+      - generic [ref=f1e11]: ADMIN CONSOLE
+    - navigation "Điều hướng chính" [ref=f1e12]:
+      - generic [ref=f1e13]:
+        - paragraph [ref=f1e14]: VẬN HÀNH
+        - button "Tổng quan" [ref=f1e15] [cursor=pointer]
+      - button "Kết nối" [ref=f1e20] [cursor=pointer]
+      - button "Nhóm Telegram" [ref=f1e25] [cursor=pointer]
+      - button "Policy Engine" [ref=f1e30] [cursor=pointer]
+      - generic [ref=f1e34]:
+        - paragraph [ref=f1e35]: AI & DỮ LIỆU
+        - button "AI & RAG" [ref=f1e36] [cursor=pointer]
+      - button "Local Models" [ref=f1e41] [cursor=pointer]
+      - button "Kho tri thức" [ref=f1e7635] [cursor=pointer]
+      - button "Bộ nhớ & lưu trữ" [ref=f1e51] [cursor=pointer]
+      - generic [ref=f1e55]:
+        - paragraph [ref=f1e56]: KIỂM SOÁT
+        - button "Hành động chờ" [ref=f1e14506] [cursor=pointer]
+      - button "Scheduler & Workers" [ref=f1e62] [cursor=pointer]
+      - button "Audit Log" [ref=f1e67] [cursor=pointer]
+      - button "Bảo mật" [active] [ref=f1e72] [cursor=pointer]
+      - button "Tài liệu & Hệ thống" [ref=f1e77] [cursor=pointer]
+      - generic [ref=f1e81]:
+        - paragraph [ref=f1e82]: TRỢ LÝ CHÍNH
+        - button "Chức năng Telegram" [ref=f1e83] [cursor=pointer]
+    - generic [ref=f1e88]:
+      - generic [ref=f1e89]: OW
+      - generic [ref=f1e90]:
+        - generic [ref=f1e91]: Owner 1134327192
+        - generic [ref=f1e92]: Local · Realtime
+      - button "Đăng xuất" [ref=f1e93] [cursor=pointer]
+    - generic [ref=f1e96]:
+      - generic [ref=f1e97]: RUNTIME
+      - generic [ref=f1e98]: v0.1.0
+  - main [ref=f1e100]:
+    - generic [ref=f1e101]:
+      - generic [ref=f1e103]:
+        - paragraph [ref=f1e104]: TELEGRAM AI / BẢO MẬT
+        - heading "Bảo mật" [level=1] [ref=f1e15623]
+      - generic [ref=f1e106]:
+        - generic [ref=f1e107]: LIVE
+        - button "Thông báo" [ref=f1e109] [cursor=pointer]
+        - button "Hành động chờ" [ref=f1e112] [cursor=pointer]
+    - generic [ref=f1e15624]:
+      - generic [ref=f1e15625]:
+        - generic [ref=f1e15628]:
+          - paragraph [ref=f1e15629]: SECURITY POSTURE · ACTIVE
+          - heading "Không thực thi nếu chưa chắc chắn." [level=2] [ref=f1e15630]
+          - generic [ref=f1e15631]: Fail closed cho dữ liệu; fail safe cho tin nhắn Telegram.
+        - generic [ref=f1e15632]: LOCAL
+      - generic [ref=f1e15633]:
+        - generic [ref=f1e15634]:
+          - generic [ref=f1e15636]:
+            - paragraph [ref=f1e15637]: OWNER SESSION
+            - heading "Xác thực dashboard" [level=2] [ref=f1e15638]
+          - generic [ref=f1e15639]:
+            - generic [ref=f1e15640]:
+              - generic [ref=f1e15641]:
+                - generic [ref=f1e15642]: Mã đăng nhập 8 số
+                - generic [ref=f1e15643]: HMAC, hết hạn sau 5 phút.
+              - generic [ref=f1e15644]: ACTIVE
+            - generic [ref=f1e15645]:
+              - generic [ref=f1e15646]:
+                - generic [ref=f1e15647]: Cookie HttpOnly
+                - generic [ref=f1e15648]: JavaScript không đọc được session token.
+              - generic [ref=f1e15649]: ACTIVE
+            - generic [ref=f1e15650]:
+              - generic [ref=f1e15651]:
+                - generic [ref=f1e15652]: CSRF header
+                - generic [ref=f1e15653]: Mọi request ghi cần X-CSRF-Token.
+              - generic [ref=f1e15654]: ACTIVE
+            - generic [ref=f1e15655]:
+              - generic [ref=f1e15656]:
+                - generic [ref=f1e15657]: Loopback only
+                - generic [ref=f1e15658]: Admin API không lắng nghe mạng LAN.
+              - generic [ref=f1e15659]: 127.0.0.1
+        - generic [ref=f1e15660]:
+          - generic [ref=f1e15662]:
+            - paragraph [ref=f1e15663]: SECRET BOUNDARY
+            - heading "Dữ liệu không rời backend" [level=2] [ref=f1e15664]
+          - generic [ref=f1e15665]:
+            - generic [ref=f1e15666]: Telegram
+            - generic [ref=f1e15667]: →
+            - generic [ref=f1e15668]: Policy
+            - generic [ref=f1e15669]: →
+            - generic [ref=f1e15670]: AI Router
+            - generic [ref=f1e15671]: →
+            - generic [ref=f1e15672]: Audit
+          - generic [ref=f1e15673]:
+            - generic [ref=f1e15676]: Write-only secrets
+            - generic [ref=f1e15677]: API key, token và mật khẩu không có endpoint đọc và không render trên UI.
+          - generic [ref=f1e15678]:
+            - generic [ref=f1e15681]: Destructive guard
+            - generic [ref=f1e15682]: Xóa model và cleanup storage bắt buộc đi qua preview + PendingAction.

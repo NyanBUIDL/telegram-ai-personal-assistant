@@ -1,0 +1,1723 @@
+- generic [ref=e36]:
+  - complementary [ref=e37]:
+    - generic [ref=e42]:
+      - strong [ref=e43]: TELEGRAM//AI
+      - generic [ref=e44]: ADMIN CONSOLE
+    - navigation "Điều hướng chính" [ref=e45]:
+      - generic [ref=e46]:
+        - paragraph [ref=e47]: VẬN HÀNH
+        - button "Tổng quan" [ref=e48] [cursor=pointer]
+      - button "Kết nối" [ref=e53] [cursor=pointer]
+      - button "Nhóm Telegram" [ref=e58] [cursor=pointer]
+      - button "Policy Engine" [ref=e63] [cursor=pointer]
+      - generic [ref=e67]:
+        - paragraph [ref=e68]: AI & DỮ LIỆU
+        - button "AI & RAG" [ref=e69] [cursor=pointer]
+      - button "Local Models" [ref=e74] [cursor=pointer]
+      - button "Kho tri thức" [ref=e79] [cursor=pointer]
+      - button "Bộ nhớ & lưu trữ" [ref=e84] [cursor=pointer]
+      - generic [ref=e88]:
+        - paragraph [ref=e89]: KIỂM SOÁT
+        - button "Hành động chờ" [ref=e2716] [cursor=pointer]
+      - button "Scheduler & Workers" [ref=e95] [cursor=pointer]
+      - button "Audit Log" [ref=e100] [cursor=pointer]
+      - button "Bảo mật" [ref=e105] [cursor=pointer]
+      - button "Tài liệu & Hệ thống" [ref=e110] [cursor=pointer]
+      - generic [ref=e114]:
+        - paragraph [ref=e115]: TRỢ LÝ CHÍNH
+        - button "Chức năng Telegram" [ref=e116] [cursor=pointer]
+    - generic [ref=e121]:
+      - generic [ref=e122]: OW
+      - generic [ref=e123]:
+        - generic [ref=e124]: Owner 1134327192
+        - generic [ref=e125]: Local · Realtime
+      - button "Đăng xuất" [ref=e126] [cursor=pointer]
+    - generic [ref=e129]:
+      - generic [ref=e130]: RUNTIME
+      - generic [ref=e131]: v0.1.0
+  - main [ref=e133]:
+    - generic [ref=e134]:
+      - generic [ref=e136]:
+        - paragraph [ref=e137]: TELEGRAM AI / KHO TRI THỨC
+        - heading "Kho tri thức" [level=1] [ref=e1023]
+      - generic [ref=e139]:
+        - generic [ref=e140]: LIVE
+        - button "Thông báo" [ref=e142] [cursor=pointer]
+        - button "Hành động chờ" [ref=e145] [cursor=pointer]
+    - generic [ref=e1024]:
+      - generic [ref=e1025]:
+        - generic [ref=e1026]:
+          - generic [ref=e1029]: Tổng nguồn
+          - generic [ref=e1030]: "298"
+          - generic [ref=e1031]: MYSQL
+        - generic [ref=e1032]:
+          - generic [ref=e1035]: Đã học
+          - generic [ref=e1036]: "98"
+          - generic [ref=e1037]: 32.9% ĐỘ PHỦ
+        - generic [ref=e1038]:
+          - generic [ref=e1041]: Đang chờ / tạm dừng
+          - generic [ref=e1042]: "0"
+          - generic [ref=e1043]: QUEUE
+        - generic [ref=e1044]:
+          - generic [ref=e1047]: Chưa học / không có nội dung
+          - generic [ref=e1048]: "200"
+          - generic [ref=e1049]: ĐÃ RÀ SOÁT
+      - generic [ref=e1050]:
+        - generic [ref=e1051]:
+          - paragraph [ref=e1052]: UNIFIED TELEGRAM BRAIN · LIVE
+          - heading "98/298 nguồn đang đóng góp vào bộ não chung." [level=2] [ref=e1053]
+          - generic [ref=e1054]: “Học” ở đây là đồng bộ nội dung được cấp quyền vào MySQL, làm sạch và tạo embedding để tìm kiếm ngữ nghĩa. Hệ thống không tự fine-tune model AI.
+          - generic [ref=e1055]: "Quyền tự học: 100 nguồn · MySQL: 85.466 tin · Vector: 74.939 · lần học gần nhất: 00:03 25/7/26"
+        - button "Đưa nguồn còn thiếu vào bộ não" [ref=e1056] [cursor=pointer]
+      - generic [ref=e1059]:
+        - generic [ref=e1060]:
+          - generic [ref=e1061]:
+            - paragraph [ref=e1062]: LEARNING INVENTORY · LIVE
+            - heading "Kho tri thức" [level=2] [ref=e1063]
+          - button "Xuất toàn bộ CSV" [ref=e1064] [cursor=pointer]
+        - generic [ref=e1067]:
+          - combobox [ref=e1068] [cursor=pointer]:
+            - option "Tất cả trạng thái"
+            - option "Đã học" [selected]
+            - option "Đã học, lần cập nhật gần nhất lỗi"
+            - option "Đang chờ"
+            - option "Đang học"
+            - option "Lỗi"
+            - option "Chưa học"
+            - option "Không lấy được nội dung"
+          - generic [ref=e1069]:
+            - button "Pause tất cả" [ref=e1070] [cursor=pointer]
+            - button "Resume tất cả" [ref=e1073] [cursor=pointer]
+        - table [ref=e1077]:
+          - rowgroup [ref=e1078]:
+            - row [ref=e1079]:
+              - columnheader "Nguồn" [ref=e1080]
+              - columnheader "Trạng thái" [ref=e1081]
+              - columnheader "MySQL" [ref=e1082]
+              - columnheader "Vector" [ref=e1083]
+              - columnheader "Dung lượng" [ref=e1084]
+              - columnheader "Lần học" [ref=e1085]
+              - columnheader "Lỗi / ghi chú" [ref=e1086]
+          - rowgroup [ref=e1087]:
+            - row [ref=e1088]:
+              - cell "[ALFA] Pirate Clash Guilds -1002135086290 · supergroup" [ref=e1089]:
+                - text: "[ALFA] Pirate Clash Guilds"
+                - generic [ref=e1090]: "-1002135086290 · supergroup"
+              - cell "Not Learned" [ref=e1091]
+              - cell "0 0 có nội dung" [ref=e1093]:
+                - text: "0"
+                - generic [ref=e1094]: 0 có nội dung
+              - cell "0" [ref=e1095]
+              - cell "0 B" [ref=e1096]
+              - cell "—" [ref=e1097]
+              - cell "Nguồn chưa được chọn vào flow học." [ref=e1098]
+            - row [ref=e1099]:
+              - cell "[Web3 Matching] - Team Chạy Event -839265733 · group" [ref=e1100]:
+                - text: "[Web3 Matching] - Team Chạy Event"
+                - generic [ref=e1101]: "-839265733 · group"
+              - cell "Not Learned" [ref=e1102]
+              - cell "0 0 có nội dung" [ref=e1104]:
+                - text: "0"
+                - generic [ref=e1105]: 0 có nội dung
+              - cell "0" [ref=e1106]
+              - cell "0 B" [ref=e1107]
+              - cell "—" [ref=e1108]
+              - cell "Nguồn chưa được chọn vào flow học." [ref=e1109]
+            - row [ref=e1110]:
+              - cell "🇺🇸 Ancient8 | Channel -1001735773747 · channel" [ref=e1111]:
+                - text: 🇺🇸 Ancient8 | Channel
+                - generic [ref=e1112]: "-1001735773747 · channel"
+              - cell "Not Learned" [ref=e1113]
+              - cell "0 0 có nội dung" [ref=e1115]:
+                - text: "0"
+                - generic [ref=e1116]: 0 có nội dung
+              - cell "0" [ref=e1117]
+              - cell "0 B" [ref=e1118]
+              - cell "—" [ref=e1119]
+              - cell "Nguồn chưa được chọn vào flow học." [ref=e1120]
+            - row [ref=e1121]:
+              - cell "🇺🇸 Ancient8 | Chat -1001529031822 · supergroup" [ref=e1122]:
+                - text: 🇺🇸 Ancient8 | Chat
+                - generic [ref=e1123]: "-1001529031822 · supergroup"
+              - cell "Learned" [ref=e1124]
+              - cell "884 853 có nội dung" [ref=e1126]:
+                - text: "884"
+                - generic [ref=e1127]: 853 có nội dung
+              - cell "702" [ref=e1128]
+              - cell "66 KB" [ref=e1129]
+              - cell "23:33 24/7/26" [ref=e1130]
+              - cell "Đã có nội dung trong kho kiến thức hợp nhất." [ref=e1131]
+            - row [ref=e1132]:
+              - cell "🌎 Ancient8 | Channel -1001208876489 · channel" [ref=e1133]:
+                - text: 🌎 Ancient8 | Channel
+                - generic [ref=e1134]: "-1001208876489 · channel"
+              - cell "Not Learned" [ref=e1135]
+              - cell "0 0 có nội dung" [ref=e1137]:
+                - text: "0"
+                - generic [ref=e1138]: 0 có nội dung
+              - cell "0" [ref=e1139]
+              - cell "0 B" [ref=e1140]
+              - cell "—" [ref=e1141]
+              - cell "Nguồn chưa được chọn vào flow học." [ref=e1142]
+            - row [ref=e1143]:
+              - cell "🌎 Ancient8 | Chat -1001540375365 · supergroup" [ref=e1144]:
+                - text: 🌎 Ancient8 | Chat
+                - generic [ref=e1145]: "-1001540375365 · supergroup"
+              - cell "Learned" [ref=e1146]
+              - cell "1.073 1.073 có nội dung" [ref=e1148]:
+                - text: "1.073"
+                - generic [ref=e1149]: 1.073 có nội dung
+              - cell "1.075" [ref=e1150]
+              - cell "70 KB" [ref=e1151]
+              - cell "23:32 24/7/26" [ref=e1152]
+              - cell "Đã có nội dung trong kho kiến thức hợp nhất." [ref=e1153]
+            - row [ref=e1154]:
+              - cell "📊 CryptoNews 24/7 Real-Time Updates -1001440023710 · channel" [ref=e1155]:
+                - text: 📊 CryptoNews 24/7 Real-Time Updates
+                - generic [ref=e1156]: "-1001440023710 · channel"
+              - cell "Learned" [ref=e1157]
+              - cell "1.026 1.026 có nội dung" [ref=e1159]:
+                - text: "1.026"
+                - generic [ref=e1160]: 1.026 có nội dung
+              - cell "1.015" [ref=e1161]
+              - cell "309 KB" [ref=e1162]
+              - cell "23:58 24/7/26" [ref=e1163]
+              - cell "Đã có nội dung trong kho kiến thức hợp nhất." [ref=e1164]
+            - row [ref=e1165]:
+              - cell "5 Phút Crypto | Channel -1001376587105 · channel" [ref=e1166]:
+                - text: 5 Phút Crypto | Channel
+                - generic [ref=e1167]: "-1001376587105 · channel"
+              - cell "Learned" [ref=e1168]
+              - cell "1.011 1.011 có nội dung" [ref=e1170]:
+                - text: "1.011"
+                - generic [ref=e1171]: 1.011 có nội dung
+              - cell "1.002" [ref=e1172]
+              - cell "940 KB" [ref=e1173]
+              - cell "00:03 25/7/26" [ref=e1174]
+              - cell "Đã có nội dung trong kho kiến thức hợp nhất." [ref=e1175]
+            - row [ref=e1176]:
+              - cell "68 e dóp -735232785 · group" [ref=e1177]:
+                - text: 68 e dóp
+                - generic [ref=e1178]: "-735232785 · group"
+              - cell "Not Learned" [ref=e1179]
+              - cell "0 0 có nội dung" [ref=e1181]:
+                - text: "0"
+                - generic [ref=e1182]: 0 có nội dung
+              - cell "0" [ref=e1183]
+              - cell "0 B" [ref=e1184]
+              - cell "—" [ref=e1185]
+              - cell "Nguồn chưa được chọn vào flow học." [ref=e1186]
+            - row [ref=e1187]:
+              - cell "68 Private Group -806661590 · group" [ref=e1188]:
+                - text: 68 Private Group
+                - generic [ref=e1189]: "-806661590 · group"
+              - cell "Not Learned" [ref=e1190]
+              - cell "0 0 có nội dung" [ref=e1192]:
+                - text: "0"
+                - generic [ref=e1193]: 0 có nội dung
+              - cell "0" [ref=e1194]
+              - cell "0 B" [ref=e1195]
+              - cell "—" [ref=e1196]
+              - cell "Nguồn chưa được chọn vào flow học." [ref=e1197]
+            - row [ref=e1198]:
+              - cell "68 Research Signal -892143851 · group" [ref=e1199]:
+                - text: 68 Research Signal
+                - generic [ref=e1200]: "-892143851 · group"
+              - cell "Not Learned" [ref=e1201]
+              - cell "0 0 có nội dung" [ref=e1203]:
+                - text: "0"
+                - generic [ref=e1204]: 0 có nội dung
+              - cell "0" [ref=e1205]
+              - cell "0 B" [ref=e1206]
+              - cell "—" [ref=e1207]
+              - cell "Nguồn chưa được chọn vào flow học." [ref=e1208]
+            - row [ref=e1209]:
+              - cell "68 Trading & Seapad -1002247863182 · supergroup" [ref=e1210]:
+                - text: 68 Trading & Seapad
+                - generic [ref=e1211]: "-1002247863182 · supergroup"
+              - cell "Not Learned" [ref=e1212]
+              - cell "0 0 có nội dung" [ref=e1214]:
+                - text: "0"
+                - generic [ref=e1215]: 0 có nội dung
+              - cell "0" [ref=e1216]
+              - cell "0 B" [ref=e1217]
+              - cell "—" [ref=e1218]
+              - cell "Nguồn chưa được chọn vào flow học." [ref=e1219]
+            - row [ref=e1220]:
+              - cell "68 Trading & Seapad -4185012332 · group" [ref=e1221]:
+                - text: 68 Trading & Seapad
+                - generic [ref=e1222]: "-4185012332 · group"
+              - cell "Not Learned" [ref=e1223]
+              - cell "0 0 có nội dung" [ref=e1225]:
+                - text: "0"
+                - generic [ref=e1226]: 0 có nội dung
+              - cell "0" [ref=e1227]
+              - cell "0 B" [ref=e1228]
+              - cell "—" [ref=e1229]
+              - cell "Nguồn chưa được chọn vào flow học." [ref=e1230]
+            - row [ref=e1231]:
+              - cell "68 Trading <> CoinW -4029915915 · group" [ref=e1232]:
+                - text: 68 Trading <> CoinW
+                - generic [ref=e1233]: "-4029915915 · group"
+              - cell "Not Learned" [ref=e1234]
+              - cell "0 0 có nội dung" [ref=e1236]:
+                - text: "0"
+                - generic [ref=e1237]: 0 có nội dung
+              - cell "0" [ref=e1238]
+              - cell "0 B" [ref=e1239]
+              - cell "—" [ref=e1240]
+              - cell "Nguồn chưa được chọn vào flow học." [ref=e1241]
+            - row [ref=e1242]:
+              - cell "68KV Research Diary -1001417604302 · channel" [ref=e1243]:
+                - text: 68KV Research Diary
+                - generic [ref=e1244]: "-1001417604302 · channel"
+              - cell "Not Learned" [ref=e1245]
+              - cell "0 0 có nội dung" [ref=e1247]:
+                - text: "0"
+                - generic [ref=e1248]: 0 có nội dung
+              - cell "0" [ref=e1249]
+              - cell "0 B" [ref=e1250]
+              - cell "—" [ref=e1251]
+              - cell "Nguồn chưa được chọn vào flow học." [ref=e1252]
+            - row [ref=e1253]:
+              - cell "68T AIRDROP TỔNG HỢP -4285057566 · group" [ref=e1254]:
+                - text: 68T AIRDROP TỔNG HỢP
+                - generic [ref=e1255]: "-4285057566 · group"
+              - cell "Not Learned" [ref=e1256]
+              - cell "0 0 có nội dung" [ref=e1258]:
+                - text: "0"
+                - generic [ref=e1259]: 0 có nội dung
+              - cell "0" [ref=e1260]
+              - cell "0 B" [ref=e1261]
+              - cell "—" [ref=e1262]
+              - cell "Nguồn chưa được chọn vào flow học." [ref=e1263]
+            - row [ref=e1264]:
+              - cell "68T Capital Airdrop Group -1001930192988 · supergroup" [ref=e1265]:
+                - text: 68T Capital Airdrop Group
+                - generic [ref=e1266]: "-1001930192988 · supergroup"
+              - cell "Not Learned" [ref=e1267]
+              - cell "0 0 có nội dung" [ref=e1269]:
+                - text: "0"
+                - generic [ref=e1270]: 0 có nội dung
+              - cell "0" [ref=e1271]
+              - cell "0 B" [ref=e1272]
+              - cell "—" [ref=e1273]
+              - cell "Nguồn chưa được chọn vào flow học." [ref=e1274]
+            - row [ref=e1275]:
+              - cell "68T Capital Airdrop Group -892773607 · group" [ref=e1276]:
+                - text: 68T Capital Airdrop Group
+                - generic [ref=e1277]: "-892773607 · group"
+              - cell "Not Learned" [ref=e1278]
+              - cell "0 0 có nội dung" [ref=e1280]:
+                - text: "0"
+                - generic [ref=e1281]: 0 có nội dung
+              - cell "0" [ref=e1282]
+              - cell "0 B" [ref=e1283]
+              - cell "—" [ref=e1284]
+              - cell "Nguồn chưa được chọn vào flow học." [ref=e1285]
+            - row [ref=e1286]:
+              - cell "68T Fund Project -1001922089638 · channel" [ref=e1287]:
+                - text: 68T Fund Project
+                - generic [ref=e1288]: "-1001922089638 · channel"
+              - cell "Not Learned" [ref=e1289]
+              - cell "0 0 có nội dung" [ref=e1291]:
+                - text: "0"
+                - generic [ref=e1292]: 0 có nội dung
+              - cell "0" [ref=e1293]
+              - cell "0 B" [ref=e1294]
+              - cell "—" [ref=e1295]
+              - cell "Nguồn chưa được chọn vào flow học." [ref=e1296]
+            - row [ref=e1297]:
+              - cell "68TRADING & BYBIT AID 85910 -4238265610 · group" [ref=e1298]:
+                - text: 68TRADING & BYBIT AID 85910
+                - generic [ref=e1299]: "-4238265610 · group"
+              - cell "Not Learned" [ref=e1300]
+              - cell "0 0 có nội dung" [ref=e1302]:
+                - text: "0"
+                - generic [ref=e1303]: 0 có nội dung
+              - cell "0" [ref=e1304]
+              - cell "0 B" [ref=e1305]
+              - cell "—" [ref=e1306]
+              - cell "Nguồn chưa được chọn vào flow học." [ref=e1307]
+            - row [ref=e1308]:
+              - cell "68Trading & Spores -1001992337397 · supergroup" [ref=e1309]:
+                - text: 68Trading & Spores
+                - generic [ref=e1310]: "-1001992337397 · supergroup"
+              - cell "Not Learned" [ref=e1311]
+              - cell "0 0 có nội dung" [ref=e1313]:
+                - text: "0"
+                - generic [ref=e1314]: 0 có nội dung
+              - cell "0" [ref=e1315]
+              - cell "0 B" [ref=e1316]
+              - cell "—" [ref=e1317]
+              - cell "Nguồn chưa được chọn vào flow học." [ref=e1318]
+            - row [ref=e1319]:
+              - cell "68trading Content -767134249 · group" [ref=e1320]:
+                - text: 68trading Content
+                - generic [ref=e1321]: "-767134249 · group"
+              - cell "Not Learned" [ref=e1322]
+              - cell "0 0 có nội dung" [ref=e1324]:
+                - text: "0"
+                - generic [ref=e1325]: 0 có nội dung
+              - cell "0" [ref=e1326]
+              - cell "0 B" [ref=e1327]
+              - cell "—" [ref=e1328]
+              - cell "Nguồn chưa được chọn vào flow học." [ref=e1329]
+            - row [ref=e1330]:
+              - cell "68trading gangz -1001698114338 · supergroup" [ref=e1331]:
+                - text: 68trading gangz
+                - generic [ref=e1332]: "-1001698114338 · supergroup"
+              - cell "Learned" [ref=e1333]
+              - cell "1.000 998 có nội dung" [ref=e1335]:
+                - text: "1.000"
+                - generic [ref=e1336]: 998 có nội dung
+              - cell "958" [ref=e1337]
+              - cell "137 KB" [ref=e1338]
+              - cell "23:17 24/7/26" [ref=e1339]
+              - cell "Đã có nội dung trong kho kiến thức hợp nhất." [ref=e1340]
+            - row [ref=e1341]:
+              - cell "68trading gangz -752237857 · group" [ref=e1342]:
+                - text: 68trading gangz
+                - generic [ref=e1343]: "-752237857 · group"
+              - cell "Not Learned" [ref=e1344]
+              - cell "0 0 có nội dung" [ref=e1346]:
+                - text: "0"
+                - generic [ref=e1347]: 0 có nội dung
+              - cell "0" [ref=e1348]
+              - cell "0 B" [ref=e1349]
+              - cell "—" [ref=e1350]
+              - cell "Nguồn chưa được chọn vào flow học." [ref=e1351]
+            - row [ref=e1352]:
+              - cell "68trading Gangz V2 -1001875525730 · supergroup" [ref=e1353]:
+                - text: 68trading Gangz V2
+                - generic [ref=e1354]: "-1001875525730 · supergroup"
+              - cell "Not Learned" [ref=e1355]
+              - cell "0 0 có nội dung" [ref=e1357]:
+                - text: "0"
+                - generic [ref=e1358]: 0 có nội dung
+              - cell "0" [ref=e1359]
+              - cell "0 B" [ref=e1360]
+              - cell "—" [ref=e1361]
+              - cell "Nguồn chưa được chọn vào flow học." [ref=e1362]
+            - row [ref=e1363]:
+              - cell "A8 Builder Jam (Hackathon) -1002284492904 · supergroup" [ref=e1364]:
+                - text: A8 Builder Jam (Hackathon)
+                - generic [ref=e1365]: "-1002284492904 · supergroup"
+              - cell "Not Learned" [ref=e1366]
+              - cell "0 0 có nội dung" [ref=e1368]:
+                - text: "0"
+                - generic [ref=e1369]: 0 có nội dung
+              - cell "0" [ref=e1370]
+              - cell "0 B" [ref=e1371]
+              - cell "—" [ref=e1372]
+              - cell "Nguồn chưa được chọn vào flow học." [ref=e1373]
+            - row [ref=e1374]:
+              - cell "A8 Builder Jam | Media Partners -1002456549543 · supergroup" [ref=e1375]:
+                - text: A8 Builder Jam | Media Partners
+                - generic [ref=e1376]: "-1002456549543 · supergroup"
+              - cell "Not Learned" [ref=e1377]
+              - cell "0 0 có nội dung" [ref=e1379]:
+                - text: "0"
+                - generic [ref=e1380]: 0 có nội dung
+              - cell "0" [ref=e1381]
+              - cell "0 B" [ref=e1382]
+              - cell "—" [ref=e1383]
+              - cell "Nguồn chưa được chọn vào flow học." [ref=e1384]
+            - row [ref=e1385]:
+              - cell "A8 Builder Jam | Media Partners -4525008149 · group" [ref=e1386]:
+                - text: A8 Builder Jam | Media Partners
+                - generic [ref=e1387]: "-4525008149 · group"
+              - cell "Not Learned" [ref=e1388]
+              - cell "0 0 có nội dung" [ref=e1390]:
+                - text: "0"
+                - generic [ref=e1391]: 0 có nội dung
+              - cell "0" [ref=e1392]
+              - cell "0 B" [ref=e1393]
+              - cell "—" [ref=e1394]
+              - cell "Nguồn chưa được chọn vào flow học." [ref=e1395]
+            - row [ref=e1396]:
+              - cell "A8 Discord Content -518417172 · group" [ref=e1397]:
+                - text: A8 Discord Content
+                - generic [ref=e1398]: "-518417172 · group"
+              - cell "Not Learned" [ref=e1399]
+              - cell "0 0 có nội dung" [ref=e1401]:
+                - text: "0"
+                - generic [ref=e1402]: 0 có nội dung
+              - cell "0" [ref=e1403]
+              - cell "0 B" [ref=e1404]
+              - cell "—" [ref=e1405]
+              - cell "Nguồn chưa được chọn vào flow học." [ref=e1406]
+            - row [ref=e1407]:
+              - cell "Acala Official Announcement -1001289653414 · channel" [ref=e1408]:
+                - text: Acala Official Announcement
+                - generic [ref=e1409]: "-1001289653414 · channel"
+              - cell "Not Learned" [ref=e1410]
+              - cell "0 0 có nội dung" [ref=e1412]:
+                - text: "0"
+                - generic [ref=e1413]: 0 có nội dung
+              - cell "0" [ref=e1414]
+              - cell "0 B" [ref=e1415]
+              - cell "—" [ref=e1416]
+              - cell "Nguồn chưa được chọn vào flow học." [ref=e1417]
+            - row [ref=e1418]:
+              - cell "Airdrop & Retroactive Việt Nam -1001853296156 · channel" [ref=e1419]:
+                - text: Airdrop & Retroactive Việt Nam
+                - generic [ref=e1420]: "-1001853296156 · channel"
+              - cell "Learned" [ref=e1421]
+              - cell "1.010 987 có nội dung" [ref=e1423]:
+                - text: "1.010"
+                - generic [ref=e1424]: 987 có nội dung
+              - cell "895" [ref=e1425]
+              - cell "327 KB" [ref=e1426]
+              - cell "23:26 24/7/26" [ref=e1427]
+              - cell "Đã có nội dung trong kho kiến thức hợp nhất." [ref=e1428]
+            - row [ref=e1429]:
+              - cell "ALL HANDS GMVN (SSID X KYROS) -1002387027694 · supergroup" [ref=e1430]:
+                - text: ALL HANDS GMVN (SSID X KYROS)
+                - generic [ref=e1431]: "-1002387027694 · supergroup"
+              - cell "Not Learned" [ref=e1432]
+              - cell "0 0 có nội dung" [ref=e1434]:
+                - text: "0"
+                - generic [ref=e1435]: 0 có nội dung
+              - cell "0" [ref=e1436]
+              - cell "0 B" [ref=e1437]
+              - cell "—" [ref=e1438]
+              - cell "Nguồn chưa được chọn vào flow học." [ref=e1439]
+            - row [ref=e1440]:
+              - cell "ALL THINGS SPEAKERSHIP GM 2024 -1002172440770 · supergroup" [ref=e1441]:
+                - text: ALL THINGS SPEAKERSHIP GM 2024
+                - generic [ref=e1442]: "-1002172440770 · supergroup"
+              - cell "Not Learned" [ref=e1443]
+              - cell "0 0 có nội dung" [ref=e1445]:
+                - text: "0"
+                - generic [ref=e1446]: 0 có nội dung
+              - cell "0" [ref=e1447]
+              - cell "0 B" [ref=e1448]
+              - cell "—" [ref=e1449]
+              - cell "Nguồn chưa được chọn vào flow học." [ref=e1450]
+            - row [ref=e1451]:
+              - cell "ALL THINGS SPEAKERSHIP GM 2024 -4083419773 · group" [ref=e1452]:
+                - text: ALL THINGS SPEAKERSHIP GM 2024
+                - generic [ref=e1453]: "-4083419773 · group"
+              - cell "Not Learned" [ref=e1454]
+              - cell "0 0 có nội dung" [ref=e1456]:
+                - text: "0"
+                - generic [ref=e1457]: 0 có nội dung
+              - cell "0" [ref=e1458]
+              - cell "0 B" [ref=e1459]
+              - cell "—" [ref=e1460]
+              - cell "Nguồn chưa được chọn vào flow học." [ref=e1461]
+            - row [ref=e1462]:
+              - cell "Ăn cùng Brian -1002542009258 · channel" [ref=e1463]:
+                - text: Ăn cùng Brian
+                - generic [ref=e1464]: "-1002542009258 · channel"
+              - cell "Not Learned" [ref=e1465]
+              - cell "0 0 có nội dung" [ref=e1467]:
+                - text: "0"
+                - generic [ref=e1468]: 0 có nội dung
+              - cell "0" [ref=e1469]
+              - cell "0 B" [ref=e1470]
+              - cell "—" [ref=e1471]
+              - cell "Nguồn chưa được chọn vào flow học." [ref=e1472]
+            - row [ref=e1473]:
+              - cell "Ancient8 Builder Jam -1002433328361 · supergroup" [ref=e1474]:
+                - text: Ancient8 Builder Jam
+                - generic [ref=e1475]: "-1002433328361 · supergroup"
+              - cell "Learned" [ref=e1476]
+              - cell "471 394 có nội dung" [ref=e1478]:
+                - text: "471"
+                - generic [ref=e1479]: 394 có nội dung
+              - cell "385" [ref=e1480]
+              - cell "44 KB" [ref=e1481]
+              - cell "23:35 24/7/26" [ref=e1482]
+              - cell "Đã có nội dung trong kho kiến thức hợp nhất." [ref=e1483]
+            - row [ref=e1484]:
+              - cell "Ancient8 Builder Jam - Channel -1002368268810 · channel" [ref=e1485]:
+                - text: Ancient8 Builder Jam - Channel
+                - generic [ref=e1486]: "-1002368268810 · channel"
+              - cell "Not Learned" [ref=e1487]
+              - cell "0 0 có nội dung" [ref=e1489]:
+                - text: "0"
+                - generic [ref=e1490]: 0 có nội dung
+              - cell "0" [ref=e1491]
+              - cell "0 B" [ref=e1492]
+              - cell "—" [ref=e1493]
+              - cell "Nguồn chưa được chọn vào flow học." [ref=e1494]
+            - row [ref=e1495]:
+              - cell "Ancient8 Lounge -1001643869474 · supergroup" [ref=e1496]:
+                - text: Ancient8 Lounge
+                - generic [ref=e1497]: "-1001643869474 · supergroup"
+              - cell "Not Learned" [ref=e1498]
+              - cell "0 0 có nội dung" [ref=e1500]:
+                - text: "0"
+                - generic [ref=e1501]: 0 có nội dung
+              - cell "0" [ref=e1502]
+              - cell "0 B" [ref=e1503]
+              - cell "—" [ref=e1504]
+              - cell "Nguồn chưa được chọn vào flow học." [ref=e1505]
+            - row [ref=e1506]:
+              - cell "AntiAntiNFTs Club - Channel 🪬 -1001791859684 · channel" [ref=e1507]:
+                - text: AntiAntiNFTs Club - Channel 🪬
+                - generic [ref=e1508]: "-1001791859684 · channel"
+              - cell "Learned" [ref=e1509]
+              - cell "1.000 991 có nội dung" [ref=e1511]:
+                - text: "1.000"
+                - generic [ref=e1512]: 991 có nội dung
+              - cell "938" [ref=e1513]
+              - cell "337 KB" [ref=e1514]
+              - cell "23:26 24/7/26" [ref=e1515]
+              - cell "Đã có nội dung trong kho kiến thức hợp nhất." [ref=e1516]
+            - row [ref=e1517]:
+              - cell "Asia Market Report -1002022048823 · supergroup" [ref=e1518]:
+                - text: Asia Market Report
+                - generic [ref=e1519]: "-1002022048823 · supergroup"
+              - cell "Not Learned" [ref=e1520]
+              - cell "0 0 có nội dung" [ref=e1522]:
+                - text: "0"
+                - generic [ref=e1523]: 0 có nội dung
+              - cell "0" [ref=e1524]
+              - cell "0 B" [ref=e1525]
+              - cell "—" [ref=e1526]
+              - cell "Nguồn chưa được chọn vào flow học." [ref=e1527]
+            - row [ref=e1528]:
+              - cell "Bad-min-ton 🏸 (ex Dapp.exe 🚲 & Bóng dưa chuột 🏏) -1002051944598 · supergroup" [ref=e1529]:
+                - text: Bad-min-ton 🏸 (ex Dapp.exe 🚲 & Bóng dưa chuột 🏏)
+                - generic [ref=e1530]: "-1002051944598 · supergroup"
+              - cell "Learned" [ref=e1531]
+              - cell "1.004 1.002 có nội dung" [ref=e1533]:
+                - text: "1.004"
+                - generic [ref=e1534]: 1.002 có nội dung
+              - cell "736" [ref=e1535]
+              - cell "26 KB" [ref=e1536]
+              - cell "23:35 24/7/26" [ref=e1537]
+              - cell "Đã có nội dung trong kho kiến thức hợp nhất." [ref=e1538]
+            - row [ref=e1539]:
+              - cell "Binance AMA <> 68 Trading -1001623123463 · supergroup" [ref=e1540]:
+                - text: Binance AMA <> 68 Trading
+                - generic [ref=e1541]: "-1001623123463 · supergroup"
+              - cell "Not Learned" [ref=e1542]
+              - cell "0 0 có nội dung" [ref=e1544]:
+                - text: "0"
+                - generic [ref=e1545]: 0 có nội dung
+              - cell "0" [ref=e1546]
+              - cell "0 B" [ref=e1547]
+              - cell "—" [ref=e1548]
+              - cell "Nguồn chưa được chọn vào flow học." [ref=e1549]
+            - row [ref=e1550]:
+              - cell "Binance AMA <> 68 Trading -819386170 · group" [ref=e1551]:
+                - text: Binance AMA <> 68 Trading
+                - generic [ref=e1552]: "-819386170 · group"
+              - cell "Not Learned" [ref=e1553]
+              - cell "0 0 có nội dung" [ref=e1555]:
+                - text: "0"
+                - generic [ref=e1556]: 0 có nội dung
+              - cell "0" [ref=e1557]
+              - cell "0 B" [ref=e1558]
+              - cell "—" [ref=e1559]
+              - cell "Nguồn chưa được chọn vào flow học." [ref=e1560]
+            - row [ref=e1561]:
+              - cell "Binance Announcements -1001146915409 · channel" [ref=e1562]:
+                - text: Binance Announcements
+                - generic [ref=e1563]: "-1001146915409 · channel"
+              - cell "Learned" [ref=e1564]
+              - cell "1.003 1.003 có nội dung" [ref=e1566]:
+                - text: "1.003"
+                - generic [ref=e1567]: 1.003 có nội dung
+              - cell "762" [ref=e1568]
+              - cell "308 KB" [ref=e1569]
+              - cell "23:52 24/7/26" [ref=e1570]
+              - cell "Đã có nội dung trong kho kiến thức hợp nhất." [ref=e1571]
+            - row [ref=e1572]:
+              - cell "Binance Futures Liquidations -1001260161873 · channel" [ref=e1573]:
+                - text: Binance Futures Liquidations
+                - generic [ref=e1574]: "-1001260161873 · channel"
+              - cell "Learned" [ref=e1575]
+              - cell "1.639 1.637 có nội dung" [ref=e1577]:
+                - text: "1.639"
+                - generic [ref=e1578]: 1.637 có nội dung
+              - cell "1.396" [ref=e1579]
+              - cell "72 KB" [ref=e1580]
+              - cell "23:50 24/7/26" [ref=e1581]
+              - cell "Đã có nội dung trong kho kiến thức hợp nhất." [ref=e1582]
+            - row [ref=e1583]:
+              - cell "Binance Moonbix Announcements -1002215700757 · channel" [ref=e1584]:
+                - text: Binance Moonbix Announcements
+                - generic [ref=e1585]: "-1002215700757 · channel"
+              - cell "Not Learned" [ref=e1586]
+              - cell "0 0 có nội dung" [ref=e1588]:
+                - text: "0"
+                - generic [ref=e1589]: 0 có nội dung
+              - cell "0" [ref=e1590]
+              - cell "0 B" [ref=e1591]
+              - cell "—" [ref=e1592]
+              - cell "Nguồn chưa được chọn vào flow học." [ref=e1593]
+            - row [ref=e1594]:
+              - cell "Bitlayer<>KOLVietnam -1002018049263 · supergroup" [ref=e1595]:
+                - text: Bitlayer<>KOLVietnam
+                - generic [ref=e1596]: "-1002018049263 · supergroup"
+              - cell "Learned" [ref=e1597]
+              - cell "1.000 995 có nội dung" [ref=e1599]:
+                - text: "1.000"
+                - generic [ref=e1600]: 995 có nội dung
+              - cell "863" [ref=e1601]
+              - cell "30 KB" [ref=e1602]
+              - cell "23:32 24/7/26" [ref=e1603]
+              - cell "Đã có nội dung trong kho kiến thức hợp nhất." [ref=e1604]
+            - row [ref=e1605]:
+              - cell "BlockSec <> GM VIETNAM -1001990435894 · supergroup" [ref=e1606]:
+                - text: BlockSec <> GM VIETNAM
+                - generic [ref=e1607]: "-1001990435894 · supergroup"
+              - cell "Not Learned" [ref=e1608]
+              - cell "0 0 có nội dung" [ref=e1610]:
+                - text: "0"
+                - generic [ref=e1611]: 0 có nội dung
+              - cell "0" [ref=e1612]
+              - cell "0 B" [ref=e1613]
+              - cell "—" [ref=e1614]
+              - cell "Nguồn chưa được chọn vào flow học." [ref=e1615]
+            - row [ref=e1616]:
+              - 'cell "Blum: All Crypto – One App -1002039438207 · channel" [ref=e1617]':
+                - text: "Blum: All Crypto – One App"
+                - generic [ref=e1618]: "-1002039438207 · channel"
+              - cell "Learned" [ref=e1619]
+              - cell "1.000 958 có nội dung" [ref=e1621]:
+                - text: "1.000"
+                - generic [ref=e1622]: 958 có nội dung
+              - cell "890" [ref=e1623]
+              - cell "392 KB" [ref=e1624]
+              - cell "23:21 24/7/26" [ref=e1625]
+              - cell "Đã có nội dung trong kho kiến thức hợp nhất." [ref=e1626]
+            - row [ref=e1627]:
+              - cell "Boom Community -1001928309549 · supergroup" [ref=e1628]:
+                - text: Boom Community
+                - generic [ref=e1629]: "-1001928309549 · supergroup"
+              - cell "Learned" [ref=e1630]
+              - cell "1.007 1.007 có nội dung" [ref=e1632]:
+                - text: "1.007"
+                - generic [ref=e1633]: 1.007 có nội dung
+              - cell "1.005" [ref=e1634]
+              - cell "43 KB" [ref=e1635]
+              - cell "23:31 24/7/26" [ref=e1636]
+              - cell "Đã có nội dung trong kho kiến thức hợp nhất." [ref=e1637]
+        - generic [ref=e1638]:
+          - generic [ref=e1639]: Trang 1 · 298 nguồn
+          - generic [ref=e1640]:
+            - button "Trước" [disabled] [ref=e1641]
+            - button "Sau" [ref=e1644] [cursor=pointer]
+      - generic [ref=e1647]:
+        - generic [ref=e1648]:
+          - generic [ref=e1649]:
+            - paragraph [ref=e1650]: BACKGROUND JOBS · LIVE
+            - heading "Tiến trình học" [level=2] [ref=e1651]
+          - generic [ref=e1652]: 100 JOB
+        - table [ref=e1654]:
+          - rowgroup [ref=e1655]:
+            - row [ref=e1656]:
+              - columnheader "Job" [ref=e1657]
+              - columnheader "Nguồn" [ref=e1658]
+              - columnheader "Trạng thái" [ref=e1659]
+              - columnheader "Attempts" [ref=e1660]
+              - columnheader "Cập nhật" [ref=e1661]
+              - columnheader "Lỗi" [ref=e1662]
+              - columnheader "Thao tác" [ref=e1663]
+          - rowgroup [ref=e1664]:
+            - row [ref=e1665]:
+              - cell "03409800-6590-4c49-92c5-83f357200ee7 learn_group" [ref=e1666]:
+                - generic [ref=e1667]: 03409800-6590-4c49-92c5-83f357200ee7
+                - text: learn_group
+              - cell "Upside - Chat" [ref=e1668]
+              - cell "Completed" [ref=e1669]
+              - cell "1/3" [ref=e1671]
+              - cell "23:41 24/7/26" [ref=e1672]
+              - cell "—" [ref=e1673]
+              - cell [ref=e1674]
+            - row [ref=e1675]:
+              - cell "07099a69-d394-4e45-a591-71b0405ed8d8 learn_group" [ref=e1676]:
+                - generic [ref=e1677]: 07099a69-d394-4e45-a591-71b0405ed8d8
+                - text: learn_group
+              - cell "NGHIỀN TRADING CHANNEL🚀" [ref=e1678]
+              - cell "Completed" [ref=e1679]
+              - cell "1/3" [ref=e1681]
+              - cell "23:42 24/7/26" [ref=e1682]
+              - cell "—" [ref=e1683]
+              - cell [ref=e1684]
+            - row [ref=e1685]:
+              - cell "0e448f34-b4ad-4bc5-9410-4f229d65e66a learn_group" [ref=e1686]:
+                - generic [ref=e1687]: 0e448f34-b4ad-4bc5-9410-4f229d65e66a
+                - text: learn_group
+              - cell "X201 Labs" [ref=e1688]
+              - cell "Completed" [ref=e1689]
+              - cell "1/3" [ref=e1691]
+              - cell "23:43 24/7/26" [ref=e1692]
+              - cell "—" [ref=e1693]
+              - cell [ref=e1694]
+            - row [ref=e1695]:
+              - cell "0e53420e-726f-4594-bdbe-1e8048d54da0 learn_group" [ref=e1696]:
+                - generic [ref=e1697]: 0e53420e-726f-4594-bdbe-1e8048d54da0
+                - text: learn_group
+              - cell "Phốt Việt Nam - Thời sự 24/7🎗" [ref=e1698]
+              - cell "Completed" [ref=e1699]
+              - cell "1/3" [ref=e1701]
+              - cell "23:43 24/7/26" [ref=e1702]
+              - cell "—" [ref=e1703]
+              - cell [ref=e1704]
+            - row [ref=e1705]:
+              - cell "12610b6d-0141-4782-b20e-6b525f2a8529 learn_group" [ref=e1706]:
+                - generic [ref=e1707]: 12610b6d-0141-4782-b20e-6b525f2a8529
+                - text: learn_group
+              - cell "Upside" [ref=e1708]
+              - cell "Completed" [ref=e1709]
+              - cell "1/3" [ref=e1711]
+              - cell "23:44 24/7/26" [ref=e1712]
+              - cell "—" [ref=e1713]
+              - cell [ref=e1714]
+            - row [ref=e1715]:
+              - cell "16c7cf94-0ede-4264-aa1b-227219f86f5a learn_group" [ref=e1716]:
+                - generic [ref=e1717]: 16c7cf94-0ede-4264-aa1b-227219f86f5a
+                - text: learn_group
+              - cell "Pavel Durov" [ref=e1718]
+              - cell "Completed" [ref=e1719]
+              - cell "1/3" [ref=e1721]
+              - cell "23:44 24/7/26" [ref=e1722]
+              - cell "—" [ref=e1723]
+              - cell [ref=e1724]
+            - row [ref=e1725]:
+              - cell "1a561c98-e3d9-4738-a718-e38fc71b12b0 learn_group" [ref=e1726]:
+                - generic [ref=e1727]: 1a561c98-e3d9-4738-a718-e38fc71b12b0
+                - text: learn_group
+              - cell "Rose 🌹" [ref=e1728]
+              - cell "Completed" [ref=e1729]
+              - cell "1/3" [ref=e1731]
+              - cell "23:45 24/7/26" [ref=e1732]
+              - cell "—" [ref=e1733]
+              - cell [ref=e1734]
+            - row [ref=e1735]:
+              - cell "1a573784-1ae4-4cc8-bffc-95e93aff12b6 learn_group" [ref=e1736]:
+                - generic [ref=e1737]: 1a573784-1ae4-4cc8-bffc-95e93aff12b6
+                - text: learn_group
+              - cell "Kênh thông báo Bybit" [ref=e1738]
+              - cell "Completed" [ref=e1739]
+              - cell "1/3" [ref=e1741]
+              - cell "23:45 24/7/26" [ref=e1742]
+              - cell "—" [ref=e1743]
+              - cell [ref=e1744]
+            - row [ref=e1745]:
+              - cell "1affeaee-2a86-4bf3-a9b5-852a18061954 learn_group" [ref=e1746]:
+                - generic [ref=e1747]: 1affeaee-2a86-4bf3-a9b5-852a18061954
+                - text: learn_group
+              - cell "HC Tradecoin | Channel" [ref=e1748]
+              - cell "Completed" [ref=e1749]
+              - cell "1/3" [ref=e1751]
+              - cell "23:46 24/7/26" [ref=e1752]
+              - cell "—" [ref=e1753]
+              - cell [ref=e1754]
+            - row [ref=e1755]:
+              - cell "1bb03376-5391-47c8-90ea-a2a8325ea39f learn_group" [ref=e1756]:
+                - generic [ref=e1757]: 1bb03376-5391-47c8-90ea-a2a8325ea39f
+                - text: learn_group
+              - cell "Superteam <> Coin68" [ref=e1758]
+              - cell "Completed" [ref=e1759]
+              - cell "1/3" [ref=e1761]
+              - cell "23:47 24/7/26" [ref=e1762]
+              - cell "—" [ref=e1763]
+              - cell [ref=e1764]
+            - row [ref=e1765]:
+              - cell "1c1cac76-e2eb-4b22-8e97-2c358aca3a31 learn_group" [ref=e1766]:
+                - generic [ref=e1767]: 1c1cac76-e2eb-4b22-8e97-2c358aca3a31
+                - text: learn_group
+              - cell "infinityhedge" [ref=e1768]
+              - cell "Completed" [ref=e1769]
+              - cell "1/3" [ref=e1771]
+              - cell "23:48 24/7/26" [ref=e1772]
+              - cell "—" [ref=e1773]
+              - cell [ref=e1774]
+            - row [ref=e1775]:
+              - cell "1e9a5601-4dd7-4ade-ab61-d63299a3c62b learn_group" [ref=e1776]:
+                - generic [ref=e1777]: 1e9a5601-4dd7-4ade-ab61-d63299a3c62b
+                - text: learn_group
+              - cell "Coin68 Community | Channel" [ref=e1778]
+              - cell "Completed" [ref=e1779]
+              - cell "1/3" [ref=e1781]
+              - cell "23:49 24/7/26" [ref=e1782]
+              - cell "—" [ref=e1783]
+              - cell [ref=e1784]
+            - row [ref=e1785]:
+              - cell "20fe892d-3622-4327-b4da-1411d753324b learn_group" [ref=e1786]:
+                - generic [ref=e1787]: 20fe892d-3622-4327-b4da-1411d753324b
+                - text: learn_group
+              - cell "Kyros/Coin68 Lounge" [ref=e1788]
+              - cell "Completed" [ref=e1789]
+              - cell "1/3" [ref=e1791]
+              - cell "23:49 24/7/26" [ref=e1792]
+              - cell "—" [ref=e1793]
+              - cell [ref=e1794]
+            - row [ref=e1795]:
+              - cell "21930817-43d5-467a-9392-edbe053151c7 learn_group" [ref=e1796]:
+                - generic [ref=e1797]: 21930817-43d5-467a-9392-edbe053151c7
+                - text: learn_group
+              - cell "LobsterDAO 🦞" [ref=e1798]
+              - cell "Completed" [ref=e1799]
+              - cell "1/3" [ref=e1801]
+              - cell "23:50 24/7/26" [ref=e1802]
+              - cell "—" [ref=e1803]
+              - cell [ref=e1804]
+            - row [ref=e1805]:
+              - cell "30a8fdcc-5cf4-4bc8-8e7a-c7c75ab257af learn_group" [ref=e1806]:
+                - generic [ref=e1807]: 30a8fdcc-5cf4-4bc8-8e7a-c7c75ab257af
+                - text: learn_group
+              - cell "Binance Futures Liquidations" [ref=e1808]
+              - cell "Completed" [ref=e1809]
+              - cell "1/3" [ref=e1811]
+              - cell "23:50 24/7/26" [ref=e1812]
+              - cell "—" [ref=e1813]
+              - cell [ref=e1814]
+            - row [ref=e1815]:
+              - cell "3544595e-391c-4249-b242-0d89b27ea422 learn_group" [ref=e1816]:
+                - generic [ref=e1817]: 3544595e-391c-4249-b242-0d89b27ea422
+                - text: learn_group
+              - cell "Trade Coin Underground" [ref=e1818]
+              - cell "Completed" [ref=e1819]
+              - cell "1/3" [ref=e1821]
+              - cell "23:51 24/7/26" [ref=e1822]
+              - cell "—" [ref=e1823]
+              - cell [ref=e1824]
+            - row [ref=e1825]:
+              - cell "3a634c9e-afc1-4a63-a6bb-2d517961d26a learn_group" [ref=e1826]:
+                - generic [ref=e1827]: 3a634c9e-afc1-4a63-a6bb-2d517961d26a
+                - text: learn_group
+              - cell "CyBall Việt Nam Community" [ref=e1828]
+              - cell "Completed" [ref=e1829]
+              - cell "1/3" [ref=e1831]
+              - cell "23:51 24/7/26" [ref=e1832]
+              - cell "—" [ref=e1833]
+              - cell [ref=e1834]
+            - row [ref=e1835]:
+              - cell "3abe6dc2-c749-4c04-9270-7760b805e99e learn_group" [ref=e1836]:
+                - generic [ref=e1837]: 3abe6dc2-c749-4c04-9270-7760b805e99e
+                - text: learn_group
+              - cell "Binance Announcements" [ref=e1838]
+              - cell "Completed" [ref=e1839]
+              - cell "1/3" [ref=e1841]
+              - cell "23:52 24/7/26" [ref=e1842]
+              - cell "—" [ref=e1843]
+              - cell [ref=e1844]
+            - row [ref=e1845]:
+              - cell "3cf36c52-1bef-42a5-a5ed-3788b729e8b8 learn_group" [ref=e1846]:
+                - generic [ref=e1847]: 3cf36c52-1bef-42a5-a5ed-3788b729e8b8
+                - text: learn_group
+              - cell "My Agent Work" [ref=e1848]
+              - cell "Completed" [ref=e1849]
+              - cell "1/3" [ref=e1851]
+              - cell "23:52 24/7/26" [ref=e1852]
+              - cell "—" [ref=e1853]
+              - cell [ref=e1854]
+            - row [ref=e1855]:
+              - cell "421e7b37-de39-45a4-9ea8-53ec5a4cfe7a learn_group" [ref=e1856]:
+                - generic [ref=e1857]: 421e7b37-de39-45a4-9ea8-53ec5a4cfe7a
+                - text: learn_group
+              - cell "Job(s) Finished 🎯 💯 🚩 👌" [ref=e1858]
+              - cell "Completed" [ref=e1859]
+              - cell "1/3" [ref=e1861]
+              - cell "23:53 24/7/26" [ref=e1862]
+              - cell "—" [ref=e1863]
+              - cell [ref=e1864]
+            - row [ref=e1865]:
+              - cell "4ef84a63-17de-4b43-b9e7-0c8f02a08ea9 learn_group" [ref=e1866]:
+                - generic [ref=e1867]: 4ef84a63-17de-4b43-b9e7-0c8f02a08ea9
+                - text: learn_group
+              - cell "Coin68" [ref=e1868]
+              - cell "Completed" [ref=e1869]
+              - cell "1/3" [ref=e1871]
+              - cell "23:53 24/7/26" [ref=e1872]
+              - cell "—" [ref=e1873]
+              - cell [ref=e1874]
+            - row [ref=e1875]:
+              - cell "507c4131-78aa-438c-981a-304e5ff4b4a5 learn_group" [ref=e1876]:
+                - generic [ref=e1877]: 507c4131-78aa-438c-981a-304e5ff4b4a5
+                - text: learn_group
+              - cell "方程式新闻 BWEnews" [ref=e1878]
+              - cell "Completed" [ref=e1879]
+              - cell "1/3" [ref=e1881]
+              - cell "23:53 24/7/26" [ref=e1882]
+              - cell "—" [ref=e1883]
+              - cell [ref=e1884]
+            - row [ref=e1885]:
+              - cell "5274e52e-ce5f-42b3-ad1c-43845ab05297 learn_group" [ref=e1886]:
+                - generic [ref=e1887]: 5274e52e-ce5f-42b3-ad1c-43845ab05297
+                - text: learn_group
+              - cell "Fomo Sapiens Group" [ref=e1888]
+              - cell "Completed" [ref=e1889]
+              - cell "1/3" [ref=e1891]
+              - cell "23:54 24/7/26" [ref=e1892]
+              - cell "—" [ref=e1893]
+              - cell [ref=e1894]
+            - row [ref=e1895]:
+              - cell "6759ec3f-3ddf-4bcc-8e83-f3bf3e4663c8 learn_group" [ref=e1896]:
+                - generic [ref=e1897]: 6759ec3f-3ddf-4bcc-8e83-f3bf3e4663c8
+                - text: learn_group
+              - cell "Test Message to 68 Trading Chat Bot" [ref=e1898]
+              - cell "Completed" [ref=e1899]
+              - cell "1/3" [ref=e1901]
+              - cell "23:54 24/7/26" [ref=e1902]
+              - cell "—" [ref=e1903]
+              - cell [ref=e1904]
+            - row [ref=e1905]:
+              - cell "681157e8-b259-470f-8fbc-dbd75f170b74 learn_group" [ref=e1906]:
+                - generic [ref=e1907]: 681157e8-b259-470f-8fbc-dbd75f170b74
+                - text: learn_group
+              - cell "J2TEAM Community" [ref=e1908]
+              - cell "Completed" [ref=e1909]
+              - cell "1/3" [ref=e1911]
+              - cell "23:55 24/7/26" [ref=e1912]
+              - cell "—" [ref=e1913]
+              - cell [ref=e1914]
+            - row [ref=e1915]:
+              - cell "6d0b48eb-d032-4905-a648-4e575943b37c learn_group" [ref=e1916]:
+                - generic [ref=e1917]: 6d0b48eb-d032-4905-a648-4e575943b37c
+                - text: learn_group
+              - cell "🧧 Rose Premium Signal 🌹" [ref=e1918]
+              - cell "Completed" [ref=e1919]
+              - cell "1/3" [ref=e1921]
+              - cell "23:55 24/7/26" [ref=e1922]
+              - cell "—" [ref=e1923]
+              - cell [ref=e1924]
+            - row [ref=e1925]:
+              - cell "71258a99-e74b-47c2-a4e3-152529ce3a84 learn_group" [ref=e1926]:
+                - generic [ref=e1927]: 71258a99-e74b-47c2-a4e3-152529ce3a84
+                - text: learn_group
+              - cell "Render Network Unofficial Chat | $RENDER" [ref=e1928]
+              - cell "Completed" [ref=e1929]
+              - cell "1/3" [ref=e1931]
+              - cell "23:55 24/7/26" [ref=e1932]
+              - cell "—" [ref=e1933]
+              - cell [ref=e1934]
+            - row [ref=e1935]:
+              - cell "7f32a8b4-18c4-4be3-a76d-0516025a5b68 learn_group" [ref=e1936]:
+                - generic [ref=e1937]: 7f32a8b4-18c4-4be3-a76d-0516025a5b68
+                - text: learn_group
+              - cell "Coin68 SEO" [ref=e1938]
+              - cell "Completed" [ref=e1939]
+              - cell "1/3" [ref=e1941]
+              - cell "23:56 24/7/26" [ref=e1942]
+              - cell "—" [ref=e1943]
+              - cell [ref=e1944]
+            - row [ref=e1945]:
+              - cell "89062ad1-cf5b-4644-852b-732a857471c3 learn_group" [ref=e1946]:
+                - generic [ref=e1947]: 89062ad1-cf5b-4644-852b-732a857471c3
+                - text: learn_group
+              - cell "J2TEAM Community Chat" [ref=e1948]
+              - cell "Completed" [ref=e1949]
+              - cell "1/3" [ref=e1951]
+              - cell "23:56 24/7/26" [ref=e1952]
+              - cell "—" [ref=e1953]
+              - cell [ref=e1954]
+            - row [ref=e1955]:
+              - cell "89efb283-e730-4578-bb0b-697d4057157e learn_group" [ref=e1956]:
+                - generic [ref=e1957]: 89efb283-e730-4578-bb0b-697d4057157e
+                - text: learn_group
+              - cell "Trade Coin Chiến Lược" [ref=e1958]
+              - cell "Completed" [ref=e1959]
+              - cell "1/3" [ref=e1961]
+              - cell "23:57 24/7/26" [ref=e1962]
+              - cell "—" [ref=e1963]
+              - cell [ref=e1964]
+            - row [ref=e1965]:
+              - cell "9e310414-718c-4e5f-a0d1-734313fc26cb learn_group" [ref=e1966]:
+                - generic [ref=e1967]: 9e310414-718c-4e5f-a0d1-734313fc26cb
+                - text: learn_group
+              - cell "SD Capital 2" [ref=e1968]
+              - cell "Completed" [ref=e1969]
+              - cell "1/3" [ref=e1971]
+              - cell "23:57 24/7/26" [ref=e1972]
+              - cell "—" [ref=e1973]
+              - cell [ref=e1974]
+            - row [ref=e1975]:
+              - cell "b07f6071-2314-4722-a8e1-0166c9f7e795 learn_group" [ref=e1976]:
+                - generic [ref=e1977]: b07f6071-2314-4722-a8e1-0166c9f7e795
+                - text: learn_group
+              - cell "Rạp chiếu L6" [ref=e1978]
+              - cell "Completed" [ref=e1979]
+              - cell "1/3" [ref=e1981]
+              - cell "23:57 24/7/26" [ref=e1982]
+              - cell "—" [ref=e1983]
+              - cell [ref=e1984]
+            - row [ref=e1985]:
+              - cell "c6af90a5-cab4-450a-8a65-d2f4224ad451 learn_group" [ref=e1986]:
+                - generic [ref=e1987]: c6af90a5-cab4-450a-8a65-d2f4224ad451
+                - text: learn_group
+              - cell "📊 CryptoNews 24/7 Real-Time Updates" [ref=e1988]
+              - cell "Completed" [ref=e1989]
+              - cell "1/3" [ref=e1991]
+              - cell "23:58 24/7/26" [ref=e1992]
+              - cell "—" [ref=e1993]
+              - cell [ref=e1994]
+            - row [ref=e1995]:
+              - cell "c9e45226-4af2-4861-a0e6-b2c5725e036d learn_group" [ref=e1996]:
+                - generic [ref=e1997]: c9e45226-4af2-4861-a0e6-b2c5725e036d
+                - text: learn_group
+              - cell "Rich Kid Trading" [ref=e1998]
+              - cell "Completed" [ref=e1999]
+              - cell "1/3" [ref=e2001]
+              - cell "23:58 24/7/26" [ref=e2002]
+              - cell "—" [ref=e2003]
+              - cell [ref=e2004]
+            - row [ref=e2005]:
+              - cell "cd0f6c78-5078-440e-b699-d9b7db714057 learn_group" [ref=e2006]:
+                - generic [ref=e2007]: cd0f6c78-5078-440e-b699-d9b7db714057
+                - text: learn_group
+              - cell "Channel Phố Tài Chính" [ref=e2008]
+              - cell "Completed" [ref=e2009]
+              - cell "1/3" [ref=e2011]
+              - cell "23:59 24/7/26" [ref=e2012]
+              - cell "—" [ref=e2013]
+              - cell [ref=e2014]
+            - row [ref=e2015]:
+              - cell "cfcb77d2-4f5e-4aec-901b-e224d452cab5 learn_group" [ref=e2016]:
+                - generic [ref=e2017]: cfcb77d2-4f5e-4aec-901b-e224d452cab5
+                - text: learn_group
+              - cell "Tân gia 10/3 Đảo Kim Cương" [ref=e2018]
+              - cell "Completed" [ref=e2019]
+              - cell "1/3" [ref=e2021]
+              - cell "23:59 24/7/26" [ref=e2022]
+              - cell "—" [ref=e2023]
+              - cell [ref=e2024]
+            - row [ref=e2025]:
+              - cell "d4bd15fb-88b9-4054-8c5c-1f7e1c58d008 learn_group" [ref=e2026]:
+                - generic [ref=e2027]: d4bd15fb-88b9-4054-8c5c-1f7e1c58d008
+                - text: learn_group
+              - cell "Tiểu Tân Trade Stat" [ref=e2028]
+              - cell "Completed" [ref=e2029]
+              - cell "1/3" [ref=e2031]
+              - cell "23:59 24/7/26" [ref=e2032]
+              - cell "—" [ref=e2033]
+              - cell [ref=e2034]
+            - row [ref=e2035]:
+              - cell "dc7e412c-2b05-435d-9a5c-15a0e87bfe55 learn_group" [ref=e2036]:
+                - generic [ref=e2037]: dc7e412c-2b05-435d-9a5c-15a0e87bfe55
+                - text: learn_group
+              - cell "Hacker News" [ref=e2038]
+              - cell "Completed" [ref=e2039]
+              - cell "1/3" [ref=e2041]
+              - cell "23:59 24/7/26" [ref=e2042]
+              - cell "—" [ref=e2043]
+              - cell [ref=e2044]
+            - row [ref=e2045]:
+              - cell "ddb3f6d3-684a-4b2f-9c02-6d51be14d4bf learn_group" [ref=e2046]:
+                - generic [ref=e2047]: ddb3f6d3-684a-4b2f-9c02-6d51be14d4bf
+                - text: learn_group
+              - cell "Future Network" [ref=e2048]
+              - cell "Completed" [ref=e2049]
+              - cell "1/3" [ref=e2051]
+              - cell "23:59 24/7/26" [ref=e2052]
+              - cell "—" [ref=e2053]
+              - cell [ref=e2054]
+            - row [ref=e2055]:
+              - cell "e37f1706-8593-4da5-8168-78e6b3af8771 learn_group" [ref=e2056]:
+                - generic [ref=e2057]: e37f1706-8593-4da5-8168-78e6b3af8771
+                - text: learn_group
+              - cell "DefiLlama Official Round Up" [ref=e2058]
+              - cell "Completed" [ref=e2059]
+              - cell "1/3" [ref=e2061]
+              - cell "00:00 25/7/26" [ref=e2062]
+              - cell "—" [ref=e2063]
+              - cell [ref=e2064]
+            - row [ref=e2065]:
+              - cell "e71f1673-909b-494f-9d1d-fc711fc823c5 learn_group" [ref=e2066]:
+                - generic [ref=e2067]: e71f1673-909b-494f-9d1d-fc711fc823c5
+                - text: learn_group
+              - cell "Săn Gem" [ref=e2068]
+              - cell "Completed" [ref=e2069]
+              - cell "1/3" [ref=e2071]
+              - cell "00:00 25/7/26" [ref=e2072]
+              - cell "—" [ref=e2073]
+              - cell [ref=e2074]
+            - row [ref=e2075]:
+              - cell "ebf2cc03-bb75-480c-aa6e-4969c06f9697 learn_group" [ref=e2076]:
+                - generic [ref=e2077]: ebf2cc03-bb75-480c-aa6e-4969c06f9697
+                - text: learn_group
+              - cell "ThuanCapital" [ref=e2078]
+              - cell "Completed" [ref=e2079]
+              - cell "1/3" [ref=e2081]
+              - cell "00:01 25/7/26" [ref=e2082]
+              - cell "—" [ref=e2083]
+              - cell [ref=e2084]
+            - row [ref=e2085]:
+              - cell "eed3cdc3-1850-4544-ae15-bf546ca4d28d learn_group" [ref=e2086]:
+                - generic [ref=e2087]: eed3cdc3-1850-4544-ae15-bf546ca4d28d
+                - text: learn_group
+              - cell "MEXC - Coin68" [ref=e2088]
+              - cell "Completed" [ref=e2089]
+              - cell "1/3" [ref=e2091]
+              - cell "00:01 25/7/26" [ref=e2092]
+              - cell "—" [ref=e2093]
+              - cell [ref=e2094]
+            - row [ref=e2095]:
+              - cell "f12c5775-9696-4011-942d-d83a50fd3f49 learn_group" [ref=e2096]:
+                - generic [ref=e2097]: f12c5775-9696-4011-942d-d83a50fd3f49
+                - text: learn_group
+              - cell "Coin68 Community | Chat" [ref=e2098]
+              - cell "Completed" [ref=e2099]
+              - cell "1/3" [ref=e2101]
+              - cell "00:01 25/7/26" [ref=e2102]
+              - cell "—" [ref=e2103]
+              - cell [ref=e2104]
+            - row [ref=e2105]:
+              - cell "f1ce2439-e9c4-4140-bc46-fc1134d51311 learn_group" [ref=e2106]:
+                - generic [ref=e2107]: f1ce2439-e9c4-4140-bc46-fc1134d51311
+                - text: learn_group
+              - cell "Coin68 <> OKX" [ref=e2108]
+              - cell "Completed" [ref=e2109]
+              - cell "1/3" [ref=e2111]
+              - cell "00:01 25/7/26" [ref=e2112]
+              - cell "—" [ref=e2113]
+              - cell [ref=e2114]
+            - row [ref=e2115]:
+              - cell "f8ed8b10-4b34-47af-9f51-3e4ec81b42da learn_group" [ref=e2116]:
+                - generic [ref=e2117]: f8ed8b10-4b34-47af-9f51-3e4ec81b42da
+                - text: learn_group
+              - cell "HTP96 Academy 🌀" [ref=e2118]
+              - cell "Completed" [ref=e2119]
+              - cell "1/3" [ref=e2121]
+              - cell "00:02 25/7/26" [ref=e2122]
+              - cell "—" [ref=e2123]
+              - cell [ref=e2124]
+            - row [ref=e2125]:
+              - cell "f950b316-699d-4e33-afc1-0d937d79de80 learn_group" [ref=e2126]:
+                - generic [ref=e2127]: f950b316-699d-4e33-afc1-0d937d79de80
+                - text: learn_group
+              - cell "Saros - Chat" [ref=e2128]
+              - cell "Completed" [ref=e2129]
+              - cell "1/3" [ref=e2131]
+              - cell "00:02 25/7/26" [ref=e2132]
+              - cell "—" [ref=e2133]
+              - cell [ref=e2134]
+            - row [ref=e2135]:
+              - cell "f99a20a5-00d0-4bf7-9813-c34f08c38146 learn_group" [ref=e2136]:
+                - generic [ref=e2137]: f99a20a5-00d0-4bf7-9813-c34f08c38146
+                - text: learn_group
+              - cell "TradeCoinVN | News" [ref=e2138]
+              - cell "Completed" [ref=e2139]
+              - cell "1/3" [ref=e2141]
+              - cell "00:02 25/7/26" [ref=e2142]
+              - cell "—" [ref=e2143]
+              - cell [ref=e2144]
+            - row [ref=e2145]:
+              - cell "fdf2bea8-d645-4af8-9098-ee4e7670d4bf learn_group" [ref=e2146]:
+                - generic [ref=e2147]: fdf2bea8-d645-4af8-9098-ee4e7670d4bf
+                - text: learn_group
+              - cell "Rikkei Finance Việt Nam 🇻🇳" [ref=e2148]
+              - cell "Completed" [ref=e2149]
+              - cell "1/3" [ref=e2151]
+              - cell "00:03 25/7/26" [ref=e2152]
+              - cell "—" [ref=e2153]
+              - cell [ref=e2154]
+            - row [ref=e2155]:
+              - cell "ffdc8d8d-7e48-47dc-a757-b8f2d8def9d7 learn_group" [ref=e2156]:
+                - generic [ref=e2157]: ffdc8d8d-7e48-47dc-a757-b8f2d8def9d7
+                - text: learn_group
+              - cell "5 Phút Crypto | Channel" [ref=e2158]
+              - cell "Completed" [ref=e2159]
+              - cell "1/3" [ref=e2161]
+              - cell "00:03 25/7/26" [ref=e2162]
+              - cell "—" [ref=e2163]
+              - cell [ref=e2164]
+            - row [ref=e2165]:
+              - cell "01a5e451-8e21-4345-b6ff-d359f773a45d learn_group" [ref=e2166]:
+                - generic [ref=e2167]: 01a5e451-8e21-4345-b6ff-d359f773a45d
+                - text: learn_group
+              - cell "Đám cưới Jenny Trí Phan" [ref=e2168]
+              - cell "Completed" [ref=e2169]
+              - cell "1/3" [ref=e2171]
+              - cell "23:13 24/7/26" [ref=e2172]
+              - cell "—" [ref=e2173]
+              - cell [ref=e2174]
+            - row [ref=e2175]:
+              - cell "04107c7a-8f4d-459a-8056-318c894b976c learn_group" [ref=e2176]:
+                - generic [ref=e2177]: 04107c7a-8f4d-459a-8056-318c894b976c
+                - text: learn_group
+              - cell "Coffee Crypto Official" [ref=e2178]
+              - cell "Completed" [ref=e2179]
+              - cell "1/3" [ref=e2181]
+              - cell "23:32 24/7/26" [ref=e2182]
+              - cell "—" [ref=e2183]
+              - cell [ref=e2184]
+            - row [ref=e2185]:
+              - cell "05c0cab1-86ac-4ab2-89a9-e23ba9d4c9da learn_group" [ref=e2186]:
+                - generic [ref=e2187]: 05c0cab1-86ac-4ab2-89a9-e23ba9d4c9da
+                - text: learn_group
+              - cell "🌎 Ancient8 | Chat" [ref=e2188]
+              - cell "Completed" [ref=e2189]
+              - cell "1/3" [ref=e2191]
+              - cell "23:32 24/7/26" [ref=e2192]
+              - cell "—" [ref=e2193]
+              - cell [ref=e2194]
+            - row [ref=e2195]:
+              - cell "07763093-3e54-4485-8dbb-0fc30a55f20a learn_group" [ref=e2196]:
+                - generic [ref=e2197]: 07763093-3e54-4485-8dbb-0fc30a55f20a
+                - text: learn_group
+              - cell "SD Capital (Full Signal)" [ref=e2198]
+              - cell "Completed" [ref=e2199]
+              - cell "1/3" [ref=e2201]
+              - cell "23:29 24/7/26" [ref=e2202]
+              - cell "—" [ref=e2203]
+              - cell [ref=e2204]
+            - row [ref=e2205]:
+              - cell "0e67f78c-2bc3-48ed-bb0b-2994b40553df learn_group" [ref=e2206]:
+                - generic [ref=e2207]: 0e67f78c-2bc3-48ed-bb0b-2994b40553df
+                - text: learn_group
+              - cell "KlayCity Việt Nam🇻🇳" [ref=e2208]
+              - cell "Completed" [ref=e2209]
+              - cell "1/3" [ref=e2211]
+              - cell "23:27 24/7/26" [ref=e2212]
+              - cell "—" [ref=e2213]
+              - cell [ref=e2214]
+            - row [ref=e2215]:
+              - cell "11122c62-d4b1-4d71-acea-225bfeaa52c1 learn_group" [ref=e2216]:
+                - generic [ref=e2217]: 11122c62-d4b1-4d71-acea-225bfeaa52c1
+                - text: learn_group
+              - cell "Airdrop & Retroactive Việt Nam" [ref=e2218]
+              - cell "Completed" [ref=e2219]
+              - cell "1/3" [ref=e2221]
+              - cell "23:26 24/7/26" [ref=e2222]
+              - cell "—" [ref=e2223]
+              - cell [ref=e2224]
+            - row [ref=e2225]:
+              - cell "11fb442e-537b-416d-b1cb-a96b7810a8a5 learn_group" [ref=e2226]:
+                - generic [ref=e2227]: 11fb442e-537b-416d-b1cb-a96b7810a8a5
+                - text: learn_group
+              - cell "Hội cựu chiến binh C-sủi" [ref=e2228]
+              - cell "Completed" [ref=e2229]
+              - cell "1/3" [ref=e2231]
+              - cell "23:23 24/7/26" [ref=e2232]
+              - cell "—" [ref=e2233]
+              - cell [ref=e2234]
+            - row [ref=e2235]:
+              - cell "13aef8f3-55e0-45d4-8a9a-e572e68a4382 learn_group" [ref=e2236]:
+                - generic [ref=e2237]: 13aef8f3-55e0-45d4-8a9a-e572e68a4382
+                - text: learn_group
+              - cell "MODOS - AI Creator Space - Chat" [ref=e2238]
+              - cell "Completed" [ref=e2239]
+              - cell "1/3" [ref=e2241]
+              - cell "23:15 24/7/26" [ref=e2242]
+              - cell "—" [ref=e2243]
+              - cell [ref=e2244]
+            - row [ref=e2245]:
+              - cell "1966916e-388d-4d8a-9e11-0007407b0c36 learn_group" [ref=e2246]:
+                - generic [ref=e2247]: 1966916e-388d-4d8a-9e11-0007407b0c36
+                - text: learn_group
+              - cell "Đu Càng Hội 🚁🚁🚁" [ref=e2248]
+              - cell "Completed" [ref=e2249]
+              - cell "1/3" [ref=e2251]
+              - cell "23:22 24/7/26" [ref=e2252]
+              - cell "—" [ref=e2253]
+              - cell [ref=e2254]
+            - row [ref=e2255]:
+              - cell "1f0ab4da-4786-4517-8da7-75035ce067b8 learn_group" [ref=e2256]:
+                - generic [ref=e2257]: 1f0ab4da-4786-4517-8da7-75035ce067b8
+                - text: learn_group
+              - cell "Job(s) Finished 🎯 💯 🚩 👌" [ref=e2258]
+              - cell "Completed" [ref=e2259]
+              - cell "1/3" [ref=e2261]
+              - cell "23:18 24/7/26" [ref=e2262]
+              - cell "—" [ref=e2263]
+              - cell [ref=e2264]
+            - row [ref=e2265]:
+              - cell "21ef426f-dc9b-49f2-a849-8ddaa624c851 learn_group" [ref=e2266]:
+                - generic [ref=e2267]: 21ef426f-dc9b-49f2-a849-8ddaa624c851
+                - text: learn_group
+              - cell "Team FUKET [ Channel ]" [ref=e2268]
+              - cell "Completed" [ref=e2269]
+              - cell "1/3" [ref=e2271]
+              - cell "23:15 24/7/26" [ref=e2272]
+              - cell "—" [ref=e2273]
+              - cell [ref=e2274]
+            - row [ref=e2275]:
+              - cell "22c40978-a0ba-400c-8b32-18f268c2025e learn_group" [ref=e2276]:
+                - generic [ref=e2277]: 22c40978-a0ba-400c-8b32-18f268c2025e
+                - text: learn_group
+              - cell "GM Vietnam 2024 - Media Partners" [ref=e2278]
+              - cell "Completed" [ref=e2279]
+              - cell "1/3" [ref=e2281]
+              - cell "23:14 24/7/26" [ref=e2282]
+              - cell "—" [ref=e2283]
+              - cell [ref=e2284]
+            - row [ref=e2285]:
+              - cell "236f55d2-060b-4ee9-8c97-3d47d298b4f7 learn_group" [ref=e2286]:
+                - generic [ref=e2287]: 236f55d2-060b-4ee9-8c97-3d47d298b4f7
+                - text: learn_group
+              - cell "DOGS Community" [ref=e2288]
+              - cell "Completed" [ref=e2289]
+              - cell "1/3" [ref=e2291]
+              - cell "23:14 24/7/26" [ref=e2292]
+              - cell "—" [ref=e2293]
+              - cell [ref=e2294]
+            - row [ref=e2295]:
+              - cell "24c4aaf6-4f54-42b9-96da-48702b98ad95 learn_group" [ref=e2296]:
+                - generic [ref=e2297]: 24c4aaf6-4f54-42b9-96da-48702b98ad95
+                - text: learn_group
+              - cell "Meow Meow (Group giao task)" [ref=e2298]
+              - cell "Completed" [ref=e2299]
+              - cell "1/3" [ref=e2301]
+              - cell "23:15 24/7/26" [ref=e2302]
+              - cell "—" [ref=e2303]
+              - cell [ref=e2304]
+            - row [ref=e2305]:
+              - cell "2615e217-35e2-4394-add2-5354d2a35145 learn_group" [ref=e2306]:
+                - generic [ref=e2307]: 2615e217-35e2-4394-add2-5354d2a35145
+                - text: learn_group
+              - cell "Tân gia ngày 1/3 Đảo Kim Cương" [ref=e2308]
+              - cell "Completed" [ref=e2309]
+              - cell "1/3" [ref=e2311]
+              - cell "23:15 24/7/26" [ref=e2312]
+              - cell "—" [ref=e2313]
+              - cell [ref=e2314]
+            - row [ref=e2315]:
+              - cell "288d21fd-5d53-4ac6-b15f-bb3c66c41e20 learn_group" [ref=e2316]:
+                - generic [ref=e2317]: 288d21fd-5d53-4ac6-b15f-bb3c66c41e20
+                - text: learn_group
+              - cell "HashKey Việt Nam🇻🇳" [ref=e2318]
+              - cell "Completed" [ref=e2319]
+              - cell "1/3" [ref=e2321]
+              - cell "23:16 24/7/26" [ref=e2322]
+              - cell "—" [ref=e2323]
+              - cell [ref=e2324]
+            - row [ref=e2325]:
+              - cell "33c91936-1e8d-47e3-93b2-b119cb2fe453 learn_group" [ref=e2326]:
+                - generic [ref=e2327]: 33c91936-1e8d-47e3-93b2-b119cb2fe453
+                - text: learn_group
+              - cell "CoinSi𝕏" [ref=e2328]
+              - cell "Completed" [ref=e2329]
+              - cell "1/3" [ref=e2331]
+              - cell "23:18 24/7/26" [ref=e2332]
+              - cell "—" [ref=e2333]
+              - cell [ref=e2334]
+            - row [ref=e2335]:
+              - cell "34e7b680-f37e-4070-94f2-dcc742dbbf7b learn_group" [ref=e2336]:
+                - generic [ref=e2337]: 34e7b680-f37e-4070-94f2-dcc742dbbf7b
+                - text: learn_group
+              - cell "itscorrekt" [ref=e2338]
+              - cell "Completed" [ref=e2339]
+              - cell "1/3" [ref=e2341]
+              - cell "23:30 24/7/26" [ref=e2342]
+              - cell "—" [ref=e2343]
+              - cell [ref=e2344]
+            - row [ref=e2345]:
+              - cell "381c2beb-8e15-4f11-9deb-16eba737492e learn_group" [ref=e2346]:
+                - generic [ref=e2347]: 381c2beb-8e15-4f11-9deb-16eba737492e
+                - text: learn_group
+              - cell "Nhật Hoài Trader Channel" [ref=e2348]
+              - cell "Completed" [ref=e2349]
+              - cell "1/3" [ref=e2351]
+              - cell "23:20 24/7/26" [ref=e2352]
+              - cell "—" [ref=e2353]
+              - cell [ref=e2354]
+            - row [ref=e2355]:
+              - cell "39bcf18f-2e92-4f12-96fd-6794ea9bf044 learn_group" [ref=e2356]:
+                - generic [ref=e2357]: 39bcf18f-2e92-4f12-96fd-6794ea9bf044
+                - text: learn_group
+              - cell "Coin68 Chung" [ref=e2358]
+              - cell "Completed" [ref=e2359]
+              - cell "1/3" [ref=e2361]
+              - cell "23:23 24/7/26" [ref=e2362]
+              - cell "—" [ref=e2363]
+              - cell [ref=e2364]
+            - row [ref=e2365]:
+              - cell "3c98e4d0-60e3-4faf-8083-58998eca454e learn_group" [ref=e2366]:
+                - generic [ref=e2367]: 3c98e4d0-60e3-4faf-8083-58998eca454e
+                - text: learn_group
+              - cell "Tiểu Tân Army" [ref=e2368]
+              - cell "Completed" [ref=e2369]
+              - cell "1/3" [ref=e2371]
+              - cell "23:22 24/7/26" [ref=e2372]
+              - cell "—" [ref=e2373]
+              - cell [ref=e2374]
+            - row [ref=e2375]:
+              - cell "50140c0e-6c12-4235-a58e-fe4eb11978da learn_group" [ref=e2376]:
+                - generic [ref=e2377]: 50140c0e-6c12-4235-a58e-fe4eb11978da
+                - text: learn_group
+              - cell "68trading gangz" [ref=e2378]
+              - cell "Completed" [ref=e2379]
+              - cell "1/3" [ref=e2381]
+              - cell "23:17 24/7/26" [ref=e2382]
+              - cell "—" [ref=e2383]
+              - cell [ref=e2384]
+            - row [ref=e2385]:
+              - cell "56f534cf-cefa-4d41-ae30-c6d7246fb088 learn_group" [ref=e2386]:
+                - generic [ref=e2387]: 56f534cf-cefa-4d41-ae30-c6d7246fb088
+                - text: learn_group
+              - cell "Kyros Office Staff / chợ tốt" [ref=e2388]
+              - cell "Completed" [ref=e2389]
+              - cell "1/3" [ref=e2391]
+              - cell "23:19 24/7/26" [ref=e2392]
+              - cell "—" [ref=e2393]
+              - cell [ref=e2394]
+            - row [ref=e2395]:
+              - cell "58b9f1a0-3f16-403f-9090-4866ed193acc learn_group" [ref=e2396]:
+                - generic [ref=e2397]: 58b9f1a0-3f16-403f-9090-4866ed193acc
+                - text: learn_group
+              - cell "Jason Blockchain | Global & Vietnam Crypto Insights Daily" [ref=e2398]
+              - cell "Completed" [ref=e2399]
+              - cell "1/3" [ref=e2401]
+              - cell "23:18 24/7/26" [ref=e2402]
+              - cell "—" [ref=e2403]
+              - cell [ref=e2404]
+            - row [ref=e2405]:
+              - cell "595f4cb3-cfd1-48e7-8985-de0b22f5040b learn_group" [ref=e2406]:
+                - generic [ref=e2407]: 595f4cb3-cfd1-48e7-8985-de0b22f5040b
+                - text: learn_group
+              - cell "TRẠM Crypto | Channel" [ref=e2408]
+              - cell "Completed" [ref=e2409]
+              - cell "1/3" [ref=e2411]
+              - cell "23:27 24/7/26" [ref=e2412]
+              - cell "—" [ref=e2413]
+              - cell [ref=e2414]
+            - row [ref=e2415]:
+              - cell "5d36f347-9971-4784-bc72-3130ac175d7d learn_group" [ref=e2416]:
+                - generic [ref=e2417]: 5d36f347-9971-4784-bc72-3130ac175d7d
+                - text: learn_group
+              - cell "GFI Research Channel" [ref=e2418]
+              - cell "Completed" [ref=e2419]
+              - cell "1/3" [ref=e2421]
+              - cell "23:17 24/7/26" [ref=e2422]
+              - cell "—" [ref=e2423]
+              - cell [ref=e2424]
+            - row [ref=e2425]:
+              - cell "6051f7ca-89df-4e8f-a00f-8cda61dcd506 learn_group" [ref=e2426]:
+                - generic [ref=e2427]: 6051f7ca-89df-4e8f-a00f-8cda61dcd506
+                - text: learn_group
+              - cell "Cody CMP Channel" [ref=e2428]
+              - cell "Completed" [ref=e2429]
+              - cell "1/3" [ref=e2431]
+              - cell "23:22 24/7/26" [ref=e2432]
+              - cell "—" [ref=e2433]
+              - cell [ref=e2434]
+            - row [ref=e2435]:
+              - cell "6cb79d0e-10b8-4f67-ac48-7939b0d05f5a learn_group" [ref=e2436]:
+                - generic [ref=e2437]: 6cb79d0e-10b8-4f67-ac48-7939b0d05f5a
+                - text: learn_group
+              - cell "My Agent Work" [ref=e2438]
+              - cell "Completed" [ref=e2439]
+              - cell "1/3" [ref=e2441]
+              - cell "23:21 24/7/26" [ref=e2442]
+              - cell "—" [ref=e2443]
+              - cell [ref=e2444]
+            - row [ref=e2445]:
+              - cell "741f4838-95b4-41de-8088-e6d0c0e8804b learn_group" [ref=e2446]:
+                - generic [ref=e2447]: 741f4838-95b4-41de-8088-e6d0c0e8804b
+                - text: learn_group
+              - cell "The DataFi - Channel" [ref=e2448]
+              - cell "Completed" [ref=e2449]
+              - cell "1/3" [ref=e2451]
+              - cell "23:19 24/7/26" [ref=e2452]
+              - cell "—" [ref=e2453]
+              - cell [ref=e2454]
+            - row [ref=e2455]:
+              - cell "876144a1-8ba7-466c-9b54-1e29b8fa0a03 learn_group" [ref=e2456]:
+                - generic [ref=e2457]: 876144a1-8ba7-466c-9b54-1e29b8fa0a03
+                - text: learn_group
+              - 'cell "Blum: All Crypto – One App" [ref=e2458]'
+              - cell "Completed" [ref=e2459]
+              - cell "1/3" [ref=e2461]
+              - cell "23:21 24/7/26" [ref=e2462]
+              - cell "—" [ref=e2463]
+              - cell [ref=e2464]
+            - row [ref=e2465]:
+              - cell "9cb34bf5-0ce4-4c67-b68a-360680936fa2 learn_group" [ref=e2466]:
+                - generic [ref=e2467]: 9cb34bf5-0ce4-4c67-b68a-360680936fa2
+                - text: learn_group
+              - cell "AntiAntiNFTs Club - Channel 🪬" [ref=e2468]
+              - cell "Completed" [ref=e2469]
+              - cell "1/3" [ref=e2471]
+              - cell "23:26 24/7/26" [ref=e2472]
+              - cell "—" [ref=e2473]
+              - cell [ref=e2474]
+            - row [ref=e2475]:
+              - cell "9cf6cf01-2951-4415-91d8-173ad4d060ce learn_group" [ref=e2476]:
+                - generic [ref=e2477]: 9cf6cf01-2951-4415-91d8-173ad4d060ce
+                - text: learn_group
+              - cell "VN Back Alpha | Onchain" [ref=e2478]
+              - cell "Completed" [ref=e2479]
+              - cell "1/3" [ref=e2481]
+              - cell "23:24 24/7/26" [ref=e2482]
+              - cell "—" [ref=e2483]
+              - cell [ref=e2484]
+            - row [ref=e2485]:
+              - cell "9eb80185-eb4d-4641-ac1f-50c2507f5e12 learn_group" [ref=e2486]:
+                - generic [ref=e2487]: 9eb80185-eb4d-4641-ac1f-50c2507f5e12
+                - text: learn_group
+              - cell "Boom Community" [ref=e2488]
+              - cell "Completed" [ref=e2489]
+              - cell "1/3" [ref=e2491]
+              - cell "23:31 24/7/26" [ref=e2492]
+              - cell "—" [ref=e2493]
+              - cell [ref=e2494]
+            - row [ref=e2495]:
+              - cell "9ffe737c-a1db-4a4a-a37d-05462f541efb learn_group" [ref=e2496]:
+                - generic [ref=e2497]: 9ffe737c-a1db-4a4a-a37d-05462f541efb
+                - text: learn_group
+              - cell "Bitlayer<>KOLVietnam" [ref=e2498]
+              - cell "Completed" [ref=e2499]
+              - cell "1/3" [ref=e2501]
+              - cell "23:32 24/7/26" [ref=e2502]
+              - cell "—" [ref=e2503]
+              - cell [ref=e2504]
+            - row [ref=e2505]:
+              - cell "a8ace86d-16c0-42e3-8723-848f6d3eb4f0 learn_group" [ref=e2506]:
+                - generic [ref=e2507]: a8ace86d-16c0-42e3-8723-848f6d3eb4f0
+                - text: learn_group
+              - cell "🇺🇸 Ancient8 | Chat" [ref=e2508]
+              - cell "Completed" [ref=e2509]
+              - cell "1/3" [ref=e2511]
+              - cell "23:33 24/7/26" [ref=e2512]
+              - cell "—" [ref=e2513]
+              - cell [ref=e2514]
+            - row [ref=e2515]:
+              - cell "aa7cdd88-cbb5-4375-87f8-60c68aef8a3c learn_group" [ref=e2516]:
+                - generic [ref=e2517]: aa7cdd88-cbb5-4375-87f8-60c68aef8a3c
+                - text: learn_group
+              - cell "Ancient8 Builder Jam" [ref=e2518]
+              - cell "Completed" [ref=e2519]
+              - cell "1/3" [ref=e2521]
+              - cell "23:35 24/7/26" [ref=e2522]
+              - cell "—" [ref=e2523]
+              - cell [ref=e2524]
+            - row [ref=e2525]:
+              - cell "adcef408-f6ad-49aa-a5bd-d2bce1a13b0d learn_group" [ref=e2526]:
+                - generic [ref=e2527]: adcef408-f6ad-49aa-a5bd-d2bce1a13b0d
+                - text: learn_group
+              - cell "Bad-min-ton 🏸 (ex Dapp.exe 🚲 & Bóng dưa chuột 🏏)" [ref=e2528]
+              - cell "Completed" [ref=e2529]
+              - cell "1/3" [ref=e2531]
+              - cell "23:35 24/7/26" [ref=e2532]
+              - cell "—" [ref=e2533]
+              - cell [ref=e2534]
+            - row [ref=e2535]:
+              - cell "b3c1f366-6cf9-4732-9326-1b303e7e9b95 learn_group" [ref=e2536]:
+                - generic [ref=e2537]: b3c1f366-6cf9-4732-9326-1b303e7e9b95
+                - text: learn_group
+              - cell "GMVN2025 - Speakership - 0G Labs" [ref=e2538]
+              - cell "Completed" [ref=e2539]
+              - cell "1/3" [ref=e2541]
+              - cell "23:35 24/7/26" [ref=e2542]
+              - cell "—" [ref=e2543]
+              - cell [ref=e2544]
+            - row [ref=e2545]:
+              - cell "b3fb19d3-0c03-4269-b307-39289c7c635f learn_group" [ref=e2546]:
+                - generic [ref=e2547]: b3fb19d3-0c03-4269-b307-39289c7c635f
+                - text: learn_group
+              - cell "Buidlpad Official" [ref=e2548]
+              - cell "Completed" [ref=e2549]
+              - cell "1/3" [ref=e2551]
+              - cell "23:24 24/7/26" [ref=e2552]
+              - cell "—" [ref=e2553]
+              - cell [ref=e2554]
+            - row [ref=e2555]:
+              - cell "bf011ec4-e522-4eea-8ae0-5f9130d6ff44 learn_group" [ref=e2556]:
+                - generic [ref=e2557]: bf011ec4-e522-4eea-8ae0-5f9130d6ff44
+                - text: learn_group
+              - cell "XSS Labs Airdrop Channel" [ref=e2558]
+              - cell "Completed" [ref=e2559]
+              - cell "1/3" [ref=e2561]
+              - cell "23:24 24/7/26" [ref=e2562]
+              - cell "—" [ref=e2563]
+              - cell [ref=e2564]
+            - row [ref=e2565]:
+              - cell "c03d50d8-5078-41f5-bfdf-e0beb3c396a0 learn_group" [ref=e2566]:
+                - generic [ref=e2567]: c03d50d8-5078-41f5-bfdf-e0beb3c396a0
+                - text: learn_group
+              - cell "Fliks Squad" [ref=e2568]
+              - cell "Completed" [ref=e2569]
+              - cell "1/3" [ref=e2571]
+              - cell "23:25 24/7/26" [ref=e2572]
+              - cell "—" [ref=e2573]
+              - cell [ref=e2574]
+            - row [ref=e2575]:
+              - cell "c3af445f-e820-4a95-8044-829b99268df1 learn_group" [ref=e2576]:
+                - generic [ref=e2577]: c3af445f-e820-4a95-8044-829b99268df1
+                - text: learn_group
+              - cell "Notcoin Community" [ref=e2578]
+              - cell "Completed" [ref=e2579]
+              - cell "1/3" [ref=e2581]
+              - cell "23:28 24/7/26" [ref=e2582]
+              - cell "—" [ref=e2583]
+              - cell [ref=e2584]
+            - row [ref=e2585]:
+              - cell "cb76b78b-d8b0-48fe-b0a0-d46cc57e4302 learn_group" [ref=e2586]:
+                - generic [ref=e2587]: cb76b78b-d8b0-48fe-b0a0-d46cc57e4302
+                - text: learn_group
+              - cell "Trường trung cấp nghề Trade Coin68" [ref=e2588]
+              - cell "Completed" [ref=e2589]
+              - cell "1/3" [ref=e2591]
+              - cell "23:34 24/7/26" [ref=e2592]
+              - cell "—" [ref=e2593]
+              - cell [ref=e2594]
+            - row [ref=e2595]:
+              - cell "cf790ca5-4ed8-470f-9db8-4f7b3315cd74 learn_group" [ref=e2596]:
+                - generic [ref=e2597]: cf790ca5-4ed8-470f-9db8-4f7b3315cd74
+                - text: learn_group
+              - cell "TokenScan Ecosystem" [ref=e2598]
+              - cell "Completed" [ref=e2599]
+              - cell "1/3" [ref=e2601]
+              - cell "23:35 24/7/26" [ref=e2602]
+              - cell "—" [ref=e2603]
+              - cell [ref=e2604]
+            - row [ref=e2605]:
+              - cell "d0073256-ee7a-426e-b9d0-0a89773ce041 learn_group" [ref=e2606]:
+                - generic [ref=e2607]: d0073256-ee7a-426e-b9d0-0a89773ce041
+                - text: learn_group
+              - cell "Daily CFA Level 1 MCQ 2025" [ref=e2608]
+              - cell "Completed" [ref=e2609]
+              - cell "1/3" [ref=e2611]
+              - cell "23:35 24/7/26" [ref=e2612]
+              - cell "—" [ref=e2613]
+              - cell [ref=e2614]
+            - row [ref=e2615]:
+              - cell "d5e0c67a-3edd-4eb4-a88e-37d3e250dad1 learn_group" [ref=e2616]:
+                - generic [ref=e2617]: d5e0c67a-3edd-4eb4-a88e-37d3e250dad1
+                - text: learn_group
+              - cell "REFUND.CASH REFUND FEE BETTER" [ref=e2618]
+              - cell "Completed" [ref=e2619]
+              - cell "1/3" [ref=e2621]
+              - cell "23:36 24/7/26" [ref=e2622]
+              - cell "—" [ref=e2623]
+              - cell [ref=e2624]
+            - row [ref=e2625]:
+              - cell "db01ba65-4de4-4f3d-8939-3623bf0a3e35 learn_group" [ref=e2626]:
+                - generic [ref=e2627]: db01ba65-4de4-4f3d-8939-3623bf0a3e35
+                - text: learn_group
+              - cell "Trung cấp nghề trade Coin68" [ref=e2628]
+              - cell "Completed" [ref=e2629]
+              - cell "1/3" [ref=e2631]
+              - cell "23:38 24/7/26" [ref=e2632]
+              - cell "—" [ref=e2633]
+              - cell [ref=e2634]
+            - row [ref=e2635]:
+              - cell "dde17184-b725-417e-b3e2-63e8a0826b31 learn_group" [ref=e2636]:
+                - generic [ref=e2637]: dde17184-b725-417e-b3e2-63e8a0826b31
+                - text: learn_group
+              - cell "Hyperliquid Announcements" [ref=e2638]
+              - cell "Completed" [ref=e2639]
+              - cell "1/3" [ref=e2641]
+              - cell "23:38 24/7/26" [ref=e2642]
+              - cell "—" [ref=e2643]
+              - cell [ref=e2644]
+            - row [ref=e2645]:
+              - cell "de4975bd-0a29-4866-a880-25bac26d7552 learn_group" [ref=e2646]:
+                - generic [ref=e2647]: de4975bd-0a29-4866-a880-25bac26d7552
+                - text: learn_group
+              - cell "SeaFi Global" [ref=e2648]
+              - cell "Completed" [ref=e2649]
+              - cell "1/3" [ref=e2651]
+              - cell "23:40 24/7/26" [ref=e2652]
+              - cell "—" [ref=e2653]
+              - cell [ref=e2654]
+            - row [ref=e2655]:
+              - cell "f4819f2f-99ab-48a4-b114-1986e11a863a learn_group" [ref=e2656]:
+                - generic [ref=e2657]: f4819f2f-99ab-48a4-b114-1986e11a863a
+                - text: learn_group
+              - cell "Mlm onchain" [ref=e2658]
+              - cell "Completed" [ref=e2659]
+              - cell "1/3" [ref=e2661]
+              - cell "23:41 24/7/26" [ref=e2662]
+              - cell "—" [ref=e2663]
+              - cell [ref=e2664]

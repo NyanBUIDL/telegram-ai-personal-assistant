@@ -1,0 +1,94 @@
+- generic [ref=f11e3]:
+  - complementary [ref=f11e4]:
+    - generic [ref=f11e9]:
+      - strong [ref=f11e10]: TELEGRAM//AI
+      - generic [ref=f11e11]: ADMIN CONSOLE
+    - navigation "Điều hướng chính" [ref=f11e12]:
+      - paragraph [ref=f11e13]: WORKSPACE
+      - button "Tổng quan" [ref=f11e14] [cursor=pointer]
+      - button "Nhóm Telegram 12" [active] [ref=f11e18] [cursor=pointer]:
+        - generic [ref=f11e21]: Nhóm Telegram
+        - generic [ref=f11e22]: "12"
+      - button "Hành động chờ 3" [ref=f11e23] [cursor=pointer]:
+        - generic [ref=f11e26]: Hành động chờ
+        - generic [ref=f11e27]: "3"
+      - button "Kho tri thức" [ref=f11e28] [cursor=pointer]
+      - button "Hệ thống" [ref=f11e32] [cursor=pointer]
+    - generic [ref=f11e37]:
+      - generic [ref=f11e38]: NT
+      - generic [ref=f11e39]:
+        - generic [ref=f11e40]: Nguyễn Nhật Tân
+        - generic [ref=f11e41]: Owner · Online
+      - button "Đăng xuất" [ref=f11e42] [cursor=pointer]
+    - generic [ref=f11e45]:
+      - generic [ref=f11e46]: RUNTIME
+      - generic [ref=f11e47]: v0.8.4
+  - main [ref=f11e49]:
+    - generic [ref=f11e50]:
+      - generic [ref=f11e52]:
+        - paragraph [ref=f11e53]: TELEGRAM AI / NHÓM TELEGRAM
+        - heading "Nhóm Telegram" [level=1] [ref=f11e305]
+      - generic [ref=f11e55]:
+        - button "Thông báo" [ref=f11e61] [cursor=pointer]
+        - button "Tạo hành động" [ref=f11e65] [cursor=pointer]
+    - generic [ref=f11e306]:
+      - generic [ref=f11e307]:
+        - generic [ref=f11e308]:
+          - paragraph [ref=f11e309]: POLICY CONTROL
+          - heading "Nhóm Telegram" [level=2] [ref=f11e310]
+        - button "Thêm nhóm" [ref=f11e311] [cursor=pointer]
+      - generic [ref=f11e314]:
+        - generic [ref=f11e315]:
+          - generic [ref=f11e318]: Tìm kiếm nhóm
+          - textbox "Tìm kiếm nhóm" [ref=f11e319]:
+            - /placeholder: Tìm tên nhóm...
+        - generic "Lọc theo chế độ" [ref=f11e320]:
+          - button "ALL" [ref=f11e321] [cursor=pointer]
+          - button "AUTO" [ref=f11e322] [cursor=pointer]
+          - button "REVIEW" [ref=f11e323] [cursor=pointer]
+          - button "BLOCK" [ref=f11e324] [cursor=pointer]
+      - generic [ref=f11e325]:
+        - article [ref=f11e326]:
+          - generic [ref=f11e327]: AB
+          - generic [ref=f11e328]:
+            - generic [ref=f11e329]: AI Builders Saigon
+            - generic [ref=f11e330]: 12.8K thành viên · 1,842 sự kiện
+          - generic [ref=f11e331]: AUTO
+          - generic [ref=f11e332]:
+            - generic [ref=f11e333]: AI ROUTE
+            - generic [ref=f11e334]: LOCAL
+          - generic [ref=f11e335]: 98%
+          - button "Mở AI Builders Saigon" [ref=f11e339] [cursor=pointer]
+        - article [ref=f11e342]:
+          - generic [ref=f11e343]: CI
+          - generic [ref=f11e344]:
+            - generic [ref=f11e345]: Crypto Insider VN
+            - generic [ref=f11e346]: 8.4K thành viên · 966 sự kiện
+          - generic [ref=f11e347]: REVIEW
+          - generic [ref=f11e348]:
+            - generic [ref=f11e349]: AI ROUTE
+            - generic [ref=f11e350]: HYBRID
+          - generic [ref=f11e351]: 86%
+          - button "Mở Crypto Insider VN" [ref=f11e355] [cursor=pointer]
+        - article [ref=f11e358]:
+          - generic [ref=f11e359]: TA
+          - generic [ref=f11e360]:
+            - generic [ref=f11e361]: TG Assistant Ops
+            - generic [ref=f11e362]: 24 thành viên · 412 sự kiện
+          - generic [ref=f11e363]: OWNER
+          - generic [ref=f11e364]:
+            - generic [ref=f11e365]: AI ROUTE
+            - generic [ref=f11e366]: LOCAL
+          - generic [ref=f11e367]: 100%
+          - button "Mở TG Assistant Ops" [ref=f11e371] [cursor=pointer]
+        - article [ref=f11e374]:
+          - generic [ref=f11e375]: PM
+          - generic [ref=f11e376]:
+            - generic [ref=f11e377]: Product Makers
+            - generic [ref=f11e378]: 3.1K thành viên · 185 sự kiện
+          - generic [ref=f11e379]: BLOCK
+          - generic [ref=f11e380]:
+            - generic [ref=f11e381]: AI ROUTE
+            - generic [ref=f11e382]: "OFF"
+          - generic [ref=f11e383]: 72%
+          - button "Mở Product Makers" [ref=f11e387] [cursor=pointer]

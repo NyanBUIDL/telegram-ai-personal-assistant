@@ -1,0 +1,97 @@
+- generic [ref=f1e3]:
+  - complementary [ref=f1e4]:
+    - generic [ref=f1e9]:
+      - strong [ref=f1e10]: TELEGRAM//AI
+      - generic [ref=f1e11]: ADMIN CONSOLE
+    - navigation "Điều hướng chính" [ref=f1e12]:
+      - generic [ref=f1e13]:
+        - paragraph [ref=f1e14]: VẬN HÀNH
+        - button "Tổng quan" [ref=f1e15] [cursor=pointer]
+      - button "Kết nối" [ref=f1e20] [cursor=pointer]
+      - button "Nhóm Telegram 12" [ref=f1e25] [cursor=pointer]:
+        - generic [ref=f1e28]: Nhóm Telegram
+        - generic [ref=f1e29]: "12"
+      - button "Policy Engine" [ref=f1e31] [cursor=pointer]
+      - generic [ref=f1e35]:
+        - paragraph [ref=f1e36]: AI & DỮ LIỆU
+        - button "AI & RAG" [ref=f1e37] [cursor=pointer]
+      - button "Local Models" [ref=f1e42] [cursor=pointer]
+      - button "Kho tri thức" [ref=f1e47] [cursor=pointer]
+      - button "Bộ nhớ & lưu trữ" [ref=f1e52] [cursor=pointer]
+      - generic [ref=f1e56]:
+        - paragraph [ref=f1e57]: KIỂM SOÁT
+        - button "Hành động chờ 3" [ref=f1e58] [cursor=pointer]:
+          - generic [ref=f1e61]: Hành động chờ
+          - generic [ref=f1e62]: "3"
+      - button "Scheduler & Workers" [ref=f1e64] [cursor=pointer]
+      - button "Audit Log" [ref=f1e69] [cursor=pointer]
+      - button "Bảo mật" [ref=f1e74] [cursor=pointer]
+      - button "Tài liệu & Hệ thống" [ref=f1e79] [cursor=pointer]
+    - generic [ref=f1e84]:
+      - generic [ref=f1e85]: NT
+      - generic [ref=f1e86]:
+        - generic [ref=f1e87]: Nguyễn Nhật Tân
+        - generic [ref=f1e88]: Owner · Online
+      - button "Đăng xuất" [ref=f1e89] [cursor=pointer]
+    - generic [ref=f1e92]:
+      - generic [ref=f1e93]: RUNTIME
+      - generic [ref=f1e94]: v0.8.4
+  - main [ref=f1e96]:
+    - generic [ref=f1e97]:
+      - generic [ref=f1e99]:
+        - paragraph [ref=f1e100]: TELEGRAM AI / KHO TRI THỨC
+        - heading "Kho tri thức" [level=1] [ref=f1e618]
+      - generic [ref=f1e102]:
+        - button "Thông báo" [ref=f1e108] [cursor=pointer]
+        - button "Tạo hành động" [ref=f1e112] [cursor=pointer]
+    - generic [ref=f1e619]:
+      - generic [ref=f1e620]:
+        - generic [ref=f1e621]:
+          - generic [ref=f1e622]: KNOWLEDGE CORPUS
+          - heading "14,238 chunks đã sẵn sàng cho RAG." [level=2] [ref=f1e625]
+          - paragraph [ref=f1e626]: MySQL giữ nội dung gốc. Qdrant chỉ lưu vector và tham chiếu đã được commit.
+          - button "Đồng bộ ngay" [ref=f1e627] [cursor=pointer]
+        - generic [ref=f1e630]:
+          - strong [ref=f1e631]: 98.7%
+          - generic [ref=f1e632]: vector healthy
+      - generic [ref=f1e633]:
+        - article [ref=f1e634]:
+          - generic [ref=f1e637]: Telegram messages
+          - strong [ref=f1e638]: 8,402
+          - generic [ref=f1e639]: 2 phút trước
+        - article [ref=f1e640]:
+          - generic [ref=f1e643]: Owner notes
+          - strong [ref=f1e644]: 2,188
+          - generic [ref=f1e645]: 12 phút trước
+        - article [ref=f1e646]:
+          - generic [ref=f1e649]: Policy documents
+          - strong [ref=f1e650]: 1,624
+          - generic [ref=f1e651]: Hôm qua
+        - article [ref=f1e652]:
+          - generic [ref=f1e655]: Imported files
+          - strong [ref=f1e656]: 2,024
+          - generic [ref=f1e657]: 3 giờ trước
+      - generic [ref=f1e658]:
+        - generic [ref=f1e659]:
+          - generic [ref=f1e660]:
+            - paragraph [ref=f1e661]: FRESHNESS
+            - heading "Nguồn dữ liệu" [level=2] [ref=f1e662]
+          - generic [ref=f1e663]:
+            - generic [ref=f1e664]: 4/4 HEALTHY
+            - button "Learning Jobs" [ref=f1e665] [cursor=pointer]
+        - generic [ref=f1e666]:
+          - generic [ref=f1e669]: mysql://messages
+          - generic [ref=f1e670]: "Batch #1840"
+          - generic [ref=f1e671]: COMMITTED
+        - generic [ref=f1e672]:
+          - generic [ref=f1e675]: mysql://owner_notes
+          - generic [ref=f1e676]: "Batch #1841"
+          - generic [ref=f1e677]: COMMITTED
+        - generic [ref=f1e678]:
+          - generic [ref=f1e681]: file://policy
+          - generic [ref=f1e682]: "Batch #1842"
+          - generic [ref=f1e683]: COMMITTED
+        - generic [ref=f1e684]:
+          - generic [ref=f1e687]: file://imports
+          - generic [ref=f1e688]: "Batch #1843"
+          - generic [ref=f1e689]: COMMITTED

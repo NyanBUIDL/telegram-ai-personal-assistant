@@ -1,0 +1,102 @@
+- generic [ref=f11e3]:
+  - complementary [ref=f11e4]:
+    - generic [ref=f11e9]:
+      - strong [ref=f11e10]: TELEGRAM//AI
+      - generic [ref=f11e11]: ADMIN CONSOLE
+    - navigation "Điều hướng chính" [ref=f11e12]:
+      - paragraph [ref=f11e13]: WORKSPACE
+      - button "Tổng quan" [ref=f11e14] [cursor=pointer]
+      - button "Nhóm Telegram 12" [ref=f11e18] [cursor=pointer]:
+        - generic [ref=f11e21]: Nhóm Telegram
+        - generic [ref=f11e22]: "12"
+      - button "Hành động chờ 3" [ref=f11e23] [cursor=pointer]:
+        - generic [ref=f11e26]: Hành động chờ
+        - generic [ref=f11e27]: "3"
+      - button "Kho tri thức" [ref=f11e28] [cursor=pointer]
+      - button "Hệ thống" [ref=f11e32] [cursor=pointer]
+    - generic [ref=f11e37]:
+      - generic [ref=f11e38]: NT
+      - generic [ref=f11e39]:
+        - generic [ref=f11e40]: Nguyễn Nhật Tân
+        - generic [ref=f11e41]: Owner · Online
+      - button "Đăng xuất" [ref=f11e42] [cursor=pointer]
+    - generic [ref=f11e45]:
+      - generic [ref=f11e46]: RUNTIME
+      - generic [ref=f11e47]: v0.8.4
+  - main [ref=f11e49]:
+    - generic [ref=f11e50]:
+      - generic [ref=f11e52]:
+        - paragraph [ref=f11e53]: TELEGRAM AI / HÀNH ĐỘNG CHỜ
+        - heading "Hành động chờ" [level=1] [ref=f11e585]
+      - generic [ref=f11e55]:
+        - button "Thông báo" [ref=f11e61] [cursor=pointer]
+        - button "Tạo hành động" [ref=f11e65] [cursor=pointer]
+    - generic [ref=f11e586]:
+      - generic [ref=f11e587]:
+        - generic [ref=f11e588]:
+          - generic [ref=f11e589]:
+            - paragraph [ref=f11e590]: OWNER CONFIRMATION
+            - heading "Hành động chờ duyệt" [level=2] [ref=f11e591]
+          - generic [ref=f11e592]: 3 CHỜ
+        - table [ref=f11e594]:
+          - rowgroup [ref=f11e595]:
+            - row [ref=f11e596]:
+              - columnheader "Hành động" [ref=f11e597]
+              - columnheader "Nguồn" [ref=f11e598]
+              - columnheader "Hết hạn" [ref=f11e599]
+              - columnheader "Thao tác" [ref=f11e600]
+          - rowgroup [ref=f11e602]:
+            - row [ref=f11e603]:
+              - cell "Xóa 18 tin nhắn spam ACT-2407 · Crypto Insider VN" [ref=f11e604]:
+                - generic [ref=f11e607]:
+                  - generic [ref=f11e608]: Xóa 18 tin nhắn spam
+                  - generic [ref=f11e609]: ACT-2407 · Crypto Insider VN
+              - cell "Policy Engine" [ref=f11e610]
+              - cell [ref=f11e611]
+              - cell [ref=f11e615]:
+                - button "Xem & duyệt" [active] [ref=f11e616] [cursor=pointer]
+            - row [ref=f11e617]:
+              - cell "Khóa thành viên @airdrop_bot ACT-2406 · AI Builders Saigon" [ref=f11e618]:
+                - generic [ref=f11e621]:
+                  - generic [ref=f11e622]: Khóa thành viên @airdrop_bot
+                  - generic [ref=f11e623]: ACT-2406 · AI Builders Saigon
+              - cell "AUTO Moderation" [ref=f11e624]
+              - cell [ref=f11e625]
+              - cell [ref=f11e629]:
+                - button "Xem & duyệt" [ref=f11e630] [cursor=pointer]
+            - row [ref=f11e631]:
+              - cell "Đăng thông báo lịch bảo trì ACT-2405 · TG Assistant Ops" [ref=f11e632]:
+                - generic [ref=f11e635]:
+                  - generic [ref=f11e636]: Đăng thông báo lịch bảo trì
+                  - generic [ref=f11e637]: ACT-2405 · TG Assistant Ops
+              - cell "Control Bot" [ref=f11e638]
+              - cell [ref=f11e639]
+              - cell [ref=f11e643]:
+                - button "Xem & duyệt" [ref=f11e644] [cursor=pointer]
+      - complementary [ref=f11e645]:
+        - paragraph [ref=f11e648]: SAFETY FIRST
+        - heading "Preview trước. Owner duyệt. Worker kiểm tra lại." [level=2] [ref=f11e649]
+        - paragraph [ref=f11e650]: Mọi hành động nhạy cảm đều được xác minh owner, policy và quyền Telegram thực tế ngay trước khi thực thi.
+        - list [ref=f11e651]:
+          - listitem [ref=f11e652]: Không tự động xóa hoặc khóa
+          - listitem [ref=f11e655]: PendingAction có thời hạn
+          - listitem [ref=f11e658]: Audit log không thể bỏ qua
+  - dialog [ref=f11e661]:
+    - generic [ref=f11e662]: OWNER CONFIRMATION
+    - button "Đóng" [ref=f11e665] [cursor=pointer]
+    - paragraph [ref=f11e668]: ACT-2407
+    - heading "Xóa 18 tin nhắn spam" [level=2] [ref=f11e669]
+    - generic [ref=f11e670]:
+      - generic [ref=f11e671]:
+        - generic [ref=f11e672]: Nhóm
+        - generic [ref=f11e673]: Crypto Insider VN
+      - generic [ref=f11e674]:
+        - generic [ref=f11e675]: Yêu cầu bởi
+        - generic [ref=f11e676]: Policy Engine
+      - generic [ref=f11e677]:
+        - generic [ref=f11e678]: Hết hạn sau
+        - generic [ref=f11e679]: 04:32
+    - generic [ref=f11e680]: Worker sẽ kiểm tra lại owner, policy và quyền Telegram thực tế ngay trước khi chạy.
+    - generic [ref=f11e681]:
+      - button "Từ chối" [ref=f11e682] [cursor=pointer]
+      - button "Xác nhận thực thi" [ref=f11e685] [cursor=pointer]

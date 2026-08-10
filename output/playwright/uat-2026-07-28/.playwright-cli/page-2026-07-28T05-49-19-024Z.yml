@@ -1,0 +1,224 @@
+- generic [ref=f1e12]:
+  - complementary [ref=f1e13]:
+    - generic [ref=f1e18]:
+      - strong [ref=f1e19]: TELEGRAM//AI
+      - generic [ref=f1e20]: ADMIN CONSOLE
+    - navigation "Điều hướng chính" [ref=f1e21]:
+      - generic [ref=f1e22]:
+        - paragraph [ref=f1e23]: VẬN HÀNH
+        - button "Tổng quan" [ref=f1e24] [cursor=pointer]
+      - button "Kết nối" [ref=f1e29] [cursor=pointer]
+      - button "Nhóm Telegram" [ref=f1e34] [cursor=pointer]
+      - button "Policy Engine" [ref=f1e39] [cursor=pointer]
+      - generic [ref=f1e43]:
+        - paragraph [ref=f1e44]: AI & DỮ LIỆU
+        - button "AI & RAG" [ref=f1e45] [cursor=pointer]
+      - button "Local Models" [ref=f1e50] [cursor=pointer]
+      - button "Kho tri thức" [ref=f1e55] [cursor=pointer]
+      - button "Bộ nhớ & lưu trữ" [ref=f1e60] [cursor=pointer]
+      - generic [ref=f1e64]:
+        - paragraph [ref=f1e65]: KIỂM SOÁT
+        - button "Hành động chờ" [ref=f1e66] [cursor=pointer]
+      - button "Scheduler & Workers" [ref=f1e71] [cursor=pointer]
+      - button "Audit Log" [active] [ref=f1e76] [cursor=pointer]
+      - button "Bảo mật" [ref=f1e81] [cursor=pointer]
+      - button "Tài liệu & Hệ thống" [ref=f1e86] [cursor=pointer]
+      - generic [ref=f1e90]:
+        - paragraph [ref=f1e91]: TRỢ LÝ CHÍNH
+        - button "Chức năng Telegram" [ref=f1e92] [cursor=pointer]
+    - generic [ref=f1e97]:
+      - generic [ref=f1e98]: OW
+      - generic [ref=f1e99]:
+        - generic [ref=f1e100]: Owner 1134327192
+        - generic [ref=f1e101]: Local · Realtime
+      - button "Đăng xuất" [ref=f1e102] [cursor=pointer]
+    - generic [ref=f1e105]:
+      - generic [ref=f1e106]: RUNTIME
+      - generic [ref=f1e107]: v0.1.0
+  - main [ref=f1e109]:
+    - generic [ref=f1e110]:
+      - generic [ref=f1e112]:
+        - paragraph [ref=f1e113]: TELEGRAM AI / AUDIT LOG
+        - heading "Audit Log" [level=1] [ref=f1e3378]
+      - generic [ref=f1e115]:
+        - generic [ref=f1e116]: LIVE
+        - button "Thông báo" [ref=f1e118] [cursor=pointer]
+        - button "Hành động chờ" [ref=f1e121] [cursor=pointer]
+    - generic [ref=f1e3379]:
+      - generic [ref=f1e3380]:
+        - generic [ref=f1e3381]:
+          - paragraph [ref=f1e3382]: AUDIT TRAIL · LIVE
+          - heading "Audit Log" [level=2] [ref=f1e3383]
+        - button "Xuất CSV" [ref=f1e3384] [cursor=pointer]
+      - generic [ref=f1e3387]:
+        - textbox [ref=f1e3391]:
+          - /placeholder: Tìm action, target hoặc lý do…
+        - combobox [ref=f1e3392] [cursor=pointer]:
+          - option "Tất cả kết quả" [selected]
+          - option "Success"
+          - option "Pending"
+          - option "Confirmed"
+          - option "Failed"
+          - option "Blocked"
+      - table [ref=f1e3394]:
+        - rowgroup [ref=f1e3395]:
+          - row [ref=f1e3396]:
+            - columnheader "Thời gian" [ref=f1e3397]
+            - columnheader "Action" [ref=f1e3398]
+            - columnheader "Target" [ref=f1e3399]
+            - columnheader "Kết quả" [ref=f1e3400]
+            - columnheader "Lý do" [ref=f1e3401]
+            - columnheader "Correlation" [ref=f1e3402]
+        - rowgroup [ref=f1e3403]:
+          - row [ref=f1e3404]:
+            - cell "12:47 28/7/26" [ref=f1e3405]
+            - cell "Dashboard Login" [ref=f1e3406]
+            - cell "—" [ref=f1e3407]
+            - cell "Success" [ref=f1e3408]
+            - cell "—" [ref=f1e3410]
+            - cell "—" [ref=f1e3411]
+          - row [ref=f1e3412]:
+            - cell "12:32 28/7/26" [ref=f1e3413]
+            - cell "Dashboard Login" [ref=f1e3414]
+            - cell "—" [ref=f1e3415]
+            - cell "Success" [ref=f1e3416]
+            - cell "—" [ref=f1e3418]
+            - cell "—" [ref=f1e3419]
+          - row [ref=f1e3420]:
+            - cell "11:46 28/7/26" [ref=f1e3421]
+            - cell "Dashboard Learning Resume All" [ref=f1e3422]
+            - cell "—" [ref=f1e3423]
+            - cell "Success" [ref=f1e3424]
+            - cell "—" [ref=f1e3426]
+            - cell "—" [ref=f1e3427]
+          - row [ref=f1e3428]:
+            - cell "11:46 28/7/26" [ref=f1e3429]
+            - cell "Dashboard Learning Pause All" [ref=f1e3430]
+            - cell "—" [ref=f1e3431]
+            - cell "Success" [ref=f1e3432]
+            - cell "—" [ref=f1e3434]
+            - cell "—" [ref=f1e3435]
+          - row [ref=f1e3436]:
+            - cell "11:43 28/7/26" [ref=f1e3437]
+            - cell "Dashboard Pending Action Cancelled" [ref=f1e3438]
+            - cell "bd6231f1-ce5d-4bcc-8824-86b031c69039" [ref=f1e3439]
+            - cell "Cancelled" [ref=f1e3440]
+            - cell "—" [ref=f1e3442]
+            - cell "—" [ref=f1e3443]
+          - row [ref=f1e3444]:
+            - cell "11:43 28/7/26" [ref=f1e3445]
+            - cell "Dashboard Pending Action Created" [ref=f1e3446]
+            - cell "-1001227549557" [ref=f1e3447]
+            - cell "Pending" [ref=f1e3448]
+            - cell "—" [ref=f1e3450]
+            - cell "—" [ref=f1e3451]
+          - row [ref=f1e3452]:
+            - cell "11:43 28/7/26" [ref=f1e3453]
+            - cell "Dashboard Pending Action Cancelled" [ref=f1e3454]
+            - cell "88d0bb5e-3327-40b3-9f93-03f8da468cb9" [ref=f1e3455]
+            - cell "Cancelled" [ref=f1e3456]
+            - cell "—" [ref=f1e3458]
+            - cell "—" [ref=f1e3459]
+          - row [ref=f1e3460]:
+            - cell "11:42 28/7/26" [ref=f1e3461]
+            - cell "Dashboard Login" [ref=f1e3462]
+            - cell "—" [ref=f1e3463]
+            - cell "Success" [ref=f1e3464]
+            - cell "—" [ref=f1e3466]
+            - cell "—" [ref=f1e3467]
+          - row [ref=f1e3468]:
+            - cell "11:39 28/7/26" [ref=f1e3469]
+            - cell "Dashboard Pending Action Created" [ref=f1e3470]
+            - cell "-1001440023710" [ref=f1e3471]
+            - cell "Pending" [ref=f1e3472]
+            - cell "—" [ref=f1e3474]
+            - cell "—" [ref=f1e3475]
+          - row [ref=f1e3476]:
+            - cell "11:37 28/7/26" [ref=f1e3477]
+            - cell "Dashboard Login" [ref=f1e3478]
+            - cell "—" [ref=f1e3479]
+            - cell "Success" [ref=f1e3480]
+            - cell "—" [ref=f1e3482]
+            - cell "—" [ref=f1e3483]
+          - row [ref=f1e3484]:
+            - cell "11:27 28/7/26" [ref=f1e3485]
+            - cell "Dashboard Login" [ref=f1e3486]
+            - cell "—" [ref=f1e3487]
+            - cell "Success" [ref=f1e3488]
+            - cell "—" [ref=f1e3490]
+            - cell "—" [ref=f1e3491]
+          - row [ref=f1e3492]:
+            - cell "22:49 27/7/26" [ref=f1e3493]
+            - cell "Dashboard Login" [ref=f1e3494]
+            - cell "—" [ref=f1e3495]
+            - cell "Success" [ref=f1e3496]
+            - cell "—" [ref=f1e3498]
+            - cell "—" [ref=f1e3499]
+          - row [ref=f1e3500]:
+            - cell "22:44 27/7/26" [ref=f1e3501]
+            - cell "Dashboard Login" [ref=f1e3502]
+            - cell "—" [ref=f1e3503]
+            - cell "Success" [ref=f1e3504]
+            - cell "—" [ref=f1e3506]
+            - cell "—" [ref=f1e3507]
+          - row [ref=f1e3508]:
+            - cell "17:20 25/7/26" [ref=f1e3509]
+            - cell "Set Group Ai Ask" [ref=f1e3510]
+            - cell "-1002516665529" [ref=f1e3511]
+            - cell "Success" [ref=f1e3512]
+            - cell "—" [ref=f1e3514]
+            - cell "31d05356-850f-4b7a-8349-f421a573f47e" [ref=f1e3515]
+          - row [ref=f1e3516]:
+            - cell "17:08 25/7/26" [ref=f1e3517]
+            - cell "Set Group Ai Ask" [ref=f1e3518]
+            - cell "-4006978081" [ref=f1e3519]
+            - cell "Success" [ref=f1e3520]
+            - cell "—" [ref=f1e3522]
+            - cell "74055aea-670c-4985-9d2c-9af110b670f5" [ref=f1e3523]
+          - row [ref=f1e3524]:
+            - cell "15:17 25/7/26" [ref=f1e3525]
+            - cell "Grant Read Scope All Joined Sources" [ref=f1e3526]
+            - cell "all_joined_groups_channels" [ref=f1e3527]
+            - cell "Success" [ref=f1e3528]
+            - cell "Owner y?u c?u c?p quy?n ??c cho t?t c? ngu?n ?? tham gia" [ref=f1e3530]
+            - cell "—" [ref=f1e3531]
+          - row [ref=f1e3532]:
+            - cell "19:44 24/7/26" [ref=f1e3533]
+            - cell "Enable Group Learning Bulk" [ref=f1e3534]
+            - cell "84b4ebff-da66-4072-ae4d-b1b5b87a253a" [ref=f1e3535]
+            - cell "Success" [ref=f1e3536]
+            - cell "—" [ref=f1e3538]
+            - cell "84b4ebff-da66-4072-ae4d-b1b5b87a253a" [ref=f1e3539]
+          - row [ref=f1e3540]:
+            - cell "19:44 24/7/26" [ref=f1e3541]
+            - cell "Enable Group Learning Bulk" [ref=f1e3542]
+            - cell "7260d6ae-98b1-481a-91e6-e0447401ce00" [ref=f1e3543]
+            - cell "Success" [ref=f1e3544]
+            - cell "—" [ref=f1e3546]
+            - cell "7260d6ae-98b1-481a-91e6-e0447401ce00" [ref=f1e3547]
+          - row [ref=f1e3548]:
+            - cell "17:39 24/7/26" [ref=f1e3549]
+            - cell "Set Link Spam Auto Moderation" [ref=f1e3550]
+            - cell "-1001315055119" [ref=f1e3551]
+            - cell "Success" [ref=f1e3552]
+            - cell "—" [ref=f1e3554]
+            - cell "37b835c7-2447-4309-acfa-1112bcce14b2" [ref=f1e3555]
+          - row [ref=f1e3556]:
+            - cell "17:20 24/7/26" [ref=f1e3557]
+            - cell "Sync Chat History" [ref=f1e3558]
+            - cell "-1001315055119/None" [ref=f1e3559]
+            - cell "Success" [ref=f1e3560]
+            - cell "—" [ref=f1e3562]
+            - cell "1db5732a-a96f-4505-8da7-345f112a9f58" [ref=f1e3563]
+          - row [ref=f1e3564]:
+            - cell "17:20 24/7/26" [ref=f1e3565]
+            - cell "Setup Moderation" [ref=f1e3566]
+            - cell "-1001315055119/None" [ref=f1e3567]
+            - cell "Success" [ref=f1e3568]
+            - cell "—" [ref=f1e3570]
+            - cell "123f8677-48ea-47f4-90aa-ad4dad8de38a" [ref=f1e3571]
+      - generic [ref=f1e3572]:
+        - generic [ref=f1e3573]: Trang 1 · 21 sự kiện
+        - generic [ref=f1e3574]:
+          - button "Trước" [disabled] [ref=f1e3575]
+          - button "Sau" [disabled] [ref=f1e3578]

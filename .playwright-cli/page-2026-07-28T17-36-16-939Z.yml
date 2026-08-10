@@ -1,0 +1,317 @@
+- generic [ref=e37]:
+  - complementary [ref=e38]:
+    - generic [ref=e43]:
+      - strong [ref=e44]: TELEGRAM//AI
+      - generic [ref=e45]: ADMIN CONSOLE
+    - navigation "Điều hướng chính" [ref=e46]:
+      - generic [ref=e47]:
+        - paragraph [ref=e48]: VẬN HÀNH
+        - button "Tổng quan" [ref=e49] [cursor=pointer]
+      - button "Kết nối" [ref=e54] [cursor=pointer]
+      - button "Nhóm Telegram" [ref=e59] [cursor=pointer]
+      - button "Policy Engine" [ref=e64] [cursor=pointer]
+      - generic [ref=e68]:
+        - paragraph [ref=e69]: AI & DỮ LIỆU
+        - button "AI & RAG" [ref=e70] [cursor=pointer]
+      - button "Local Models" [ref=e75] [cursor=pointer]
+      - button "Kho tri thức" [ref=e80] [cursor=pointer]
+      - button "Bộ nhớ & lưu trữ" [ref=e85] [cursor=pointer]
+      - generic [ref=e89]:
+        - paragraph [ref=e90]: KIỂM SOÁT
+        - button "Hành động chờ 1" [ref=e1011] [cursor=pointer]:
+          - generic [ref=e94]: Hành động chờ
+          - generic [ref=e1012]: "1"
+      - button "Scheduler & Workers" [ref=e96] [cursor=pointer]
+      - button "Audit Log" [ref=e101] [cursor=pointer]
+      - button "Bảo mật" [ref=e106] [cursor=pointer]
+      - button "Tài liệu & Hệ thống" [ref=e111] [cursor=pointer]
+      - generic [ref=e115]:
+        - paragraph [ref=e116]: TRỢ LÝ CHÍNH
+        - button "Chức năng Telegram" [ref=e117] [cursor=pointer]
+    - generic [ref=e122]:
+      - generic [ref=e123]: OW
+      - generic [ref=e124]:
+        - generic [ref=e125]: Owner 1134327192
+        - generic [ref=e126]: Local · Realtime
+      - button "Đăng xuất" [ref=e127] [cursor=pointer]
+    - generic [ref=e130]:
+      - generic [ref=e131]: RUNTIME
+      - generic [ref=e132]: v0.1.0
+  - main [ref=e134]:
+    - generic [ref=e135]:
+      - generic [ref=e137]:
+        - paragraph [ref=e138]: TELEGRAM AI / HÀNH ĐỘNG CHỜ
+        - heading "Hành động chờ" [level=1] [ref=e1055]
+      - generic [ref=e140]:
+        - generic [ref=e141]: LIVE
+        - button "Thông báo" [ref=e143] [cursor=pointer]
+        - button "Hành động chờ" [ref=e146] [cursor=pointer]
+    - generic [ref=e1056]:
+      - generic [ref=e1057]:
+        - generic [ref=e1058]:
+          - paragraph [ref=e1059]: OWNER CONTROL · LIVE
+          - heading "Hành động và xác nhận" [level=2] [ref=e1060]
+        - generic [ref=e1061]: 22 ACTION
+      - combobox [ref=e1063] [cursor=pointer]:
+        - option "Tất cả" [selected]
+        - option "Đang chờ"
+        - option "Đã xác nhận"
+        - option "Đã thực thi"
+        - option "Lỗi"
+        - option "Đã hủy"
+      - table [ref=e1065]:
+        - rowgroup [ref=e1066]:
+          - row [ref=e1067]:
+            - columnheader "Hành động" [ref=e1068]
+            - columnheader "Preview" [ref=e1069]
+            - columnheader "Phạm vi" [ref=e1070]
+            - columnheader "Trạng thái" [ref=e1071]
+            - columnheader "Hết hạn" [ref=e1072]
+            - columnheader "Thao tác" [ref=e1073]
+        - rowgroup [ref=e1074]:
+          - row [ref=e1075]:
+            - cell "Set Chat Allowed fc20fdf5-1c98-4a24-8ab1-938aca81524e" [ref=e1076]:
+              - text: Set Chat Allowed
+              - generic [ref=e1077]: fc20fdf5-1c98-4a24-8ab1-938aca81524e
+            - cell "BLOCK J2TEAM Community Chat và archive memory liên quan" [ref=e1078]
+            - cell "-1001227549557" [ref=e1079]
+            - cell "Pending" [ref=e1080]
+            - cell "00:40 29/7/26" [ref=e1082]
+            - cell [ref=e1083]:
+              - button "Xem" [ref=e1084] [cursor=pointer]
+          - row [ref=e1087]:
+            - cell "Set Chat Permission bab903b5-dd97-4864-ba28-1a87b199267e" [ref=e1088]:
+              - text: Set Chat Permission
+              - generic [ref=e1089]: bab903b5-dd97-4864-ba28-1a87b199267e
+            - cell "Bật quyền auto_task_suggestion cho chat -4006978081" [ref=e1090]
+            - cell "-4006978081" [ref=e1091]
+            - cell "Cancelled" [ref=e1092]
+            - cell "14:47 28/7/26" [ref=e1094]
+            - cell [ref=e1095]:
+              - button "Xem" [ref=e1096] [cursor=pointer]
+          - row [ref=e1099]:
+            - cell "Enable Group Learning 43b3c87d-67fd-4828-9fcb-ea4fb9559206" [ref=e1100]:
+              - text: Enable Group Learning
+              - generic [ref=e1101]: 43b3c87d-67fd-4828-9fcb-ea4fb9559206
+            - cell "Bật học và lập chỉ mục Test Message to 68 Trading Chat Bot" [ref=e1102]
+            - cell "-4006978081" [ref=e1103]
+            - cell "Executed" [ref=e1104]
+            - cell "14:39 28/7/26" [ref=e1106]
+            - cell [ref=e1107]:
+              - button "Xem" [ref=e1108] [cursor=pointer]
+          - row [ref=e1111]:
+            - cell "Delete Ollama Model 62c317ae-b68a-4d0d-8b7c-79438fb95d62" [ref=e1112]:
+              - text: Delete Ollama Model
+              - generic [ref=e1113]: 62c317ae-b68a-4d0d-8b7c-79438fb95d62
+            - cell "Xóa model Ollama glm-5:cloud khỏi máy cục bộ." [ref=e1114]
+            - cell "Hệ thống" [ref=e1115]
+            - cell "Cancelled" [ref=e1116]
+            - cell "14:36 28/7/26" [ref=e1118]
+            - cell [ref=e1119]:
+              - button "Xem" [ref=e1120] [cursor=pointer]
+          - row [ref=e1123]:
+            - cell "Enable Group Learning Bulk c04b1242-2a0b-4d74-893e-d2d8663f3189" [ref=e1124]:
+              - text: Enable Group Learning Bulk
+              - generic [ref=e1125]: c04b1242-2a0b-4d74-893e-d2d8663f3189
+            - cell "Cấp quyền học và tạo hàng đợi cho 200 group/channel chưa nằm đầy đủ trong bộ não chung." [ref=e1126]
+            - cell "Hệ thống" [ref=e1127]
+            - cell "Cancelled" [ref=e1128]
+            - cell "14:34 28/7/26" [ref=e1130]
+            - cell [ref=e1131]:
+              - button "Xem" [ref=e1132] [cursor=pointer]
+          - row [ref=e1135]:
+            - cell "Delete Ollama Model fd7aab11-2977-44ca-800c-af4c3fd4b956" [ref=e1136]:
+              - text: Delete Ollama Model
+              - generic [ref=e1137]: fd7aab11-2977-44ca-800c-af4c3fd4b956
+            - cell "Xóa model Ollama glm-5:cloud khỏi máy cục bộ." [ref=e1138]
+            - cell "Hệ thống" [ref=e1139]
+            - cell "Cancelled" [ref=e1140]
+            - cell "12:59 28/7/26" [ref=e1142]
+            - cell [ref=e1143]:
+              - button "Xem" [ref=e1144] [cursor=pointer]
+          - row [ref=e1147]:
+            - cell "Set Chat Permission 2a1a44cc-98ea-4bc3-9558-fd84dc0b32f9" [ref=e1148]:
+              - text: Set Chat Permission
+              - generic [ref=e1149]: 2a1a44cc-98ea-4bc3-9558-fd84dc0b32f9
+            - cell "Bật quyền analyze_files cho chat -4006978081" [ref=e1150]
+            - cell "-4006978081" [ref=e1151]
+            - cell "Cancelled" [ref=e1152]
+            - cell "12:56 28/7/26" [ref=e1154]
+            - cell [ref=e1155]:
+              - button "Xem" [ref=e1156] [cursor=pointer]
+          - row [ref=e1159]:
+            - cell "Set Chat Permission bd6231f1-ce5d-4bcc-8824-86b031c69039" [ref=e1160]:
+              - text: Set Chat Permission
+              - generic [ref=e1161]: bd6231f1-ce5d-4bcc-8824-86b031c69039
+            - cell "Tắt quyền read_messages cho chat -1001227549557" [ref=e1162]
+            - cell "-1001227549557" [ref=e1163]
+            - cell "Cancelled" [ref=e1164]
+            - cell "11:48 28/7/26" [ref=e1166]
+            - cell [ref=e1167]:
+              - button "Xem" [ref=e1168] [cursor=pointer]
+          - row [ref=e1171]:
+            - cell "Set Chat Permission 88d0bb5e-3327-40b3-9f93-03f8da468cb9" [ref=e1172]:
+              - text: Set Chat Permission
+              - generic [ref=e1173]: 88d0bb5e-3327-40b3-9f93-03f8da468cb9
+            - cell "Tắt quyền read_messages cho chat -1001440023710" [ref=e1174]
+            - cell "-1001440023710" [ref=e1175]
+            - cell "Cancelled" [ref=e1176]
+            - cell "11:44 28/7/26" [ref=e1178]
+            - cell [ref=e1179]:
+              - button "Xem" [ref=e1180] [cursor=pointer]
+          - row [ref=e1183]:
+            - cell "Set Group Ai Ask 31d05356-850f-4b7a-8349-f421a573f47e" [ref=e1184]:
+              - text: Set Group Ai Ask
+              - generic [ref=e1185]: 31d05356-850f-4b7a-8349-f421a573f47e
+            - 'cell "BẬT THÀNH VIÊN HỎI AI Group: Hội cựu chiến binh C-sủi (-1002516665529) Cú pháp: @BrianNguyen0x /ask <câu hỏi> AI sẽ trả lời ngay trong group từ toàn bộ kho group/channel đã học và được cấp quyền tìm kiếm, mặc định trong 7 ngày gần nhất. Lưu ý: nội dung tổng hợp từ các nguồn đã học có thể xuất hiện trong group này; mã nguồn và phần DẪN CHỨNG sẽ được ẩn. Mỗi thành viên được giới hạn 3 câu/phút." [ref=e1186]'
+            - cell "-1002516665529" [ref=e1187]
+            - cell "Executed" [ref=e1188]
+            - cell "17:24 25/7/26" [ref=e1190]
+            - cell [ref=e1191]:
+              - button "Xem" [ref=e1192] [cursor=pointer]
+          - row [ref=e1195]:
+            - cell "Set Group Ai Ask 74055aea-670c-4985-9d2c-9af110b670f5" [ref=e1196]:
+              - text: Set Group Ai Ask
+              - generic [ref=e1197]: 74055aea-670c-4985-9d2c-9af110b670f5
+            - 'cell "BẬT THÀNH VIÊN HỎI AI Group: Test Message to 68 Trading Chat Bot (-4006978081) Cú pháp: @BrianNguyen0x /ask <câu hỏi> AI sẽ trả lời ngay trong group từ toàn bộ kho group/channel đã học và được cấp quyền tìm kiếm, mặc định trong 7 ngày gần nhất. Lưu ý: nội dung và dẫn chứng từ các nguồn đã học có thể xuất hiện trong group này. Mỗi thành viên được giới hạn 3 câu/phút." [ref=e1198]'
+            - cell "-4006978081" [ref=e1199]
+            - cell "Executed" [ref=e1200]
+            - cell "17:12 25/7/26" [ref=e1202]
+            - cell [ref=e1203]:
+              - button "Xem" [ref=e1204] [cursor=pointer]
+          - row [ref=e1207]:
+            - cell "Enable Group Learning Bulk 84b4ebff-da66-4072-ae4d-b1b5b87a253a" [ref=e1208]:
+              - text: Enable Group Learning Bulk
+              - generic [ref=e1209]: 84b4ebff-da66-4072-ae4d-b1b5b87a253a
+            - cell "Học từ 100 group/channel đã chọn Tối đa 100,000 tin trong đợt đồng bộ đầu Xử lý từng nguồn bằng hàng đợi nền Bật allowlist + quyền knowledge cho từng nguồn Ghi và commit dữ liệu nguồn vào MySQL trước khi tạo embedding Nội dung hợp lệ dùng để tạo embedding sẽ được gửi tới OpenAI." [ref=e1210]
+            - cell "Hệ thống" [ref=e1211]
+            - cell "Executed" [ref=e1212]
+            - cell "19:49 24/7/26" [ref=e1214]
+            - cell [ref=e1215]:
+              - button "Xem" [ref=e1216] [cursor=pointer]
+          - row [ref=e1219]:
+            - cell "Enable Group Learning Bulk 7260d6ae-98b1-481a-91e6-e0447401ce00" [ref=e1220]:
+              - text: Enable Group Learning Bulk
+              - generic [ref=e1221]: 7260d6ae-98b1-481a-91e6-e0447401ce00
+            - cell "Học từ 100 group/channel đã chọn Tối đa 100,000 tin trong đợt đồng bộ đầu Xử lý từng nguồn bằng hàng đợi nền Bật allowlist + quyền knowledge cho từng nguồn Ghi và commit dữ liệu nguồn vào MySQL trước khi tạo embedding Nội dung hợp lệ dùng để tạo embedding sẽ được gửi tới OpenAI." [ref=e1222]
+            - cell "Hệ thống" [ref=e1223]
+            - cell "Executed" [ref=e1224]
+            - cell "19:48 24/7/26" [ref=e1226]
+            - cell [ref=e1227]:
+              - button "Xem" [ref=e1228] [cursor=pointer]
+          - row [ref=e1231]:
+            - cell "Set Link Spam Auto Moderation 37b835c7-2447-4309-acfa-1112bcce14b2" [ref=e1232]:
+              - text: Set Link Spam Auto Moderation
+              - generic [ref=e1233]: 37b835c7-2447-4309-acfa-1112bcce14b2
+            - 'cell "BẬT AUTO XÓA LINK NON-ADMIN Group: Coin68 Community | Chat (-1001315055119) Chỉ xóa tin MỚI của thành viên thường khi có URL, link ẩn, www, t.me hoặc tên miền. Tin không có link được giữ. Link do bạn, creator/admin hoặc admin ẩn danh đăng được giữ. @username và email không bị coi là link. Không xóa ngược tin cũ. Lỗi xác minh thì giữ tin." [ref=e1234]'
+            - cell "-1001315055119" [ref=e1235]
+            - cell "Executed" [ref=e1236]
+            - cell "17:44 24/7/26" [ref=e1238]
+            - cell [ref=e1239]:
+              - button "Xem" [ref=e1240] [cursor=pointer]
+          - row [ref=e1243]:
+            - cell "Set Admin Only Auto Moderation 89d9a5b6-fe8e-4c78-bf6c-ba83e6b4ffca" [ref=e1244]:
+              - text: Set Admin Only Auto Moderation
+              - generic [ref=e1245]: 89d9a5b6-fe8e-4c78-bf6c-ba83e6b4ffca
+            - 'cell "CẢNH BÁO — BẬT AUTO ADMIN-ONLY Group: Coin68 Community | Chat (-1001315055119) Mọi tin MỚI của thành viên thường sẽ bị xóa tự động, không phân biệt quảng cáo hay hội thoại bình thường. Chỉ giữ tin của bạn, creator/admin, admin ẩn danh và service message. Không xóa ngược tin cũ. Lỗi xác minh vai trò thì giữ tin." [ref=e1246]'
+            - cell "-1001315055119" [ref=e1247]
+            - cell "Cancelled" [ref=e1248]
+            - cell "17:37 24/7/26" [ref=e1250]
+            - cell [ref=e1251]:
+              - button "Xem" [ref=e1252] [cursor=pointer]
+          - row [ref=e1255]:
+            - cell "Delete Message b20b3083-dec0-40e5-afc7-6f02f4a6970a" [ref=e1256]:
+              - text: Delete Message
+              - generic [ref=e1257]: b20b3083-dec0-40e5-afc7-6f02f4a6970a
+            - 'cell "Chat: Coin68 Community | Chat Chat ID: -1001315055119 Message ID: 100490 Sender ID: -1001293287064 Thời gian: 2021-01-27 13:24:47 Nội dung: 🧨 Tết về, nhớ bánh chưng xanh Nhớ tràng pháo chuột, nhớ tham gia game của Coin68! 🎉 🎁 Giải thưởng hấp dẫn: - 10 giải bất kỳ cho Top 10 Comment được nhiều like nhất, trị giá 10 USDT và 10 bao lì xì Coin68!!! - 01 giải Đặc Biệt là hộp quà Tết từ Coin68 cho người chơi may mắn nhất! 😱 📌 Luật chơi: 1. LIKE Fanpage Coin68. 2. SHARE bài viết này công khai lên trang cá nhân. 3. COMMENT TÊN 1 ĐỒNG COIN bạn ấn tượng nhất năm qua (có thể kèm giải thích, những lần đu đỉnh, bán đáy, x10 x20...). Coin68 sẽ chọn ra những comment ấn tượng nhất (dựa trên số lượt tương tác) và theo đánh giá của đội ngũ chúng tôi để trao giải. 😍 ⏳ Thời gian: 27/01 - 30/01 (Công bố kết quả vào ngày 30/01) 🥳 Tham gia tại" [ref=e1258]'
+            - cell "-1001315055119" [ref=e1259]
+            - cell "Cancelled" [ref=e1260]
+            - cell "17:26 24/7/26" [ref=e1262]
+            - cell [ref=e1263]:
+              - button "Xem" [ref=e1264] [cursor=pointer]
+          - row [ref=e1267]:
+            - cell "Sync Chat History 1db5732a-a96f-4505-8da7-345f112a9f58" [ref=e1268]:
+              - text: Sync Chat History
+              - generic [ref=e1269]: 1db5732a-a96f-4505-8da7-345f112a9f58
+            - cell "Đồng bộ tối đa 1.000 tin gần nhất từ Coin68 Community | Chat. Chỉ lưu dữ liệu local theo quyền đã cấp." [ref=e1270]
+            - cell "-1001315055119" [ref=e1271]
+            - cell "Executed" [ref=e1272]
+            - cell "17:25 24/7/26" [ref=e1274]
+            - cell [ref=e1275]:
+              - button "Xem" [ref=e1276] [cursor=pointer]
+          - row [ref=e1279]:
+            - cell "Setup Moderation 123f8677-48ea-47f4-90aa-ad4dad8de38a" [ref=e1280]:
+              - text: Setup Moderation
+              - generic [ref=e1281]: 123f8677-48ea-47f4-90aa-ad4dad8de38a
+            - 'cell "Group: Coin68 Community | Chat (-1001315055119) Bật allowlist và quyền đọc/giám sát Bật đồng bộ, tìm kiếm, moderation và xóa mọi tin Chế độ: phát hiện và xem trước; KHÔNG tự xóa" [ref=e1282]'
+            - cell "-1001315055119" [ref=e1283]
+            - cell "Executed" [ref=e1284]
+            - cell "17:25 24/7/26" [ref=e1286]
+            - cell [ref=e1287]:
+              - button "Xem" [ref=e1288] [cursor=pointer]
+          - row [ref=e1291]:
+            - cell "Set Chat Permission 8a04b1f2-7e95-4693-93aa-92f30af392f9" [ref=e1292]:
+              - text: Set Chat Permission
+              - generic [ref=e1293]: 8a04b1f2-7e95-4693-93aa-92f30af392f9
+            - 'cell "Chat -1001315055119 search_messages: off → on" [ref=e1294]'
+            - cell "-1001315055119" [ref=e1295]
+            - cell "Expired" [ref=e1296]
+            - cell "17:03 24/7/26" [ref=e1298]
+            - cell [ref=e1299]:
+              - button "Xem" [ref=e1300] [cursor=pointer]
+          - row [ref=e1303]:
+            - cell "Set Chat Permission f6c7a657-2913-4b98-88a1-d28da0650839" [ref=e1304]:
+              - text: Set Chat Permission
+              - generic [ref=e1305]: f6c7a657-2913-4b98-88a1-d28da0650839
+            - 'cell "Chat -1001315055119 delete_any_messages: off → on" [ref=e1306]'
+            - cell "-1001315055119" [ref=e1307]
+            - cell "Expired" [ref=e1308]
+            - cell "17:03 24/7/26" [ref=e1310]
+            - cell [ref=e1311]:
+              - button "Xem" [ref=e1312] [cursor=pointer]
+          - row [ref=e1315]:
+            - cell "Apply Permission Template ff54afe2-968a-497b-902a-51ff8784ac0f" [ref=e1316]:
+              - text: Apply Permission Template
+              - generic [ref=e1317]: ff54afe2-968a-497b-902a-51ff8784ac0f
+            - 'cell "Chat -1001315055119 Áp dụng mẫu: moderation" [ref=e1318]'
+            - cell "-1001315055119" [ref=e1319]
+            - cell "Expired" [ref=e1320]
+            - cell "17:03 24/7/26" [ref=e1322]
+            - cell [ref=e1323]:
+              - button "Xem" [ref=e1324] [cursor=pointer]
+          - row [ref=e1327]:
+            - cell "Set Chat Allowed 34af71da-bbb6-4713-b19b-d520e4a86922" [ref=e1328]:
+              - text: Set Chat Allowed
+              - generic [ref=e1329]: 34af71da-bbb6-4713-b19b-d520e4a86922
+            - 'cell "Coin68 Community | Chat (-1001315055119) Trước: BLOCK Sau: ALLOW Memory khi block: keep" [ref=e1330]'
+            - cell "-1001315055119" [ref=e1331]
+            - cell "Expired" [ref=e1332]
+            - cell "17:03 24/7/26" [ref=e1334]
+            - cell [ref=e1335]:
+              - button "Xem" [ref=e1336] [cursor=pointer]
+  - dialog [ref=e1339]:
+    - generic [ref=e1340]: OWNER CONFIRMATION
+    - button "Đóng" [active] [ref=e1343] [cursor=pointer]
+    - paragraph [ref=e1346]: fc20fdf5-1c98-4a24-8ab1-938aca81524e
+    - heading "Thay đổi trạng thái nguồn" [level=2] [ref=e1347]
+    - generic [ref=e1348]:
+      - generic [ref=e1349]:
+        - generic [ref=e1350]: Trạng thái
+        - generic [ref=e1351]: Pending
+      - generic [ref=e1352]:
+        - generic [ref=e1353]: Phạm vi
+        - generic [ref=e1354]: "-1001227549557"
+      - generic [ref=e1355]:
+        - generic [ref=e1356]: Hết hạn
+        - generic [ref=e1357]: 00:40 29/7/26
+    - generic [ref=e1358]:
+      - generic [ref=e1359]: Preview từ backend
+      - paragraph [ref=e1360]: BLOCK J2TEAM Community Chat và archive memory liên quan
+    - paragraph [ref=e1364]:
+      - generic [ref=e1365]: Lý do / cảnh báo
+      - text: Nguồn sẽ không còn được đọc, tìm kiếm hoặc học tiếp.
+    - group [ref=e1366]:
+      - generic "Payload đã ẩn secret" [ref=e1367] [cursor=pointer]
+    - generic [ref=e1368]:
+      - button "Hủy yêu cầu" [ref=e1369] [cursor=pointer]
+      - button "Xác nhận thực thi" [ref=e1370] [cursor=pointer]

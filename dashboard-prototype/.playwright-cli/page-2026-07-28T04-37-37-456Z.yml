@@ -1,0 +1,184 @@
+- generic [ref=f2e36]:
+  - complementary [ref=f2e37]:
+    - generic [ref=f2e42]:
+      - strong [ref=f2e43]: TELEGRAM//AI
+      - generic [ref=f2e44]: ADMIN CONSOLE
+    - navigation "Điều hướng chính" [ref=f2e45]:
+      - generic [ref=f2e46]:
+        - paragraph [ref=f2e47]: VẬN HÀNH
+        - button "Tổng quan" [ref=f2e48] [cursor=pointer]
+      - button "Kết nối" [ref=f2e53] [cursor=pointer]
+      - button "Nhóm Telegram" [ref=f2e58] [cursor=pointer]
+      - button "Policy Engine" [ref=f2e63] [cursor=pointer]
+      - generic [ref=f2e67]:
+        - paragraph [ref=f2e68]: AI & DỮ LIỆU
+        - button "AI & RAG" [ref=f2e69] [cursor=pointer]
+      - button "Local Models" [ref=f2e74] [cursor=pointer]
+      - button "Kho tri thức" [ref=f2e79] [cursor=pointer]
+      - button "Bộ nhớ & lưu trữ" [ref=f2e84] [cursor=pointer]
+      - generic [ref=f2e88]:
+        - paragraph [ref=f2e89]: KIỂM SOÁT
+        - button "Hành động chờ" [ref=f2e90] [cursor=pointer]
+      - button "Scheduler & Workers" [ref=f2e95] [cursor=pointer]
+      - button "Audit Log" [ref=f2e100] [cursor=pointer]
+      - button "Bảo mật" [ref=f2e105] [cursor=pointer]
+      - button "Tài liệu & Hệ thống" [ref=f2e110] [cursor=pointer]
+      - generic [ref=f2e114]:
+        - paragraph [ref=f2e115]: TRỢ LÝ CHÍNH
+        - button "Chức năng Telegram" [ref=f2e116] [cursor=pointer]
+    - generic [ref=f2e121]:
+      - generic [ref=f2e122]: OW
+      - generic [ref=f2e123]:
+        - generic [ref=f2e124]: Owner 1134327192
+        - generic [ref=f2e125]: Local · Realtime
+      - button "Đăng xuất" [ref=f2e126] [cursor=pointer]
+    - generic [ref=f2e129]:
+      - generic [ref=f2e130]: RUNTIME
+      - generic [ref=f2e131]: v0.1.0
+  - main [ref=f2e133]:
+    - generic [ref=f2e134]:
+      - generic [ref=f2e136]:
+        - paragraph [ref=f2e137]: TELEGRAM AI / TỔNG QUAN
+        - heading "Tổng quan" [level=1] [ref=f2e138]
+      - generic [ref=f2e139]:
+        - generic [ref=f2e140]: LIVE
+        - button "Thông báo" [ref=f2e142] [cursor=pointer]
+        - button "Hành động chờ" [ref=f2e145] [cursor=pointer]
+    - generic [ref=f2e148]:
+      - region "Trạng thái hệ thống" [ref=f2e149]:
+        - generic [ref=f2e150]:
+          - generic [ref=f2e151]: Admin API
+          - generic [ref=f2e152]: CONNECTED
+          - generic [ref=f2e153]: Owner auth · CSRF · SSE realtime
+        - generic [ref=f2e154]:
+          - generic [ref=f2e155]: Global AI provider
+          - generic [ref=f2e156]: OPENAI
+          - generic [ref=f2e157]: gpt-5.6-terra
+        - button "Chức năng Telegram" [ref=f2e158] [cursor=pointer]
+      - region "Chỉ số 24 giờ" [ref=f2e161]:
+        - article [ref=f2e162]:
+          - generic [ref=f2e163]:
+            - generic [ref=f2e164]: Tin nhắn 24 giờ
+            - generic [ref=f2e165]: LIVE
+          - strong [ref=f2e168]: "942"
+          - generic [ref=f2e169]: Trên 298 nguồn đã tham gia
+        - article [ref=f2e171]:
+          - generic [ref=f2e172]:
+            - generic [ref=f2e173]: Yêu cầu /ask
+            - generic [ref=f2e174]: LIVE
+          - strong [ref=f2e177]: "0"
+          - generic [ref=f2e178]: Provider OPENAI
+        - article [ref=f2e180]:
+          - generic [ref=f2e181]:
+            - generic [ref=f2e182]: Hành động chờ
+            - generic [ref=f2e183]: LIVE
+          - strong [ref=f2e186]: "00"
+          - generic [ref=f2e187]: Cần owner xác nhận
+        - article [ref=f2e189]:
+          - generic [ref=f2e190]:
+            - generic [ref=f2e191]: Bị chặn hoặc lỗi
+            - generic [ref=f2e192]: LIVE
+          - strong [ref=f2e195]: "0"
+          - generic [ref=f2e196]: Audit trong 24 giờ
+      - generic [ref=f2e198]:
+        - generic [ref=f2e199]:
+          - generic [ref=f2e202]: RAM
+          - generic [ref=f2e203]: 4.6 GB
+          - generic [ref=f2e204]: PID 29736
+        - generic [ref=f2e205]:
+          - generic [ref=f2e208]: Dữ liệu
+          - generic [ref=f2e209]: 1.0 GB
+          - generic [ref=f2e210]: MYSQL
+        - generic [ref=f2e211]:
+          - generic [ref=f2e214]: Vector
+          - generic [ref=f2e215]: 1023.3 MB
+          - generic [ref=f2e216]: 0 QUEUED
+      - generic [ref=f2e217]:
+        - generic [ref=f2e218]:
+          - generic [ref=f2e219]:
+            - generic [ref=f2e220]:
+              - paragraph [ref=f2e221]: RUNTIME TELEMETRY · LIVE
+              - heading "Tài nguyên theo thời gian" [level=2] [ref=f2e222]
+            - generic [ref=f2e223]: 8 MẪU
+          - generic "Chú thích biểu đồ" [ref=f2e224]:
+            - generic [ref=f2e225]: RAM tiến trình
+            - generic [ref=f2e227]: Vector
+            - generic [ref=f2e229]: Dữ liệu
+          - img "Biểu đồ tài nguyên runtime" [ref=f2e232]:
+            - generic [ref=f2e233]: 00:19
+            - generic [ref=f2e239]: 00:27
+            - generic [ref=f2e245]: 00:35
+            - generic [ref=f2e251]: 00:43
+            - generic [ref=f2e257]: 00:51
+            - generic [ref=f2e263]: 00:59
+            - generic [ref=f2e269]: 01:07
+            - generic [ref=f2e275]: 11:33
+          - generic [ref=f2e281]:
+            - generic [ref=f2e282]: 3.3 GB
+            - generic [ref=f2e283]: RAM của tiến trình tại lần đo gần nhất.
+        - generic [ref=f2e284]:
+          - generic [ref=f2e285]:
+            - generic [ref=f2e286]:
+              - paragraph [ref=f2e287]: SERVICE HEALTH · LIVE
+              - heading "Nhịp hệ thống" [level=2] [ref=f2e288]
+            - generic [ref=f2e289]: RUNTIME SERVICE
+          - generic [ref=f2e291]:
+            - generic [ref=f2e293]:
+              - generic [ref=f2e294]: Admin API
+              - generic [ref=f2e295]: Phiên dashboard đang hoạt động
+            - strong [ref=f2e296]: ONLINE
+          - generic [ref=f2e297]:
+            - button "Mở telemetry" [ref=f2e298] [cursor=pointer]
+            - button "Xem dung lượng" [ref=f2e301] [cursor=pointer]
+      - generic [ref=f2e304]:
+        - generic [ref=f2e305]:
+          - generic [ref=f2e306]:
+            - generic [ref=f2e307]:
+              - paragraph [ref=f2e308]: OWNER CONFIRMATION · LIVE
+              - heading "Hành động chờ duyệt" [level=2] [ref=f2e309]
+            - generic [ref=f2e310]: 0 CHỜ
+          - generic [ref=f2e311]:
+            - generic [ref=f2e314]: Không có hành động chờ
+            - generic [ref=f2e315]: Mọi yêu cầu nhạy cảm đã được owner xử lý.
+        - generic [ref=f2e316]:
+          - generic [ref=f2e318]:
+            - paragraph [ref=f2e319]: AUDIT TRAIL · LIVE
+            - heading "Sự kiện mới nhất" [level=2] [ref=f2e320]
+          - generic [ref=f2e323]:
+            - generic [ref=f2e324]:
+              - time [ref=f2e325]: 11:37
+              - generic [ref=f2e327]:
+                - generic [ref=f2e328]: Dashboard Login
+                - generic [ref=f2e329]: Runtime
+              - generic [ref=f2e330]: Success
+            - generic [ref=f2e331]:
+              - time [ref=f2e332]: 11:27
+              - generic [ref=f2e334]:
+                - generic [ref=f2e335]: Dashboard Login
+                - generic [ref=f2e336]: Runtime
+              - generic [ref=f2e337]: Success
+            - generic [ref=f2e338]:
+              - time [ref=f2e339]: 22:49
+              - generic [ref=f2e341]:
+                - generic [ref=f2e342]: Dashboard Login
+                - generic [ref=f2e343]: Runtime
+              - generic [ref=f2e344]: Success
+            - generic [ref=f2e345]:
+              - time [ref=f2e346]: 22:44
+              - generic [ref=f2e348]:
+                - generic [ref=f2e349]: Dashboard Login
+                - generic [ref=f2e350]: Runtime
+              - generic [ref=f2e351]: Success
+            - generic [ref=f2e352]:
+              - time [ref=f2e353]: 17:20
+              - generic [ref=f2e355]:
+                - generic [ref=f2e356]: Set Group Ai Ask
+                - generic [ref=f2e357]: "-1002516665529"
+              - generic [ref=f2e358]: Success
+            - generic [ref=f2e359]:
+              - time [ref=f2e360]: 17:08
+              - generic [ref=f2e362]:
+                - generic [ref=f2e363]: Set Group Ai Ask
+                - generic [ref=f2e364]: "-4006978081"
+              - generic [ref=f2e365]: Success
+          - button "Mở audit log" [ref=f2e366] [cursor=pointer]

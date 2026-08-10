@@ -1,0 +1,108 @@
+- generic [ref=e36]:
+  - complementary [ref=e37]:
+    - generic [ref=e42]:
+      - strong [ref=e43]: TELEGRAM//AI
+      - generic [ref=e44]: ADMIN CONSOLE
+    - navigation "Điều hướng chính" [ref=e45]:
+      - generic [ref=e46]:
+        - paragraph [ref=e47]: VẬN HÀNH
+        - button "Tổng quan" [ref=e48] [cursor=pointer]
+      - button "Kết nối" [ref=e53] [cursor=pointer]
+      - button "Nhóm Telegram" [ref=e58] [cursor=pointer]
+      - button "Policy Engine" [ref=e63] [cursor=pointer]
+      - generic [ref=e67]:
+        - paragraph [ref=e68]: AI & DỮ LIỆU
+        - button "AI & RAG" [ref=e69] [cursor=pointer]
+      - button "Local Models" [ref=e74] [cursor=pointer]
+      - button "Kho tri thức" [ref=e79] [cursor=pointer]
+      - button "Bộ nhớ & lưu trữ" [ref=e84] [cursor=pointer]
+      - generic [ref=e88]:
+        - paragraph [ref=e89]: KIỂM SOÁT
+        - button "Hành động chờ" [ref=e2716] [cursor=pointer]
+      - button "Scheduler & Workers" [ref=e95] [cursor=pointer]
+      - button "Audit Log" [ref=e100] [cursor=pointer]
+      - button "Bảo mật" [ref=e105] [cursor=pointer]
+      - button "Tài liệu & Hệ thống" [ref=e110] [cursor=pointer]
+      - generic [ref=e114]:
+        - paragraph [ref=e115]: TRỢ LÝ CHÍNH
+        - button "Chức năng Telegram" [active] [ref=e116] [cursor=pointer]
+    - generic [ref=e121]:
+      - generic [ref=e122]: OW
+      - generic [ref=e123]:
+        - generic [ref=e124]: Owner 1134327192
+        - generic [ref=e125]: Local · Realtime
+      - button "Đăng xuất" [ref=e126] [cursor=pointer]
+    - generic [ref=e129]:
+      - generic [ref=e130]: RUNTIME
+      - generic [ref=e131]: v0.1.0
+  - main [ref=e133]:
+    - generic [ref=e134]:
+      - generic [ref=e136]:
+        - paragraph [ref=e137]: TELEGRAM AI / CHỨC NĂNG TELEGRAM
+        - heading "Chức năng Telegram" [level=1] [ref=e3372]
+      - generic [ref=e139]:
+        - generic [ref=e140]: LIVE
+        - button "Thông báo" [ref=e142] [cursor=pointer]
+        - button "Hành động chờ" [ref=e145] [cursor=pointer]
+    - generic [ref=e3373]:
+      - generic [ref=e3374]:
+        - generic [ref=e3377]:
+          - paragraph [ref=e3378]: PRIMARY INTERFACE
+          - heading "Telegram Assistant" [level=2] [ref=e3379]
+          - text: Dashboard là bảng vận hành phụ; tương tác trợ lý hằng ngày vẫn diễn ra trong Telegram.
+        - generic [ref=e3380]: RUNTIME ACTIVE
+      - generic [ref=e3381]:
+        - article [ref=e3382]:
+          - generic [ref=e3383]: "01"
+          - generic [ref=e3386]:
+            - heading "Hỏi AI" [level=3] [ref=e3387]
+            - paragraph [ref=e3388]: Dùng /ask hoặc nhắc @BrianNguyen0x trong group được cấp quyền.
+          - generic [ref=e3389]: AVAILABLE
+        - article [ref=e3390]:
+          - generic [ref=e3391]: "02"
+          - generic [ref=e3394]:
+            - heading "Tìm kiếm Telegram" [level=3] [ref=e3395]
+            - paragraph [ref=e3396]: Tìm message đã đồng bộ trong MySQL theo policy từng group.
+          - generic [ref=e3397]: AVAILABLE
+        - article [ref=e3398]:
+          - generic [ref=e3399]: "03"
+          - generic [ref=e3402]:
+            - heading "Tổng hợp 7 ngày" [level=3] [ref=e3403]
+            - paragraph [ref=e3404]: Tổng hợp tin mới, loại trùng và giữ dẫn chứng nguồn.
+          - generic [ref=e3405]: AVAILABLE
+        - article [ref=e3406]:
+          - generic [ref=e3407]: "04"
+          - generic [ref=e3410]:
+            - heading "Tra giá CoinGecko" [level=3] [ref=e3411]
+            - paragraph [ref=e3412]: Kiểm tra giá mà không phụ thuộc AI provider.
+          - generic [ref=e3413]: AVAILABLE
+        - article [ref=e3414]:
+          - generic [ref=e3415]: "05"
+          - generic [ref=e3418]:
+            - heading "Tasks & reminders" [level=3] [ref=e3419]
+            - paragraph [ref=e3420]: Tạo và nhận nhắc việc ngay trong Telegram bot.
+          - generic [ref=e3421]: AVAILABLE
+        - article [ref=e3422]:
+          - generic [ref=e3423]: "06"
+          - generic [ref=e3426]:
+            - heading "Memory" [level=3] [ref=e3427]
+            - paragraph [ref=e3428]: Lưu ghi chú owner; secret không được đưa vào memory.
+          - generic [ref=e3429]: AVAILABLE
+        - article [ref=e3430]:
+          - generic [ref=e3431]: "07"
+          - generic [ref=e3434]:
+            - heading "Quản lý group" [level=3] [ref=e3435]
+            - paragraph [ref=e3436]: ALLOW/BLOCK, permission, AI mode, quota và retention.
+          - generic [ref=e3437]: AVAILABLE
+        - article [ref=e3438]:
+          - generic [ref=e3439]: "08"
+          - generic [ref=e3442]:
+            - heading "Learning sources" [level=3] [ref=e3443]
+            - paragraph [ref=e3444]: Đồng bộ MySQL, embedding và theo dõi learning job.
+          - generic [ref=e3445]: AVAILABLE
+        - article [ref=e3446]:
+          - generic [ref=e3447]: "09"
+          - generic [ref=e3450]:
+            - heading "PendingAction" [level=3] [ref=e3451]
+            - paragraph [ref=e3452]: Owner duyệt trước khi worker thực thi thao tác nhạy cảm.
+          - generic [ref=e3453]: AVAILABLE

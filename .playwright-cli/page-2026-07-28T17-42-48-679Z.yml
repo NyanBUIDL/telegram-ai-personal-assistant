@@ -1,0 +1,122 @@
+- generic [ref=f1e3]:
+  - complementary [ref=f1e4]:
+    - generic [ref=f1e9]:
+      - strong [ref=f1e10]: TELEGRAM//AI
+      - generic [ref=f1e11]: ADMIN CONSOLE
+    - navigation "Điều hướng chính" [ref=f1e12]:
+      - generic [ref=f1e13]:
+        - paragraph [ref=f1e14]: VẬN HÀNH
+        - button "Tổng quan" [ref=f1e15] [cursor=pointer]
+      - button "Kết nối" [ref=f1e20] [cursor=pointer]
+      - button "Nhóm Telegram" [ref=f1e25] [cursor=pointer]
+      - button "Policy Engine" [ref=f1e30] [cursor=pointer]
+      - generic [ref=f1e34]:
+        - paragraph [ref=f1e35]: AI & DỮ LIỆU
+        - button "AI & RAG" [ref=f1e36] [cursor=pointer]
+      - button "Local Models" [ref=f1e41] [cursor=pointer]
+      - button "Kho tri thức" [ref=f1e46] [cursor=pointer]
+      - button "Bộ nhớ & lưu trữ" [ref=f1e51] [cursor=pointer]
+      - generic [ref=f1e55]:
+        - paragraph [ref=f1e56]: KIỂM SOÁT
+        - button "Hành động chờ" [ref=f1e57] [cursor=pointer]
+      - button "Scheduler & Workers" [ref=f1e62] [cursor=pointer]
+      - button "Audit Log" [ref=f1e67] [cursor=pointer]
+      - button "Bảo mật" [ref=f1e72] [cursor=pointer]
+      - button "Tài liệu & Hệ thống" [active] [ref=f1e77] [cursor=pointer]
+      - generic [ref=f1e81]:
+        - paragraph [ref=f1e82]: TRỢ LÝ CHÍNH
+        - button "Chức năng Telegram" [ref=f1e83] [cursor=pointer]
+    - generic [ref=f1e88]:
+      - generic [ref=f1e89]: OW
+      - generic [ref=f1e90]:
+        - generic [ref=f1e91]: Owner 1134327192
+        - generic [ref=f1e92]: Local · Realtime
+      - button "Đăng xuất" [ref=f1e93] [cursor=pointer]
+    - generic [ref=f1e96]:
+      - generic [ref=f1e97]: RUNTIME
+      - generic [ref=f1e98]: v0.1.0
+  - main [ref=f1e100]:
+    - generic [ref=f1e101]:
+      - generic [ref=f1e103]:
+        - paragraph [ref=f1e104]: TELEGRAM AI / TÀI LIỆU & HỆ THỐNG
+        - heading "Tài liệu & Hệ thống" [level=1] [ref=f1e1230]
+      - generic [ref=f1e106]:
+        - generic [ref=f1e107]: LIVE
+        - button "Thông báo" [ref=f1e109] [cursor=pointer]
+        - button "Hành động chờ" [ref=f1e112] [cursor=pointer]
+    - generic [ref=f1e1231]:
+      - generic [ref=f1e1232]:
+        - generic [ref=f1e1233]:
+          - generic [ref=f1e1236]: Package
+          - generic [ref=f1e1237]: v0.1.0
+          - generic [ref=f1e1238]: CURRENT
+        - generic [ref=f1e1239]:
+          - generic [ref=f1e1242]: Admin API
+          - generic [ref=f1e1243]: ONLINE
+          - generic [ref=f1e1244]: LIVE
+        - generic [ref=f1e1245]:
+          - generic [ref=f1e1248]: Scheduler
+          - generic [ref=f1e1249]: 6 jobs
+          - generic [ref=f1e1250]: ACTIVE
+      - generic [ref=f1e1251]:
+        - generic [ref=f1e1252]:
+          - paragraph [ref=f1e1253]: INTEGRATION STATUS
+          - heading "Frontend và Admin API đã kết nối" [level=2] [ref=f1e1254]
+          - generic [ref=f1e1255]: Owner auth, cookie HttpOnly, CSRF, SSE và dữ liệu MySQL đang hoạt động cùng origin.
+        - generic [ref=f1e1256]: READY
+      - generic [ref=f1e1257]:
+        - generic [ref=f1e1259]:
+          - paragraph [ref=f1e1260]: LOCAL DOCUMENTATION
+          - heading "Tài liệu hệ thống" [level=2] [ref=f1e1261]
+        - generic [ref=f1e1262]:
+          - button "USER_GUIDE.md Hướng dẫn sử dụng theo tác vụ MỞ ĐỌC" [ref=f1e1263] [cursor=pointer]:
+            - generic [ref=f1e1266]:
+              - generic [ref=f1e1267]: USER_GUIDE.md
+              - generic [ref=f1e1268]: Hướng dẫn sử dụng theo tác vụ
+            - generic [ref=f1e1269]: MỞ ĐỌC
+          - button "README.md Cài đặt, vận hành và tính năng MỞ ĐỌC" [ref=f1e1270] [cursor=pointer]:
+            - generic [ref=f1e1273]:
+              - generic [ref=f1e1274]: README.md
+              - generic [ref=f1e1275]: Cài đặt, vận hành và tính năng
+            - generic [ref=f1e1276]: MỞ ĐỌC
+          - button "ARCHITECTURE.md Kiến trúc backend và trust boundaries MỞ ĐỌC" [ref=f1e1277] [cursor=pointer]:
+            - generic [ref=f1e1280]:
+              - generic [ref=f1e1281]: ARCHITECTURE.md
+              - generic [ref=f1e1282]: Kiến trúc backend và trust boundaries
+            - generic [ref=f1e1283]: MỞ ĐỌC
+          - button "ACTIVITY_DIAGRAM.md Luồng Telegram, AI và worker MỞ ĐỌC" [ref=f1e1284] [cursor=pointer]:
+            - generic [ref=f1e1287]:
+              - generic [ref=f1e1288]: ACTIVITY_DIAGRAM.md
+              - generic [ref=f1e1289]: Luồng Telegram, AI và worker
+            - generic [ref=f1e1290]: MỞ ĐỌC
+          - button "SECURITY.md Quy tắc bảo mật và xác nhận MỞ ĐỌC" [ref=f1e1291] [cursor=pointer]:
+            - generic [ref=f1e1294]:
+              - generic [ref=f1e1295]: SECURITY.md
+              - generic [ref=f1e1296]: Quy tắc bảo mật và xác nhận
+            - generic [ref=f1e1297]: MỞ ĐỌC
+          - button "TROUBLESHOOTING.md Chẩn đoán lỗi thường gặp MỞ ĐỌC" [ref=f1e1298] [cursor=pointer]:
+            - generic [ref=f1e1301]:
+              - generic [ref=f1e1302]: TROUBLESHOOTING.md
+              - generic [ref=f1e1303]: Chẩn đoán lỗi thường gặp
+            - generic [ref=f1e1304]: MỞ ĐỌC
+      - generic [ref=f1e1305]:
+        - generic [ref=f1e1307]:
+          - paragraph [ref=f1e1308]: CURRENT SCOPE
+          - heading "Thông tin runtime" [level=2] [ref=f1e1309]
+        - generic [ref=f1e1310]:
+          - generic [ref=f1e1311]:
+            - generic [ref=f1e1312]: Nguồn Telegram
+            - generic [ref=f1e1313]: "298"
+            - generic [ref=f1e1314]: MYSQL
+          - generic [ref=f1e1315]:
+            - generic [ref=f1e1316]: AI provider
+            - generic [ref=f1e1317]: OPENAI
+            - generic [ref=f1e1318]: gpt-5.6-terra
+          - generic [ref=f1e1319]:
+            - generic [ref=f1e1320]: Pending action
+            - generic [ref=f1e1321]: "0"
+            - generic [ref=f1e1322]: OWNER REVIEW
+          - generic [ref=f1e1323]:
+            - generic [ref=f1e1324]: RAM runtime
+            - generic [ref=f1e1325]: 3.2 GB
+            - generic [ref=f1e1326]: 00:41 29/7/26

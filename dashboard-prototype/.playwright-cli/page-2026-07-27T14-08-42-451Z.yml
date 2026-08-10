@@ -1,0 +1,123 @@
+- generic [ref=f1e3]:
+  - complementary [ref=f1e4]:
+    - generic [ref=f1e9]:
+      - strong [ref=f1e10]: TELEGRAM//AI
+      - generic [ref=f1e11]: ADMIN CONSOLE
+    - navigation "Điều hướng chính" [ref=f1e12]:
+      - generic [ref=f1e13]:
+        - paragraph [ref=f1e14]: VẬN HÀNH
+        - button "Tổng quan" [ref=f1e15] [cursor=pointer]
+      - button "Kết nối" [ref=f1e20] [cursor=pointer]
+      - button "Nhóm Telegram 12" [ref=f1e25] [cursor=pointer]:
+        - generic [ref=f1e28]: Nhóm Telegram
+        - generic [ref=f1e29]: "12"
+      - button "Policy Engine" [ref=f1e31] [cursor=pointer]
+      - generic [ref=f1e35]:
+        - paragraph [ref=f1e36]: AI & DỮ LIỆU
+        - button "AI & RAG" [ref=f1e37] [cursor=pointer]
+      - button "Local Models" [ref=f1e42] [cursor=pointer]
+      - button "Kho tri thức" [ref=f1e47] [cursor=pointer]
+      - button "Bộ nhớ & lưu trữ" [ref=f1e52] [cursor=pointer]
+      - generic [ref=f1e56]:
+        - paragraph [ref=f1e57]: KIỂM SOÁT
+        - button "Hành động chờ 3" [ref=f1e58] [cursor=pointer]:
+          - generic [ref=f1e61]: Hành động chờ
+          - generic [ref=f1e62]: "3"
+      - button "Scheduler & Workers" [ref=f1e64] [cursor=pointer]
+      - button "Audit Log" [ref=f1e69] [cursor=pointer]
+      - button "Bảo mật" [ref=f1e74] [cursor=pointer]
+      - button "Tài liệu & Hệ thống" [ref=f1e79] [cursor=pointer]
+    - generic [ref=f1e84]:
+      - generic [ref=f1e85]: NT
+      - generic [ref=f1e86]:
+        - generic [ref=f1e87]: Nguyễn Nhật Tân
+        - generic [ref=f1e88]: Owner · Online
+      - button "Đăng xuất" [ref=f1e89] [cursor=pointer]
+    - generic [ref=f1e92]:
+      - generic [ref=f1e93]: RUNTIME
+      - generic [ref=f1e94]: v0.8.4
+  - main [ref=f1e96]:
+    - generic [ref=f1e97]:
+      - generic [ref=f1e99]:
+        - paragraph [ref=f1e100]: TELEGRAM AI / HÀNH ĐỘNG CHỜ
+        - heading "Hành động chờ" [level=1] [ref=f1e730]
+      - generic [ref=f1e102]:
+        - button "Thông báo" [ref=f1e108] [cursor=pointer]
+        - button "Tạo hành động" [ref=f1e112] [cursor=pointer]
+    - generic [ref=f1e731]:
+      - generic [ref=f1e732]:
+        - generic [ref=f1e733]:
+          - generic [ref=f1e734]:
+            - generic [ref=f1e735]:
+              - paragraph [ref=f1e736]: OWNER CONFIRMATION
+              - heading "Hành động chờ duyệt" [level=2] [ref=f1e737]
+            - generic [ref=f1e738]: 3 CHỜ
+          - table [ref=f1e740]:
+            - rowgroup [ref=f1e741]:
+              - row [ref=f1e742]:
+                - columnheader "Hành động" [ref=f1e743]
+                - columnheader "Nguồn" [ref=f1e744]
+                - columnheader "Hết hạn" [ref=f1e745]
+                - columnheader "Thao tác" [ref=f1e746]
+            - rowgroup [ref=f1e748]:
+              - row [ref=f1e749]:
+                - cell "Xóa 18 tin nhắn spam ACT-2407 · Crypto Insider VN" [ref=f1e750]:
+                  - generic [ref=f1e753]:
+                    - generic [ref=f1e754]: Xóa 18 tin nhắn spam
+                    - generic [ref=f1e755]: ACT-2407 · Crypto Insider VN
+                - cell "Policy Engine" [ref=f1e756]
+                - cell [ref=f1e757]
+                - cell [ref=f1e761]:
+                  - button "Xem & duyệt" [active] [ref=f1e762] [cursor=pointer]
+              - row [ref=f1e763]:
+                - cell "Khóa thành viên @airdrop_bot ACT-2406 · AI Builders Saigon" [ref=f1e764]:
+                  - generic [ref=f1e767]:
+                    - generic [ref=f1e768]: Khóa thành viên @airdrop_bot
+                    - generic [ref=f1e769]: ACT-2406 · AI Builders Saigon
+                - cell "AUTO Moderation" [ref=f1e770]
+                - cell [ref=f1e771]
+                - cell [ref=f1e775]:
+                  - button "Xem & duyệt" [ref=f1e776] [cursor=pointer]
+              - row [ref=f1e777]:
+                - cell "Đăng thông báo lịch bảo trì ACT-2405 · TG Assistant Ops" [ref=f1e778]:
+                  - generic [ref=f1e781]:
+                    - generic [ref=f1e782]: Đăng thông báo lịch bảo trì
+                    - generic [ref=f1e783]: ACT-2405 · TG Assistant Ops
+                - cell "Control Bot" [ref=f1e784]
+                - cell [ref=f1e785]
+                - cell [ref=f1e789]:
+                  - button "Xem & duyệt" [ref=f1e790] [cursor=pointer]
+        - complementary [ref=f1e791]:
+          - paragraph [ref=f1e794]: SAFETY FIRST
+          - heading "Preview trước. Owner duyệt. Worker kiểm tra lại." [level=2] [ref=f1e795]
+          - paragraph [ref=f1e796]: Mọi hành động nhạy cảm đều được xác minh owner, policy và quyền Telegram thực tế ngay trước khi thực thi.
+          - list [ref=f1e797]:
+            - listitem [ref=f1e798]: Không tự động xóa hoặc khóa
+            - listitem [ref=f1e801]: PendingAction có thời hạn
+            - listitem [ref=f1e804]: Audit log không thể bỏ qua
+      - generic [ref=f1e807]:
+        - generic [ref=f1e808]:
+          - generic [ref=f1e809]:
+            - paragraph [ref=f1e810]: WORKER RESULT
+            - heading "Đã thực thi gần đây" [level=2] [ref=f1e811]
+          - generic [ref=f1e812]: 0 EXECUTED
+        - generic [ref=f1e813]: Chưa có hành động hoàn tất trong phiên này.
+  - dialog [ref=f1e814]:
+    - generic [ref=f1e815]: OWNER CONFIRMATION
+    - button "Đóng" [ref=f1e818] [cursor=pointer]
+    - paragraph [ref=f1e821]: ACT-2407
+    - heading "Xóa 18 tin nhắn spam" [level=2] [ref=f1e822]
+    - generic [ref=f1e823]:
+      - generic [ref=f1e824]:
+        - generic [ref=f1e825]: Nhóm
+        - generic [ref=f1e826]: Crypto Insider VN
+      - generic [ref=f1e827]:
+        - generic [ref=f1e828]: Yêu cầu bởi
+        - generic [ref=f1e829]: Policy Engine
+      - generic [ref=f1e830]:
+        - generic [ref=f1e831]: Hết hạn sau
+        - generic [ref=f1e832]: 04:32
+    - generic [ref=f1e833]: Worker sẽ kiểm tra lại owner, policy và quyền Telegram thực tế ngay trước khi chạy.
+    - generic [ref=f1e834]:
+      - button "Từ chối" [ref=f1e835] [cursor=pointer]
+      - button "Xác nhận thực thi" [ref=f1e838] [cursor=pointer]

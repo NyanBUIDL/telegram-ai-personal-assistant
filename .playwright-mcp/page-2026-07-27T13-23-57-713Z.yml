@@ -1,0 +1,170 @@
+- generic [ref=f9e3]:
+  - complementary [ref=f9e230]:
+    - generic [ref=f9e235]:
+      - strong [ref=f9e236]: TELEGRAM//AI
+      - generic [ref=f9e237]: ADMIN CONSOLE
+    - navigation "Điều hướng chính" [ref=f9e238]:
+      - paragraph [ref=f9e239]: WORKSPACE
+      - button "Tổng quan" [ref=f9e240] [cursor=pointer]
+      - button "Nhóm Telegram 12" [ref=f9e244] [cursor=pointer]:
+        - generic [ref=f9e247]: Nhóm Telegram
+        - generic [ref=f9e248]: "12"
+      - button "Hành động chờ 3" [ref=f9e249] [cursor=pointer]:
+        - generic [ref=f9e252]: Hành động chờ
+        - generic [ref=f9e253]: "3"
+      - button "Kho tri thức" [ref=f9e254] [cursor=pointer]
+      - button "Hệ thống" [ref=f9e258] [cursor=pointer]
+    - generic [ref=f9e263]:
+      - generic [ref=f9e264]: NT
+      - generic [ref=f9e265]:
+        - generic [ref=f9e266]: Nguyễn Nhật Tân
+        - generic [ref=f9e267]: Owner · Online
+      - button "Đăng xuất" [ref=f9e268] [cursor=pointer]
+    - generic [ref=f9e271]:
+      - generic [ref=f9e272]: RUNTIME
+      - generic [ref=f9e273]: v0.8.4
+  - button "Đóng menu" [ref=f9e275] [cursor=pointer]
+  - main [ref=f9e4]:
+    - generic [ref=f9e5]:
+      - generic [ref=f9e6]:
+        - button "Mở menu" [active] [ref=f9e7] [cursor=pointer]
+        - heading "Tổng quan" [level=1] [ref=f9e11]
+      - generic [ref=f9e12]:
+        - button "Thông báo" [ref=f9e14] [cursor=pointer]
+        - button "Tạo hành động" [ref=f9e18] [cursor=pointer]
+    - generic [ref=f9e21]:
+      - region "Chỉ số chính" [ref=f9e22]:
+        - article [ref=f9e23]:
+          - generic [ref=f9e24]: Tin nhắn hôm nay
+          - strong [ref=f9e28]: 24,892
+          - generic [ref=f9e29]:
+            - generic [ref=f9e30]: Qua 12 nhóm
+            - generic [ref=f9e31]: +18%
+        - article [ref=f9e32]:
+          - generic [ref=f9e33]: Yêu cầu /ask
+          - strong [ref=f9e37]: 1,284
+          - generic [ref=f9e38]:
+            - generic [ref=f9e39]: 86% xử lý local
+            - generic [ref=f9e40]: +9%
+        - article [ref=f9e41]:
+          - generic [ref=f9e42]: Hành động chờ
+          - strong [ref=f9e46]: "03"
+          - generic [ref=f9e47]: Cần owner xác nhận
+        - article [ref=f9e49]:
+          - generic [ref=f9e50]: Nguy cơ bị chặn
+          - strong [ref=f9e54]: "47"
+          - generic [ref=f9e55]:
+            - generic [ref=f9e56]: Secrets + policy
+            - generic [ref=f9e57]: "-12%"
+      - generic [ref=f9e58]:
+        - generic [ref=f9e59]:
+          - generic [ref=f9e61]:
+            - paragraph [ref=f9e62]: AI ROUTER
+            - heading "Lưu lượng xử lý" [level=2] [ref=f9e63]
+          - generic [ref=f9e64]:
+            - generic [ref=f9e65]:
+              - generic [ref=f9e66]: "120"
+              - generic [ref=f9e67]: "80"
+              - generic [ref=f9e68]: "40"
+              - generic [ref=f9e69]: "0"
+            - img "Lưu lượng AI trong 24H" [ref=f9e70]:
+              - generic [ref=f9e71]: "00"
+              - generic [ref=f9e77]: "04"
+              - generic [ref=f9e83]: "08"
+              - generic [ref=f9e89]: "12"
+              - generic [ref=f9e95]: "16"
+              - generic [ref=f9e101]: "20"
+              - generic [ref=f9e107]: "24"
+          - generic [ref=f9e113]:
+            - generic [ref=f9e114]: 86%
+            - generic [ref=f9e115]: yêu cầu được xử lý cục bộ — không gửi dữ liệu ra ngoài.
+        - generic [ref=f9e116]:
+          - generic [ref=f9e117]:
+            - generic [ref=f9e118]:
+              - paragraph [ref=f9e119]: LIVE CHECK
+              - heading "Nhịp hệ thống" [level=2] [ref=f9e120]
+            - generic [ref=f9e121]: ỔN ĐỊNH
+          - generic [ref=f9e124]:
+            - generic [ref=f9e125]:
+              - generic [ref=f9e127]:
+                - generic [ref=f9e128]: Telegram User Client
+                - generic [ref=f9e129]: Session online
+              - strong [ref=f9e130]: 42ms
+            - generic [ref=f9e131]:
+              - generic [ref=f9e133]:
+                - generic [ref=f9e134]: MySQL
+                - generic [ref=f9e135]: Source of truth
+              - strong [ref=f9e136]: 8ms
+            - generic [ref=f9e137]:
+              - generic [ref=f9e139]:
+                - generic [ref=f9e140]: Qdrant
+                - generic [ref=f9e141]: 14.2K vectors
+              - strong [ref=f9e142]: 19ms
+            - generic [ref=f9e143]:
+              - generic [ref=f9e145]:
+                - generic [ref=f9e146]: Ollama Local
+                - generic [ref=f9e147]: llama3.1:8b
+              - strong [ref=f9e148]: 61%
+          - button "Xem health check" [ref=f9e149] [cursor=pointer]
+      - generic [ref=f9e152]:
+        - generic [ref=f9e153]:
+          - generic [ref=f9e154]:
+            - generic [ref=f9e155]:
+              - paragraph [ref=f9e156]: OWNER CONFIRMATION
+              - heading "Hành động chờ duyệt" [level=2] [ref=f9e157]
+            - generic [ref=f9e158]: 3 CHỜ
+          - table [ref=f9e160]:
+            - rowgroup [ref=f9e161]:
+              - row [ref=f9e162]:
+                - columnheader "Hành động" [ref=f9e163]
+                - columnheader "Thao tác" [ref=f9e164]
+            - rowgroup [ref=f9e166]:
+              - row [ref=f9e167]:
+                - cell "Xóa 18 tin nhắn spam ACT-2407 · Crypto Insider VN" [ref=f9e168]:
+                  - generic [ref=f9e171]:
+                    - generic [ref=f9e172]: Xóa 18 tin nhắn spam
+                    - generic [ref=f9e173]: ACT-2407 · Crypto Insider VN
+                - cell [ref=f9e174]:
+                  - button "Xem & duyệt" [ref=f9e175] [cursor=pointer]
+              - row [ref=f9e176]:
+                - cell "Khóa thành viên @airdrop_bot ACT-2406 · AI Builders Saigon" [ref=f9e177]:
+                  - generic [ref=f9e180]:
+                    - generic [ref=f9e181]: Khóa thành viên @airdrop_bot
+                    - generic [ref=f9e182]: ACT-2406 · AI Builders Saigon
+                - cell [ref=f9e183]:
+                  - button "Xem & duyệt" [ref=f9e184] [cursor=pointer]
+              - row [ref=f9e185]:
+                - cell "Đăng thông báo lịch bảo trì ACT-2405 · TG Assistant Ops" [ref=f9e186]:
+                  - generic [ref=f9e189]:
+                    - generic [ref=f9e190]: Đăng thông báo lịch bảo trì
+                    - generic [ref=f9e191]: ACT-2405 · TG Assistant Ops
+                - cell [ref=f9e192]:
+                  - button "Xem & duyệt" [ref=f9e193] [cursor=pointer]
+        - generic [ref=f9e194]:
+          - generic [ref=f9e195]:
+            - generic [ref=f9e196]:
+              - paragraph [ref=f9e197]: AUDIT TRAIL
+              - heading "Sự kiện mới nhất" [level=2] [ref=f9e198]
+            - button "Tùy chọn nhật ký" [ref=f9e199] [cursor=pointer]
+          - generic [ref=f9e202]:
+            - generic [ref=f9e203]:
+              - time [ref=f9e204]: 14:42:08
+              - generic [ref=f9e206]:
+                - generic [ref=f9e207]: RAG trả lời /ask bằng 4 nguồn nội bộ
+                - generic [ref=f9e208]: Telegram AI Runtime
+            - generic [ref=f9e209]:
+              - time [ref=f9e210]: 14:39:51
+              - generic [ref=f9e212]:
+                - generic [ref=f9e213]: AUTO giữ lại tin nhắn do thiếu quyền admin
+                - generic [ref=f9e214]: Telegram AI Runtime
+            - generic [ref=f9e215]:
+              - time [ref=f9e216]: 14:34:16
+              - generic [ref=f9e218]:
+                - generic [ref=f9e219]: Đã đồng bộ 26 knowledge chunks vào Qdrant
+                - generic [ref=f9e220]: Telegram AI Runtime
+            - generic [ref=f9e221]:
+              - time [ref=f9e222]: 14:28:03
+              - generic [ref=f9e224]:
+                - generic [ref=f9e225]: Secret scanner chặn yêu cầu chứa API key
+                - generic [ref=f9e226]: Telegram AI Runtime
+          - button "Mở audit log" [ref=f9e227] [cursor=pointer]

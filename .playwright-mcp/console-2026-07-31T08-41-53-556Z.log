@@ -1,0 +1,4 @@
+[  104235ms] [ERROR] Failed to load resource: the server responded with a status of 401 (Unauthorized) @ http://127.0.0.1:8765/api/v1/auth/session:0
+[ 1224956ms] [ERROR] Failed to load resource: the server responded with a status of 401 (Unauthorized) @ http://127.0.0.1:8765/api/v1/overview:0
+[ 1224956ms] [ERROR] Failed to load resource: the server responded with a status of 401 (Unauthorized) @ http://127.0.0.1:8765/api/v1/ai/config:0
+[ 1224957ms] [ERROR] Failed to load resource: the server responded with a status of 401 (Unauthorized) @ http://127.0.0.1:8765/api/v1/workers:0

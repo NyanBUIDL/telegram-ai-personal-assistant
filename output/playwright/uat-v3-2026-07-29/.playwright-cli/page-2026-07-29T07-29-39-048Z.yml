@@ -1,0 +1,347 @@
+- generic [ref=f1e3]:
+  - complementary [ref=f1e4]:
+    - generic [ref=f1e9]:
+      - strong [ref=f1e10]: TELEGRAM//AI
+      - generic [ref=f1e11]: ADMIN CONSOLE
+    - navigation "Điều hướng chính" [ref=f1e12]:
+      - generic [ref=f1e13]:
+        - paragraph [ref=f1e14]: VẬN HÀNH
+        - button "Tổng quan" [ref=f1e15] [cursor=pointer]
+      - button "Kết nối" [ref=f1e20] [cursor=pointer]
+      - button "Nhóm Telegram" [ref=f1e25] [cursor=pointer]
+      - button "Policy Engine" [ref=f1e30] [cursor=pointer]
+      - generic [ref=f1e34]:
+        - paragraph [ref=f1e35]: AI & DỮ LIỆU
+        - button "AI & RAG" [ref=f1e36] [cursor=pointer]
+      - button "Local Models" [ref=f1e41] [cursor=pointer]
+      - button "Kho tri thức" [ref=f1e46] [cursor=pointer]
+      - button "Bộ nhớ & lưu trữ" [ref=f1e51] [cursor=pointer]
+      - generic [ref=f1e55]:
+        - paragraph [ref=f1e56]: KIỂM SOÁT
+        - button "Hành động chờ" [ref=f1e5613] [cursor=pointer]
+      - button "Scheduler & Workers" [ref=f1e62] [cursor=pointer]
+      - button "Audit Log" [ref=f1e67] [cursor=pointer]
+      - button "Bảo mật" [ref=f1e72] [cursor=pointer]
+      - button "Tài liệu & Hệ thống" [ref=f1e77] [cursor=pointer]
+      - generic [ref=f1e81]:
+        - paragraph [ref=f1e82]: TRỢ LÝ CHÍNH
+        - button "Chức năng Telegram" [ref=f1e83] [cursor=pointer]
+    - generic [ref=f1e88]:
+      - generic [ref=f1e89]: OW
+      - generic [ref=f1e90]:
+        - generic [ref=f1e91]: Owner 1134327192
+        - generic [ref=f1e92]: Local · Realtime
+      - button "Đăng xuất" [ref=f1e93] [cursor=pointer]
+    - generic [ref=f1e96]:
+      - generic [ref=f1e97]: RUNTIME
+      - generic [ref=f1e98]: v0.1.0
+  - main [ref=f1e100]:
+    - generic [ref=f1e101]:
+      - generic [ref=f1e103]:
+        - paragraph [ref=f1e104]: TELEGRAM AI / CHI TIẾT NHÓM
+        - heading "Chi tiết nhóm" [level=1] [ref=f1e6578]
+      - generic [ref=f1e106]:
+        - generic [ref=f1e107]: LIVE
+        - button "Thông báo" [ref=f1e109] [cursor=pointer]
+        - button "Hành động chờ" [ref=f1e112] [cursor=pointer]
+    - generic [ref=f1e6579]:
+      - generic [ref=f1e6580]:
+        - button "Danh sách nhóm" [ref=f1e6581] [cursor=pointer]
+        - generic [ref=f1e6584]:
+          - paragraph [ref=f1e6585]: GROUP DETAIL · LIVE
+          - heading "Coin68 Flash News ⚡️" [level=2] [ref=f1e6586]
+          - generic [ref=f1e6587]: "-1002637289078 · channel · @coin68_flash_news"
+        - generic [ref=f1e6588]: ALLOW
+      - generic [ref=f1e6589]:
+        - generic [ref=f1e6590]:
+          - generic [ref=f1e6591]:
+            - generic [ref=f1e6592]:
+              - paragraph [ref=f1e6593]: GROUP STATUS
+              - heading "Trạng thái & quyền Telegram" [level=2] [ref=f1e6594]
+            - generic [ref=f1e6595]: LIVE
+          - generic [ref=f1e6596]:
+            - generic [ref=f1e6597]:
+              - generic [ref=f1e6598]:
+                - generic [ref=f1e6599]: Chat policy
+                - generic [ref=f1e6600]: BLOCK ngăn đọc, tìm kiếm, đồng bộ và xử lý nội dung.
+              - switch "Chat ALLOW" [checked] [ref=f1e6601] [cursor=pointer]:
+                - generic [ref=f1e6603]: "ON"
+            - generic [ref=f1e6604]:
+              - generic [ref=f1e6605]:
+                - generic [ref=f1e6606]: Quyền Telegram thực tế
+                - generic [ref=f1e6607]: Chưa phát hiện quyền
+              - generic [ref=f1e6608]: 6 FLAGS
+            - generic [ref=f1e6609]:
+              - generic [ref=f1e6610]:
+                - generic [ref=f1e6611]: Lần quan sát gần nhất
+                - generic [ref=f1e6612]: 239 ngày trước
+              - generic [ref=f1e6613]: CHANNEL
+        - generic [ref=f1e6614]:
+          - generic [ref=f1e6616]:
+            - paragraph [ref=f1e6617]: GROUP AI POLICY
+            - heading "AI mode & fallback" [level=2] [ref=f1e6618]
+          - generic [ref=f1e6619]:
+            - generic [ref=f1e6620]:
+              - generic [ref=f1e6621]: AI mode
+              - combobox "AI mode Local là Ollama trên máy; cloud là OpenAI/OpenRouter; fallback là tự chuyển sang lựa chọn còn lại khi tuyến ưu tiên không sẵn sàng." [ref=f1e6622] [cursor=pointer]:
+                - option "Theo cấu hình toàn cục" [selected]
+                - option "LOCAL ONLY"
+                - option "Local trước, cloud fallback"
+                - option "Cloud only"
+                - option "Cloud trước, local fallback"
+                - option "Tắt AI riêng nguồn"
+              - generic [ref=f1e6623]: Local là Ollama trên máy; cloud là OpenAI/OpenRouter; fallback là tự chuyển sang lựa chọn còn lại khi tuyến ưu tiên không sẵn sàng.
+            - generic [ref=f1e6624]:
+              - generic [ref=f1e6625]: Cloud provider ưu tiên
+              - combobox "Cloud provider ưu tiên" [ref=f1e6626] [cursor=pointer]:
+                - option "OpenAI" [selected]
+                - option "OpenRouter"
+            - generic [ref=f1e6627]:
+              - generic [ref=f1e6628]:
+                - generic [ref=f1e6629]: Cloud fallback
+                - generic [ref=f1e6630]: Chỉ áp dụng cho local-first hoặc cloud-first.
+              - switch "Cloud fallback" [ref=f1e6631] [cursor=pointer]:
+                - generic [ref=f1e6633]: "OFF"
+            - button "Lưu AI route" [ref=f1e6634] [cursor=pointer]
+      - generic [ref=f1e6637]:
+        - generic [ref=f1e6638]:
+          - generic [ref=f1e6639]:
+            - paragraph [ref=f1e6640]: LOCAL-FIRST EFFICIENCY
+            - heading "Lọc nội dung & RAG budget" [level=2] [ref=f1e6641]
+          - generic [ref=f1e6642]: OLLAMA EMBEDDING
+        - generic [ref=f1e6643]:
+          - generic [ref=f1e6644]:
+            - generic [ref=f1e6645]: Preset nguồn
+            - combobox "Preset nguồn" [ref=f1e6646] [cursor=pointer]:
+              - option "Theo cấu hình toàn cục" [selected]
+              - option "Tiết kiệm · local ưu tiên"
+              - option "Cân bằng · đề xuất"
+              - option "Chất lượng cao"
+          - generic [ref=f1e6647]:
+            - generic [ref=f1e6648]: Lọc trước embedding
+            - combobox "Lọc trước embedding" [ref=f1e6649] [cursor=pointer]:
+              - option "Nới lỏng · giữ nhiều tin hơn"
+              - option "Chuẩn · đề xuất" [selected]
+              - option "Nghiêm · giảm vector/token local"
+          - generic [ref=f1e6650]:
+            - generic [ref=f1e6651]: RAG top_k
+            - spinbutton "RAG top_k" [ref=f1e6652]
+          - generic [ref=f1e6653]:
+            - generic [ref=f1e6654]: Context token tối đa
+            - spinbutton "Context token tối đa" [ref=f1e6655]
+          - generic [ref=f1e6656]:
+            - generic [ref=f1e6659]: Không gửi toàn bộ lịch sử lên cloud
+            - generic [ref=f1e6660]: Nội dung được lọc và embedding bằng Ollama; RAG chỉ gửi các đoạn liên quan trong giới hạn context đã chọn.
+          - button "Lưu hiệu quả AI" [ref=f1e6661] [cursor=pointer]
+      - generic [ref=f1e6664]:
+        - generic [ref=f1e6665]:
+          - generic [ref=f1e6666]:
+            - paragraph [ref=f1e6667]: PERMISSION MATRIX
+            - heading "Quyền dữ liệu" [level=2] [ref=f1e6668]
+          - generic [ref=f1e6669]: 19 PERMISSIONS
+        - generic [ref=f1e6670]:
+          - group "Đọc và đồng bộ" [ref=f1e6671]:
+            - generic [ref=f1e6673]:
+              - generic [ref=f1e6674]:
+                - code [ref=f1e6675]: read_messages
+                - generic [ref=f1e6676]: Đọc nội dung tin nhắn đã được cấp quyền.
+              - switch "read_messages" [checked] [ref=f1e6677] [cursor=pointer]:
+                - generic [ref=f1e6679]: "ON"
+            - generic [ref=f1e6680]:
+              - generic [ref=f1e6681]:
+                - code [ref=f1e6682]: sync_history
+                - generic [ref=f1e6683]: Đồng bộ lịch sử gần nhất từ Telegram vào MySQL.
+              - switch "sync_history" [checked] [ref=f1e6684] [cursor=pointer]:
+                - generic [ref=f1e6686]: "ON"
+            - generic [ref=f1e6687]:
+              - generic [ref=f1e6688]:
+                - code [ref=f1e6689]: monitor_new_messages
+                - generic [ref=f1e6690]: Theo dõi và lưu tin mới sau khi ứng dụng chạy.
+              - switch "monitor_new_messages" [checked] [ref=f1e6691] [cursor=pointer]:
+                - generic [ref=f1e6693]: "ON"
+            - generic [ref=f1e6694]:
+              - generic [ref=f1e6695]:
+                - code [ref=f1e6696]: search_messages
+                - generic [ref=f1e6697]: Cho phép tìm kiếm nội dung trong nguồn này.
+              - switch "search_messages" [checked] [ref=f1e6698] [cursor=pointer]:
+                - generic [ref=f1e6700]: "ON"
+          - group "AI và tri thức" [ref=f1e6701]:
+            - generic [ref=f1e6703]:
+              - generic [ref=f1e6704]:
+                - code [ref=f1e6705]: summarize
+                - generic [ref=f1e6706]: Cho phép AI tóm tắt dữ liệu của nguồn.
+              - switch "summarize" [checked] [ref=f1e6707] [cursor=pointer]:
+                - generic [ref=f1e6709]: "ON"
+            - generic [ref=f1e6710]:
+              - generic [ref=f1e6711]:
+                - code [ref=f1e6712]: analyze_files
+                - generic [ref=f1e6713]: Cho phép phân tích tệp đã tải từ nguồn.
+              - switch "analyze_files" [ref=f1e6714] [cursor=pointer]:
+                - generic [ref=f1e6716]: "OFF"
+            - generic [ref=f1e6717]:
+              - generic [ref=f1e6718]:
+                - code [ref=f1e6719]: auto_knowledge
+                - generic [ref=f1e6720]: Tự đồng bộ và tạo embedding để nguồn tham gia bộ não chung.
+              - switch "auto_knowledge" [ref=f1e6721] [cursor=pointer]:
+                - generic [ref=f1e6723]: "OFF"
+            - generic [ref=f1e6724]:
+              - generic [ref=f1e6725]:
+                - code [ref=f1e6726]: group_ai_ask
+                - generic [ref=f1e6727]: Cho phép thành viên gọi @BrianNguyen0x /ask trong group.
+              - switch "group_ai_ask" [ref=f1e6728] [cursor=pointer]:
+                - generic [ref=f1e6730]: "OFF"
+          - group "Công việc và memory" [ref=f1e6731]:
+            - generic [ref=f1e6733]:
+              - generic [ref=f1e6734]:
+                - code [ref=f1e6735]: extract_tasks
+                - generic [ref=f1e6736]: Nhận diện công việc, hạn chót và quyết định.
+              - switch "extract_tasks" [ref=f1e6737] [cursor=pointer]:
+                - generic [ref=f1e6739]: "OFF"
+            - generic [ref=f1e6740]:
+              - generic [ref=f1e6741]:
+                - code [ref=f1e6742]: create_memories
+                - generic [ref=f1e6743]: Cho phép tạo ghi nhớ từ nội dung phù hợp.
+              - switch "create_memories" [ref=f1e6744] [cursor=pointer]:
+                - generic [ref=f1e6746]: "OFF"
+            - generic [ref=f1e6747]:
+              - generic [ref=f1e6748]:
+                - code [ref=f1e6749]: auto_task_suggestion
+                - generic [ref=f1e6750]: Gợi ý task nhưng không tự tạo khi chưa xác nhận.
+              - switch "auto_task_suggestion" [ref=f1e6751] [cursor=pointer]:
+                - generic [ref=f1e6753]: "OFF"
+          - group "Gửi và chỉnh sửa" [ref=f1e6754]:
+            - generic [ref=f1e6756]:
+              - generic [ref=f1e6757]:
+                - code [ref=f1e6758]: send_messages
+                - generic [ref=f1e6759]: Cho phép gửi tin sau bước preview và xác nhận.
+              - switch "send_messages" [ref=f1e6760] [cursor=pointer]:
+                - generic [ref=f1e6762]: "OFF"
+            - generic [ref=f1e6763]:
+              - generic [ref=f1e6764]:
+                - code [ref=f1e6765]: edit_own_messages
+                - generic [ref=f1e6766]: Chỉnh sửa tin do tài khoản của bạn đã gửi.
+              - switch "edit_own_messages" [ref=f1e6767] [cursor=pointer]:
+                - generic [ref=f1e6769]: "OFF"
+          - group "Moderation" [ref=f1e6770]:
+            - generic [ref=f1e6772]:
+              - generic [ref=f1e6773]:
+                - code [ref=f1e6774]: delete_own_messages
+                - generic [ref=f1e6775]: Xóa tin do tài khoản của bạn đã gửi.
+              - switch "delete_own_messages" [ref=f1e6776] [cursor=pointer]:
+                - generic [ref=f1e6778]: "OFF"
+            - generic [ref=f1e6779]:
+              - generic [ref=f1e6780]:
+                - code [ref=f1e6781]: delete_any_messages
+                - generic [ref=f1e6782]: Xóa tin của người khác khi tài khoản có quyền admin.
+              - switch "delete_any_messages" [ref=f1e6783] [cursor=pointer]:
+                - generic [ref=f1e6785]: "OFF"
+            - generic [ref=f1e6786]:
+              - generic [ref=f1e6787]:
+                - code [ref=f1e6788]: pin_messages
+                - generic [ref=f1e6789]: Ghim tin khi tài khoản có quyền Telegram phù hợp.
+              - switch "pin_messages" [ref=f1e6790] [cursor=pointer]:
+                - generic [ref=f1e6792]: "OFF"
+            - generic [ref=f1e6793]:
+              - generic [ref=f1e6794]:
+                - code [ref=f1e6795]: moderate_messages
+                - generic [ref=f1e6796]: Dùng công cụ kiểm duyệt thủ công.
+              - switch "moderate_messages" [ref=f1e6797] [cursor=pointer]:
+                - generic [ref=f1e6799]: "OFF"
+            - generic [ref=f1e6800]:
+              - generic [ref=f1e6801]:
+                - code [ref=f1e6802]: auto_moderation
+                - generic [ref=f1e6803]: Áp dụng rule kiểm duyệt tự động đang bật.
+              - switch "auto_moderation" [ref=f1e6804] [cursor=pointer]:
+                - generic [ref=f1e6806]: "OFF"
+          - group "Tải dữ liệu" [ref=f1e6807]:
+            - generic [ref=f1e6809]:
+              - generic [ref=f1e6810]:
+                - code [ref=f1e6811]: download_media
+                - generic [ref=f1e6812]: Tải media về máy theo retention và quota.
+              - switch "download_media" [ref=f1e6813] [cursor=pointer]:
+                - generic [ref=f1e6815]: "OFF"
+      - generic [ref=f1e6816]:
+        - generic [ref=f1e6817]:
+          - generic [ref=f1e6819]:
+            - paragraph [ref=f1e6820]: RETENTION & QUOTA
+            - heading "Giới hạn dữ liệu" [level=2] [ref=f1e6821]
+          - group "Preset quota" [ref=f1e6822]:
+            - button "Nhẹ" [ref=f1e6823] [cursor=pointer]
+            - button "Lớn" [ref=f1e6824] [cursor=pointer]
+            - button "Không giới hạn" [ref=f1e6825] [cursor=pointer]
+          - generic [ref=f1e6826]:
+            - generic [ref=f1e6827]:
+              - generic [ref=f1e6828]: Số ngày giữ dữ liệu
+              - spinbutton "Số ngày giữ dữ liệu" [ref=f1e6829]
+            - generic [ref=f1e6830]:
+              - generic [ref=f1e6831]: Số tin tối đa
+              - spinbutton "Số tin tối đa" [ref=f1e6832]
+            - generic [ref=f1e6833]:
+              - generic [ref=f1e6834]: Số vector tối đa
+              - spinbutton "Số vector tối đa" [ref=f1e6835]
+            - generic [ref=f1e6836]:
+              - generic [ref=f1e6837]: Dung lượng tối đa (MB)
+              - spinbutton "Dung lượng tối đa (MB)" [ref=f1e6838]
+          - paragraph [ref=f1e6839]: Retention quyết định dữ liệu được giữ bao lâu. Quota giới hạn số tin, số embedding vector và dung lượng của riêng nguồn này.
+          - button "Lưu retention & quota" [ref=f1e6840] [cursor=pointer]
+        - generic [ref=f1e6843]:
+          - generic [ref=f1e6845]:
+            - paragraph [ref=f1e6846]: SPECIAL FEATURES
+            - heading "Tính năng đặc biệt" [level=2] [ref=f1e6847]
+          - generic [ref=f1e6848]:
+            - generic [ref=f1e6849]:
+              - generic [ref=f1e6850]:
+                - generic [ref=f1e6851]: Cho phép thành viên dùng @BrianNguyen0x /ask
+                - generic [ref=f1e6852]: Chỉ hoạt động khi nguồn ALLOW và quyền gửi tin hợp lệ.
+              - switch "Group AI ask" [ref=f1e6853] [cursor=pointer]:
+                - generic [ref=f1e6855]: "OFF"
+            - generic [ref=f1e6856]:
+              - generic [ref=f1e6857]:
+                - generic [ref=f1e6858]: AUTO xóa link mới của non-admin
+                - generic [ref=f1e6859]: Owner/admin được miễn; rule chỉ xử lý tin mới.
+              - switch "Auto xóa link non-admin" [ref=f1e6860] [cursor=pointer]:
+                - generic [ref=f1e6862]: "OFF"
+          - generic [ref=f1e6863]:
+            - button "Đồng bộ" [ref=f1e6864] [cursor=pointer]
+            - button "Học nguồn này" [ref=f1e6867] [cursor=pointer]
+      - generic [ref=f1e6870]:
+        - generic [ref=f1e6871]:
+          - generic [ref=f1e6872]:
+            - paragraph [ref=f1e6873]: KNOWLEDGE STATUS · LIVE
+            - heading "Dữ liệu đã học" [level=2] [ref=f1e6874]
+          - generic [ref=f1e6875]: CHƯA HỌC
+        - generic [ref=f1e6876]:
+          - generic [ref=f1e6877]:
+            - generic [ref=f1e6878]: Tin trong MySQL
+            - generic [ref=f1e6879]: "0"
+            - generic [ref=f1e6880]: SOURCE OF TRUTH
+          - generic [ref=f1e6881]:
+            - generic [ref=f1e6882]: Vector
+            - generic [ref=f1e6883]: "0"
+            - generic [ref=f1e6884]: DERIVED INDEX
+          - generic [ref=f1e6885]:
+            - generic [ref=f1e6886]: Dung lượng
+            - generic [ref=f1e6887]: 0 B
+            - generic [ref=f1e6888]: MESSAGE + MEDIA
+          - generic [ref=f1e6889]:
+            - generic [ref=f1e6890]: Lần học gần nhất
+            - generic [ref=f1e6891]: Chưa có
+            - generic [ref=f1e6892]: CHƯA CÓ JOB
+      - generic [ref=f1e6893]:
+        - generic [ref=f1e6897]:
+          - text: BLOCK nguồn
+          - generic [ref=f1e6898]: Preview → owner duyệt → worker kiểm tra lại → thực thi → audit.
+        - button "Preview chuyển BLOCK" [ref=f1e6899] [cursor=pointer]
+        - button "Preview rời channel" [ref=f1e6902] [cursor=pointer]
+      - generic [ref=f1e6905]:
+        - generic [ref=f1e6909]:
+          - text: Xóa dữ liệu đã học
+          - generic [ref=f1e6910]: Chọn phạm vi → xem số tin/vector/tệp → owner xác nhận.
+        - combobox [ref=f1e6911] [cursor=pointer]:
+          - option "Chỉ vector" [selected]
+          - option "Chỉ mục tìm kiếm + checkpoint"
+          - option "Nội dung MySQL + index"
+          - option "Chỉ media local"
+          - option "Chỉ reset checkpoint"
+          - option "Toàn bộ dữ liệu nguồn"
+        - button "Preview xóa dữ liệu" [ref=f1e6912] [cursor=pointer]

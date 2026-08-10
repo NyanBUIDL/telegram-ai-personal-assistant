@@ -1,0 +1,264 @@
+- generic [ref=f1e12]:
+  - complementary [ref=f1e13]:
+    - generic [ref=f1e18]:
+      - strong [ref=f1e19]: TELEGRAM//AI
+      - generic [ref=f1e20]: ADMIN CONSOLE
+    - navigation "Điều hướng chính" [ref=f1e21]:
+      - generic [ref=f1e22]:
+        - paragraph [ref=f1e23]: VẬN HÀNH
+        - button "Tổng quan" [ref=f1e24] [cursor=pointer]
+      - button "Kết nối" [ref=f1e29] [cursor=pointer]
+      - button "Nhóm Telegram" [ref=f1e34] [cursor=pointer]
+      - button "Policy Engine" [ref=f1e39] [cursor=pointer]
+      - generic [ref=f1e43]:
+        - paragraph [ref=f1e44]: AI & DỮ LIỆU
+        - button "AI & RAG" [ref=f1e45] [cursor=pointer]
+      - button "Local Models" [ref=f1e50] [cursor=pointer]
+      - button "Kho tri thức" [ref=f1e55] [cursor=pointer]
+      - button "Bộ nhớ & lưu trữ" [ref=f1e60] [cursor=pointer]
+      - generic [ref=f1e64]:
+        - paragraph [ref=f1e65]: KIỂM SOÁT
+        - button "Hành động chờ" [ref=f1e66] [cursor=pointer]
+      - button "Scheduler & Workers" [ref=f1e71] [cursor=pointer]
+      - button "Audit Log" [ref=f1e76] [cursor=pointer]
+      - button "Bảo mật" [ref=f1e81] [cursor=pointer]
+      - button "Tài liệu & Hệ thống" [ref=f1e86] [cursor=pointer]
+      - generic [ref=f1e90]:
+        - paragraph [ref=f1e91]: TRỢ LÝ CHÍNH
+        - button "Chức năng Telegram" [ref=f1e92] [cursor=pointer]
+    - generic [ref=f1e97]:
+      - generic [ref=f1e98]: OW
+      - generic [ref=f1e99]:
+        - generic [ref=f1e100]: Owner 1134327192
+        - generic [ref=f1e101]: Local · Realtime
+      - button "Đăng xuất" [ref=f1e102] [cursor=pointer]
+    - generic [ref=f1e105]:
+      - generic [ref=f1e106]: RUNTIME
+      - generic [ref=f1e107]: v0.1.0
+  - main [ref=f1e109]:
+    - generic [ref=f1e110]:
+      - generic [ref=f1e112]:
+        - paragraph [ref=f1e113]: TELEGRAM AI / CHI TIẾT NHÓM
+        - heading "Chi tiết nhóm" [level=1] [ref=f1e4880]
+      - generic [ref=f1e115]:
+        - generic [ref=f1e116]: LIVE
+        - button "Thông báo" [ref=f1e118] [cursor=pointer]
+        - button "Hành động chờ" [ref=f1e121] [cursor=pointer]
+    - generic [ref=f1e4881]:
+      - generic [ref=f1e4882]:
+        - button "Danh sách nhóm" [ref=f1e4883] [cursor=pointer]
+        - generic [ref=f1e4886]:
+          - paragraph [ref=f1e4887]: GROUP DETAIL · LIVE
+          - heading "Test Message to 68 Trading Chat Bot" [level=2] [ref=f1e4888]
+          - generic [ref=f1e4889]: "-4006978081 · group · không username"
+        - generic [ref=f1e4890]: ALLOW
+      - generic [ref=f1e4891]:
+        - generic [ref=f1e4892]:
+          - generic [ref=f1e4893]:
+            - generic [ref=f1e4894]:
+              - paragraph [ref=f1e4895]: GROUP STATUS
+              - heading "Trạng thái & quyền Telegram" [level=2] [ref=f1e4896]
+            - generic [ref=f1e4897]: LIVE
+          - generic [ref=f1e4898]:
+            - generic [ref=f1e4899]:
+              - generic [ref=f1e4900]:
+                - generic [ref=f1e4901]: Chat policy
+                - generic [ref=f1e4902]: BLOCK ngăn đọc, tìm kiếm, đồng bộ và xử lý nội dung.
+              - switch "Chat ALLOW" [checked] [ref=f1e4903] [cursor=pointer]:
+                - generic [ref=f1e4905]: "ON"
+            - generic [ref=f1e4906]:
+              - generic [ref=f1e4907]:
+                - generic [ref=f1e4908]: Quyền Telegram thực tế
+                - generic [ref=f1e4909]: Pin Messages · Edit Messages · Send Messages · Delete Messages
+              - generic [ref=f1e4910]: 4 FLAGS
+            - generic [ref=f1e4911]:
+              - generic [ref=f1e4912]:
+                - generic [ref=f1e4913]: Lần quan sát gần nhất
+                - generic [ref=f1e4914]: 3 ngày trước
+              - generic [ref=f1e4915]: GROUP
+        - generic [ref=f1e4916]:
+          - generic [ref=f1e4918]:
+            - paragraph [ref=f1e4919]: GROUP AI POLICY
+            - heading "AI mode & fallback" [level=2] [ref=f1e4920]
+          - generic [ref=f1e4921]:
+            - generic [ref=f1e4922]:
+              - generic [ref=f1e4923]: AI mode
+              - combobox "AI mode" [ref=f1e4924] [cursor=pointer]:
+                - option "Theo cấu hình toàn cục" [selected]
+                - option "LOCAL ONLY"
+                - option "Local trước, cloud fallback"
+                - option "Cloud only"
+                - option "Cloud trước, local fallback"
+                - option "Tắt AI riêng nguồn"
+            - generic [ref=f1e4925]:
+              - generic [ref=f1e4926]: Cloud provider ưu tiên
+              - combobox "Cloud provider ưu tiên" [ref=f1e4927] [cursor=pointer]:
+                - option "OpenAI" [selected]
+                - option "OpenRouter"
+            - generic [ref=f1e4928]:
+              - generic [ref=f1e4929]:
+                - generic [ref=f1e4930]: Cloud fallback
+                - generic [ref=f1e4931]: Chỉ áp dụng cho local-first hoặc cloud-first.
+              - switch "Cloud fallback" [ref=f1e4932] [cursor=pointer]:
+                - generic [ref=f1e4934]: "OFF"
+            - button "Lưu AI route" [ref=f1e4935] [cursor=pointer]
+      - generic [ref=f1e4938]:
+        - generic [ref=f1e4939]:
+          - generic [ref=f1e4940]:
+            - paragraph [ref=f1e4941]: PERMISSION MATRIX
+            - heading "Quyền dữ liệu" [level=2] [ref=f1e4942]
+          - generic [ref=f1e4943]: 19 PERMISSIONS
+        - generic [ref=f1e4944]:
+          - group "Đọc và đồng bộ" [ref=f1e4945]:
+            - generic [ref=f1e4947]:
+              - code [ref=f1e4948]: read_messages
+              - switch "read_messages" [checked] [ref=f1e4949] [cursor=pointer]:
+                - generic [ref=f1e4951]: "ON"
+            - generic [ref=f1e4952]:
+              - code [ref=f1e4953]: sync_history
+              - switch "sync_history" [checked] [ref=f1e4954] [cursor=pointer]:
+                - generic [ref=f1e4956]: "ON"
+            - generic [ref=f1e4957]:
+              - code [ref=f1e4958]: monitor_new_messages
+              - switch "monitor_new_messages" [checked] [ref=f1e4959] [cursor=pointer]:
+                - generic [ref=f1e4961]: "ON"
+            - generic [ref=f1e4962]:
+              - code [ref=f1e4963]: search_messages
+              - switch "search_messages" [checked] [ref=f1e4964] [cursor=pointer]:
+                - generic [ref=f1e4966]: "ON"
+          - group "AI và tri thức" [ref=f1e4967]:
+            - generic [ref=f1e4969]:
+              - code [ref=f1e4970]: summarize
+              - switch "summarize" [checked] [ref=f1e4971] [cursor=pointer]:
+                - generic [ref=f1e4973]: "ON"
+            - generic [ref=f1e4974]:
+              - code [ref=f1e4975]: analyze_files
+              - switch "analyze_files" [ref=f1e4976] [cursor=pointer]:
+                - generic [ref=f1e4978]: "OFF"
+            - generic [ref=f1e4979]:
+              - code [ref=f1e4980]: auto_knowledge
+              - switch "auto_knowledge" [checked] [ref=f1e4981] [cursor=pointer]:
+                - generic [ref=f1e4983]: "ON"
+            - generic [ref=f1e4984]:
+              - code [ref=f1e4985]: group_ai_ask
+              - switch "group_ai_ask" [checked] [ref=f1e4986] [cursor=pointer]:
+                - generic [ref=f1e4988]: "ON"
+          - group "Công việc và memory" [ref=f1e4989]:
+            - generic [ref=f1e4991]:
+              - code [ref=f1e4992]: extract_tasks
+              - switch "extract_tasks" [ref=f1e4993] [cursor=pointer]:
+                - generic [ref=f1e4995]: "OFF"
+            - generic [ref=f1e4996]:
+              - code [ref=f1e4997]: create_memories
+              - switch "create_memories" [checked] [ref=f1e4998] [cursor=pointer]:
+                - generic [ref=f1e5000]: "ON"
+            - generic [ref=f1e5001]:
+              - code [ref=f1e5002]: auto_task_suggestion
+              - switch "auto_task_suggestion" [ref=f1e5003] [cursor=pointer]:
+                - generic [ref=f1e5005]: "OFF"
+          - group "Gửi và chỉnh sửa" [ref=f1e5006]:
+            - generic [ref=f1e5008]:
+              - code [ref=f1e5009]: send_messages
+              - switch "send_messages" [ref=f1e5010] [cursor=pointer]:
+                - generic [ref=f1e5012]: "OFF"
+            - generic [ref=f1e5013]:
+              - code [ref=f1e5014]: edit_own_messages
+              - switch "edit_own_messages" [ref=f1e5015] [cursor=pointer]:
+                - generic [ref=f1e5017]: "OFF"
+          - group "Moderation" [ref=f1e5018]:
+            - generic [ref=f1e5020]:
+              - code [ref=f1e5021]: delete_own_messages
+              - switch "delete_own_messages" [ref=f1e5022] [cursor=pointer]:
+                - generic [ref=f1e5024]: "OFF"
+            - generic [ref=f1e5025]:
+              - code [ref=f1e5026]: delete_any_messages
+              - switch "delete_any_messages" [ref=f1e5027] [cursor=pointer]:
+                - generic [ref=f1e5029]: "OFF"
+            - generic [ref=f1e5030]:
+              - code [ref=f1e5031]: pin_messages
+              - switch "pin_messages" [ref=f1e5032] [cursor=pointer]:
+                - generic [ref=f1e5034]: "OFF"
+            - generic [ref=f1e5035]:
+              - code [ref=f1e5036]: moderate_messages
+              - switch "moderate_messages" [ref=f1e5037] [cursor=pointer]:
+                - generic [ref=f1e5039]: "OFF"
+            - generic [ref=f1e5040]:
+              - code [ref=f1e5041]: auto_moderation
+              - switch "auto_moderation" [ref=f1e5042] [cursor=pointer]:
+                - generic [ref=f1e5044]: "OFF"
+          - group "Tải dữ liệu" [ref=f1e5045]:
+            - generic [ref=f1e5047]:
+              - code [ref=f1e5048]: download_media
+              - switch "download_media" [ref=f1e5049] [cursor=pointer]:
+                - generic [ref=f1e5051]: "OFF"
+      - generic [ref=f1e5052]:
+        - generic [ref=f1e5053]:
+          - generic [ref=f1e5055]:
+            - paragraph [ref=f1e5056]: RETENTION & QUOTA
+            - heading "Giới hạn dữ liệu" [level=2] [ref=f1e5057]
+          - group "Preset quota" [ref=f1e5058]:
+            - button "Nhẹ" [ref=f1e5059] [cursor=pointer]
+            - button "Lớn" [ref=f1e5060] [cursor=pointer]
+            - button "Không giới hạn" [ref=f1e5061] [cursor=pointer]
+          - generic [ref=f1e5062]:
+            - generic [ref=f1e5063]:
+              - generic [ref=f1e5064]: Retention days
+              - spinbutton "Retention days" [ref=f1e5065]
+            - generic [ref=f1e5066]:
+              - generic [ref=f1e5067]: Max messages
+              - spinbutton "Max messages" [ref=f1e5068]
+            - generic [ref=f1e5069]:
+              - generic [ref=f1e5070]: Max vectors
+              - spinbutton "Max vectors" [ref=f1e5071]
+            - generic [ref=f1e5072]:
+              - generic [ref=f1e5073]: Max storage MB
+              - spinbutton "Max storage MB" [ref=f1e5074]
+          - button "Lưu retention & quota" [ref=f1e5075] [cursor=pointer]
+        - generic [ref=f1e5078]:
+          - generic [ref=f1e5080]:
+            - paragraph [ref=f1e5081]: SPECIAL FEATURES
+            - heading "Tính năng đặc biệt" [level=2] [ref=f1e5082]
+          - generic [ref=f1e5083]:
+            - generic [ref=f1e5084]:
+              - generic [ref=f1e5085]:
+                - generic [ref=f1e5086]: Cho phép thành viên dùng @BrianNguyen0x /ask
+                - generic [ref=f1e5087]: Chỉ hoạt động khi nguồn ALLOW và quyền gửi tin hợp lệ.
+              - switch "Group AI ask" [checked] [ref=f1e5088] [cursor=pointer]:
+                - generic [ref=f1e5090]: "ON"
+            - generic [ref=f1e5091]:
+              - generic [ref=f1e5092]:
+                - generic [ref=f1e5093]: AUTO xóa link mới của non-admin
+                - generic [ref=f1e5094]: Owner/admin được miễn; rule chỉ xử lý tin mới.
+              - switch "Auto xóa link non-admin" [ref=f1e5095] [cursor=pointer]:
+                - generic [ref=f1e5097]: "OFF"
+          - generic [ref=f1e5098]:
+            - button "Đồng bộ" [ref=f1e5099] [cursor=pointer]
+            - button "Học nguồn này" [ref=f1e5102] [cursor=pointer]
+      - generic [ref=f1e5105]:
+        - generic [ref=f1e5106]:
+          - generic [ref=f1e5107]:
+            - paragraph [ref=f1e5108]: KNOWLEDGE STATUS · LIVE
+            - heading "Dữ liệu đã học" [level=2] [ref=f1e5109]
+          - generic [ref=f1e5110]: Learned
+        - generic [ref=f1e5111]:
+          - generic [ref=f1e5112]:
+            - generic [ref=f1e5113]: Tin trong MySQL
+            - generic [ref=f1e5114]: "263"
+            - generic [ref=f1e5115]: SOURCE OF TRUTH
+          - generic [ref=f1e5116]:
+            - generic [ref=f1e5117]: Vector
+            - generic [ref=f1e5118]: "244"
+            - generic [ref=f1e5119]: DERIVED INDEX
+          - generic [ref=f1e5120]:
+            - generic [ref=f1e5121]: Dung lượng
+            - generic [ref=f1e5122]: 6 KB
+            - generic [ref=f1e5123]: MESSAGE + MEDIA
+          - generic [ref=f1e5124]:
+            - generic [ref=f1e5125]: Lần học gần nhất
+            - generic [ref=f1e5126]: 4 ngày trước
+            - generic [ref=f1e5127]: 6759ec3f-3ddf-4bcc-8e83-f3bf3e4663c8
+      - generic [ref=f1e5128]:
+        - generic [ref=f1e5132]:
+          - text: BLOCK nguồn
+          - generic [ref=f1e5133]: Preview → owner duyệt → worker kiểm tra lại → thực thi → audit.
+        - button "Preview chuyển BLOCK" [ref=f1e5134] [cursor=pointer]

@@ -1,0 +1,67 @@
+- generic [ref=f1e3] [box=0,0,2545,1593]:
+  - complementary [ref=f1e4] [box=0,0,264,1305]:
+    - generic [ref=f1e9] [box=78,32,114,38]:
+      - strong [ref=f1e10] [box=78,32,114,19]: TELEGRAM//AI
+      - generic [ref=f1e11] [box=78,54,114,16]: ADMIN CONSOLE
+    - navigation "Điều hướng chính" [ref=f1e12] [box=18,103,224,1070]:
+      - generic [ref=f1e13] [box=18,129,219,54]:
+        - paragraph [ref=f1e14] [box=28,129,199,13]: VẬN HÀNH
+        - button "Tổng quan" [ref=f1e15] [cursor=pointer] [box=18,147,219,36]
+      - button "Kết nối" [ref=f1e20] [cursor=pointer] [box=18,183,219,36]
+      - button "Nhóm Telegram" [ref=f1e25] [cursor=pointer] [box=18,219,219,36]
+      - button "Policy Engine" [ref=f1e30] [cursor=pointer] [box=18,255,219,36]
+      - generic [ref=f1e34] [box=18,303,219,54]:
+        - paragraph [ref=f1e35] [box=28,303,199,13]: AI & DỮ LIỆU
+        - button "AI & RAG" [ref=f1e36] [cursor=pointer] [box=18,321,219,36]
+      - button "Local Models" [ref=f1e41] [cursor=pointer] [box=18,357,219,36]
+      - button "Kho tri thức" [ref=f1e46] [cursor=pointer] [box=18,393,219,36]
+      - button "Bộ nhớ & lưu trữ" [ref=f1e51] [cursor=pointer] [box=18,429,219,36]
+      - generic [ref=f1e55] [box=18,477,219,54]:
+        - paragraph [ref=f1e56] [box=28,477,199,13]: KIỂM SOÁT
+        - button "Hành động chờ" [ref=f1e57] [cursor=pointer] [box=18,495,219,36]
+      - button "Scheduler & Workers" [ref=f1e62] [cursor=pointer] [box=18,531,219,36]
+      - button "Audit Log" [ref=f1e67] [cursor=pointer] [box=18,567,219,36]
+      - button "Bảo mật" [ref=f1e72] [cursor=pointer] [box=18,603,219,36]
+      - button "Tài liệu & Hệ thống" [ref=f1e77] [cursor=pointer] [box=18,639,219,36]
+      - generic [ref=f1e81] [box=18,687,219,54]:
+        - paragraph [ref=f1e82] [box=28,687,199,13]: TRỢ LÝ CHÍNH
+        - button "Chức năng Telegram" [ref=f1e83] [cursor=pointer] [box=18,705,219,36]
+    - generic [ref=f1e88] [box=18,1193,224,42]:
+      - generic [ref=f1e89] [box=18,1194,40,40]: OW
+      - generic [ref=f1e90] [box=68,1194,128,41]:
+        - generic [ref=f1e91] [box=68,1194,128,21]: Owner 1134327192
+        - generic [ref=f1e92] [box=68,1217,128,18]: Local · Realtime
+      - button "Đăng xuất" [ref=f1e93] [cursor=pointer] [box=206,1193,42,42]
+    - generic [ref=f1e96] [box=18,1253,224,32]:
+      - generic [ref=f1e97] [box=29,1262,52,14]: RUNTIME
+      - generic [ref=f1e98] [box=89,1262,126,14]: v0.1.0
+  - main [ref=f1e100] [box=264,0,2281,1593]:
+    - generic [ref=f1e101] [box=264,0,2281,97]:
+      - generic [ref=f1e103] [box=294,18,205,58]:
+        - paragraph [ref=f1e104] [box=294,18,205,16]: TELEGRAM AI / TỔNG QUAN
+        - heading "Tổng quan" [level=1] [ref=f1e105] [box=294,38,205,38]
+      - generic [ref=f1e106] [box=2204,25,311,44]:
+        - generic [ref=f1e107] [box=2204,35,42,24]: LIVE
+        - button "Thông báo" [ref=f1e109] [cursor=pointer] [box=2259,26,42,42]
+        - button "Hành động chờ" [ref=f1e112] [cursor=pointer] [box=2313,25,202,44]
+    - generic [ref=f1e120] [box=264,97,2281,1496]:
+      - region "Trạng thái hệ thống" [ref=f1e126] [box=294,125,2221,95]:
+        - generic [ref=f1e127] [box=297,128,987,89]
+        - generic [ref=f1e131] [box=1284,128,987,89]
+        - button "Chức năng Telegram" [ref=f1e135] [cursor=pointer] [box=2271,128,241,89]
+      - region "Chỉ số 24 giờ" [ref=f1e138] [box=294,240,2221,154]:
+        - article [ref=f1e139] [box=294,240,542,154]
+        - article [ref=f1e148] [box=854,240,542,154]
+        - article [ref=f1e157] [box=1414,240,542,154]
+        - article [ref=f1e166] [box=1973,240,542,154]
+      - generic [ref=f1e175] [box=294,394,2221,134]:
+        - generic [ref=f1e176] [box=311,405,540,112]
+        - generic [ref=f1e182] [box=860,405,540,112]
+        - generic [ref=f1e188] [box=1409,405,540,112]
+        - generic [ref=f1e194] [box=1958,405,540,112]
+      - generic [ref=f1e200] [box=294,550,2221,442]:
+        - generic [ref=f1e201] [box=294,550,1512,442]
+        - generic [ref=f1e267] [box=1828,550,687,442]
+      - generic [ref=f1e287] [box=294,1014,2221,531]:
+        - generic [ref=f1e288] [box=294,1014,1420,531]
+        - generic [ref=f1e299] [box=1736,1014,779,531]

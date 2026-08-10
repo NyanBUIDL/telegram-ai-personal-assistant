@@ -1,0 +1,110 @@
+- generic [ref=e1]:
+  - banner [ref=e2]:
+    - link "Mở tổng hợp audit" [ref=e3] [cursor=pointer]:
+      - /url: "#summary"
+      - generic [ref=e4]: TA
+      - generic [ref=e5]:
+        - strong [ref=e6]: TELEGRAM/AI
+        - generic [ref=e7]: DESIGN AUDIT LAB
+    - navigation "Màn hình prototype" [ref=e8]:
+      - button "Tổng hợp" [ref=e9] [cursor=pointer]
+      - button "Local Models" [ref=e10] [cursor=pointer]
+      - button "Knowledge" [ref=e11] [cursor=pointer]
+      - button "Learning Jobs" [ref=e12] [cursor=pointer]
+      - button "Kết nối" [ref=e13] [cursor=pointer]
+      - button "Modal" [ref=e14] [cursor=pointer]
+    - generic [ref=e15]:
+      - generic [ref=e16]: LIVE
+      - button "5 ƯU TIÊN" [ref=e17] [cursor=pointer]
+  - complementary [ref=e18]:
+    - generic [ref=e19]:
+      - paragraph [ref=e20]: PROTOTYPE CONTROLS
+      - heading "Phòng test trạng thái" [level=2] [ref=e21]
+    - generic [ref=e22]:
+      - generic [ref=e23]: Màn hình
+      - group "Mô phỏng kích thước màn hình" [ref=e24]:
+        - button "Desktop" [ref=e25] [cursor=pointer]
+        - button "Mobile" [ref=e26] [cursor=pointer]
+    - generic [ref=e27]:
+      - generic [ref=e28]: Dữ liệu
+      - group "Trạng thái dữ liệu" [ref=e29]:
+        - button "Có dữ liệu" [ref=e30] [cursor=pointer]
+        - button "Loading" [ref=e31] [cursor=pointer]
+        - button "Error" [ref=e32] [cursor=pointer]
+        - button "Empty" [ref=e33] [cursor=pointer]
+    - generic [ref=e34]:
+      - generic [ref=e35]: Mạng
+      - group "Mô phỏng mạng" [ref=e36]:
+        - button "Online" [ref=e37] [cursor=pointer]
+        - button "Offline" [ref=e38] [cursor=pointer]
+    - paragraph [ref=e39]: Desktop · Có dữ liệu · Online
+  - main [active] [ref=e40]:
+    - generic [ref=e41]:
+      - generic [ref=e42]:
+        - generic [ref=e43]:
+          - paragraph [ref=e44]: UX/UI AUDIT · IMPLEMENTATION PROPOSAL
+          - heading "5 sửa đổi ưu tiên trước release." [level=1] [ref=e45]
+          - paragraph [ref=e46]: Mỗi đề xuất bên dưới ghép bằng chứng “Before” từ audit với một “After” HTML có thể thao tác, kèm lý do và tiêu chí nghiệm thu.
+        - generic [ref=e47]:
+          - generic [ref=e48]: TRẠNG THÁI AUDIT
+          - strong [ref=e49]: NOT READY
+          - generic [ref=e50]: 6 P1 · prototype tập trung 5 nhóm sửa đổi
+      - generic [ref=e51]:
+        - region [ref=e52]:
+          - generic [ref=e53]:
+            - generic [ref=e54]:
+              - paragraph [ref=e55]: PRIORITY QUEUE
+              - heading "Danh sách ưu tiên" [level=2] [ref=e56]
+            - generic [ref=e57]: P1
+          - generic [ref=e58]:
+            - button "01 Local Models Card vỡ layout + chọn sai capability P1" [ref=e59] [cursor=pointer]:
+              - generic [ref=e60]: "01"
+              - generic [ref=e61]:
+                - strong [ref=e62]: Local Models
+                - generic [ref=e63]: Card vỡ layout + chọn sai capability
+              - generic [ref=e64]: P1
+            - button "02 Knowledge Page overflow, bảng mất cột và CTA P1" [ref=e65] [cursor=pointer]:
+              - generic [ref=e66]: "02"
+              - generic [ref=e67]:
+                - strong [ref=e68]: Knowledge
+                - generic [ref=e69]: Page overflow, bảng mất cột và CTA
+              - generic [ref=e70]: P1
+            - button "03 Learning Jobs Completed nhưng hiển thị 0% P1" [ref=e71] [cursor=pointer]:
+              - generic [ref=e72]: "03"
+              - generic [ref=e73]:
+                - strong [ref=e74]: Learning Jobs
+                - generic [ref=e75]: Completed nhưng hiển thị 0%
+              - generic [ref=e76]: P1
+            - button "04 Connection state Offline vẫn báo LIVE/CONNECTED P1" [ref=e77] [cursor=pointer]:
+              - generic [ref=e78]: "04"
+              - generic [ref=e79]:
+                - strong [ref=e80]: Connection state
+                - generic [ref=e81]: Offline vẫn báo LIVE/CONNECTED
+              - generic [ref=e82]: P1
+            - button "05 Modal tại 360 px Mất nút đóng và tràn ngang P1" [ref=e83] [cursor=pointer]:
+              - generic [ref=e84]: "05"
+              - generic [ref=e85]:
+                - strong [ref=e86]: Modal tại 360 px
+                - generic [ref=e87]: Mất nút đóng và tràn ngang
+              - generic [ref=e88]: P1
+        - region [ref=e89]:
+          - generic [ref=e90]:
+            - generic [ref=e91]:
+              - paragraph [ref=e92]: VISUAL PROOF
+              - heading "Before / After" [level=2] [ref=e93]
+            - group "Chọn bản so sánh" [ref=e94]:
+              - button "Before" [ref=e95] [cursor=pointer]
+              - button "After" [ref=e96] [cursor=pointer]
+          - figure "BEFORE · card metadata dính thành chuỗi, khó quét và so sánh." [ref=e98]:
+            - img "Ảnh audit trước khi sửa của màn Local Models" [ref=e99]
+          - generic [ref=e101]:
+            - article [ref=e102]:
+              - generic [ref=e103]: LÝ DO
+              - paragraph [ref=e104]: Tách metadata thành lưới key/value để owner nhận diện capability, RAM, VRAM và model active trong vài giây.
+            - article [ref=e105]:
+              - generic [ref=e106]: ACCEPTANCE CRITERIA
+              - list [ref=e107]:
+                - listitem [ref=e108]: Không có text dính nhau ở 1440 và 360 px.
+                - listitem [ref=e109]: Card không tạo page overflow.
+                - listitem [ref=e110]: Model selector chỉ cho phép đúng capability.
+          - button "MỞ MÀN AFTER ĐẦY ĐỦ" [ref=e111] [cursor=pointer]

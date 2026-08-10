@@ -1,0 +1,114 @@
+- generic [ref=e1]:
+  - banner [ref=e2]:
+    - link "Mở tổng hợp audit" [ref=e3] [cursor=pointer]:
+      - /url: "#summary"
+      - generic [ref=e4]: TA
+    - navigation "Màn hình prototype" [ref=e8]:
+      - button "Tổng hợp" [ref=e9] [cursor=pointer]
+      - button "Local Models" [ref=e10] [cursor=pointer]
+      - button "Knowledge" [ref=e11] [cursor=pointer]
+      - button "Learning Jobs" [ref=e12] [cursor=pointer]
+      - button "Kết nối" [ref=e13] [cursor=pointer]
+      - button "Modal" [ref=e14] [cursor=pointer]
+    - generic [ref=e15]: LIVE
+  - complementary [ref=e18]:
+    - generic [ref=e19]:
+      - paragraph [ref=e20]: PROTOTYPE CONTROLS
+      - heading "Phòng test trạng thái" [level=2] [ref=e21]
+    - generic [ref=e22]:
+      - generic [ref=e23]: Màn hình
+      - group "Mô phỏng kích thước màn hình" [ref=e24]:
+        - button "Desktop" [ref=e25] [cursor=pointer]
+        - button "Mobile" [ref=e26] [cursor=pointer]
+    - generic [ref=e27]:
+      - generic [ref=e28]: Dữ liệu
+      - group "Trạng thái dữ liệu" [ref=e29]:
+        - button "Có dữ liệu" [ref=e30] [cursor=pointer]
+        - button "Loading" [ref=e31] [cursor=pointer]
+        - button "Error" [ref=e32] [cursor=pointer]
+        - button "Empty" [ref=e33] [cursor=pointer]
+    - generic [ref=e34]:
+      - generic [ref=e35]: Mạng
+      - group "Mô phỏng mạng" [ref=e36]:
+        - button "Online" [ref=e37] [cursor=pointer]
+        - button "Offline" [ref=e38] [cursor=pointer]
+    - paragraph [ref=e39]: Desktop · Có dữ liệu · Online
+  - main [active] [ref=e40]:
+    - generic [ref=e438]:
+      - generic [ref=e439]:
+        - generic [ref=e440]:
+          - paragraph [ref=e441]: BACKGROUND JOBS · CONTRACT DEMO
+          - heading "Learning Jobs" [level=1] [ref=e442]
+          - paragraph [ref=e443]: Status, phase và progress được tách rõ; không tạo phần trăm giả khi backend không trả dữ liệu đáng tin cậy.
+        - generic [ref=e444]: 1 JOB ĐANG MÔ PHỎNG
+      - group "Chọn trạng thái learning job" [ref=e445]:
+        - button "Queued" [ref=e446] [cursor=pointer]
+        - button "Syncing" [ref=e447] [cursor=pointer]
+        - button "Embedding" [ref=e448] [cursor=pointer]
+        - button "Completed" [ref=e449] [cursor=pointer]
+        - button "Failed" [ref=e450] [cursor=pointer]
+        - button "Paused" [ref=e451] [cursor=pointer]
+        - button "Unknown" [ref=e452] [cursor=pointer]
+      - generic [ref=e453]:
+        - generic [ref=e454]:
+          - generic [ref=e455]:
+            - paragraph [ref=e456]: JOB 1261066B-0141-4782-620E-66525F2A8529
+            - heading "Upside — Telegram group sync" [level=2] [ref=e457]
+          - generic [ref=e458]: QUEUED
+        - generic [ref=e459]:
+          - generic [ref=e460]:
+            - generic [ref=e461]: Chờ worker
+            - strong [ref=e462]: 0%
+          - progressbar "Tiến độ learning job" [ref=e463]
+        - generic [ref=e465]:
+          - generic [ref=e466]:
+            - term [ref=e467]: Phase
+            - definition [ref=e468]: Chờ worker
+          - generic [ref=e469]:
+            - term [ref=e470]: Tin đã sync
+            - definition [ref=e471]: 0 / 12.840
+          - generic [ref=e472]:
+            - term [ref=e473]: Vector
+            - definition [ref=e474]: "0"
+          - generic [ref=e475]:
+            - term [ref=e476]: Thời lượng
+            - definition [ref=e477]: Chưa bắt đầu
+          - generic [ref=e478]:
+            - term [ref=e479]: Lỗi gần nhất
+            - definition [ref=e480]: Không có
+        - button "TẠM DỪNG" [ref=e482] [cursor=pointer]
+      - region [ref=e483]:
+        - generic [ref=e485]:
+          - paragraph [ref=e486]: FRONTEND DISPLAY CONTRACT
+          - heading "Quy tắc tiến độ" [level=2] [ref=e487]
+        - table [ref=e489]:
+          - rowgroup [ref=e490]:
+            - row [ref=e491]:
+              - columnheader "Status / phase" [ref=e492]
+              - columnheader "Progress" [ref=e493]
+              - columnheader "Hiển thị" [ref=e494]
+          - rowgroup [ref=e495]:
+            - row [ref=e496]:
+              - cell "Queued" [ref=e497]
+              - cell "0%" [ref=e498]
+              - cell "Chưa xử lý, không giả hoạt động." [ref=e499]
+            - row [ref=e500]:
+              - cell "Syncing" [ref=e501]
+              - cell "1–50%" [ref=e502]
+              - cell "Tỷ lệ tin Telegram đã đồng bộ." [ref=e503]
+            - row [ref=e504]:
+              - cell "Embedding" [ref=e505]
+              - cell "51–99%" [ref=e506]
+              - cell "Tỷ lệ vector đã tạo." [ref=e507]
+            - row [ref=e508]:
+              - cell "Completed" [ref=e509]
+              - cell "100%" [ref=e510]
+              - cell "Không bao giờ hiển thị Completed · 0%." [ref=e511]
+            - row [ref=e512]:
+              - cell "Failed / Paused" [ref=e513]
+              - cell "Giữ nguyên" [ref=e514]
+              - cell "Giữ mốc hợp lệ cuối cùng." [ref=e515]
+            - row [ref=e516]:
+              - cell "Unknown" [ref=e517]
+              - cell "Không hiển thị" [ref=e518]
+              - cell "Ghi rõ thiếu dữ liệu tiến độ." [ref=e519]

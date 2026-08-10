@@ -1,0 +1,21 @@
+[     244ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://127.0.0.1:4173/node_modules/.vite/deps/react-dom_client.js?v=07aa4a2a:20100
+[   17499ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://127.0.0.1:4173/:0
+[   17499ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://127.0.0.1:4173/:0
+[   17499ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://127.0.0.1:4173/:0
+[   17499ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://127.0.0.1:4173/:0
+[   57456ms] ReferenceError: Meter is not defined
+    at http://127.0.0.1:4173/src/App.jsx?t=1785165930119:1872:38
+    at Array.map (<anonymous>)
+    at KnowledgeView (http://127.0.0.1:4173/src/App.jsx?t=1785165930119:1817:61)
+    at Object.react_stack_bottom_frame (http://127.0.0.1:4173/node_modules/.vite/deps/react-dom_client.js?v=07aa4a2a:18507:20)
+    at renderWithHooks (http://127.0.0.1:4173/node_modules/.vite/deps/react-dom_client.js?v=07aa4a2a:5652:24)
+    at updateFunctionComponent (http://127.0.0.1:4173/node_modules/.vite/deps/react-dom_client.js?v=07aa4a2a:7473:21)
+    at beginWork (http://127.0.0.1:4173/node_modules/.vite/deps/react-dom_client.js?v=07aa4a2a:8523:20)
+    at runWithFiberInDEV (http://127.0.0.1:4173/node_modules/.vite/deps/react-dom_client.js?v=07aa4a2a:995:72)
+    at performUnitOfWork (http://127.0.0.1:4173/node_modules/.vite/deps/react-dom_client.js?v=07aa4a2a:12559:98)
+    at workLoopSync (http://127.0.0.1:4173/node_modules/.vite/deps/react-dom_client.js?v=07aa4a2a:12422:43)
+[   57453ms] [WARNING] %s
+
+%s
+ An error occurred in the <KnowledgeView> component. Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries. @ http://127.0.0.1:4173/node_modules/.vite/deps/react-dom_client.js?v=07aa4a2a:6963

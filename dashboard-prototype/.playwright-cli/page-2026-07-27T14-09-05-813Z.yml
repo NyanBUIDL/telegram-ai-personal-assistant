@@ -1,0 +1,132 @@
+- generic [ref=f1e3]:
+  - complementary [ref=f1e4]:
+    - generic [ref=f1e9]:
+      - strong [ref=f1e10]: TELEGRAM//AI
+      - generic [ref=f1e11]: ADMIN CONSOLE
+    - navigation "Điều hướng chính" [ref=f1e12]:
+      - generic [ref=f1e13]:
+        - paragraph [ref=f1e14]: VẬN HÀNH
+        - button "Tổng quan" [ref=f1e15] [cursor=pointer]
+      - button "Kết nối" [active] [ref=f1e20] [cursor=pointer]
+      - button "Nhóm Telegram 12" [ref=f1e25] [cursor=pointer]:
+        - generic [ref=f1e28]: Nhóm Telegram
+        - generic [ref=f1e29]: "12"
+      - button "Policy Engine" [ref=f1e31] [cursor=pointer]
+      - generic [ref=f1e35]:
+        - paragraph [ref=f1e36]: AI & DỮ LIỆU
+        - button "AI & RAG" [ref=f1e37] [cursor=pointer]
+      - button "Local Models" [ref=f1e42] [cursor=pointer]
+      - button "Kho tri thức" [ref=f1e47] [cursor=pointer]
+      - button "Bộ nhớ & lưu trữ" [ref=f1e52] [cursor=pointer]
+      - generic [ref=f1e56]:
+        - paragraph [ref=f1e57]: KIỂM SOÁT
+        - button "Hành động chờ 2" [ref=f1e841] [cursor=pointer]:
+          - generic [ref=f1e61]: Hành động chờ
+          - generic [ref=f1e62]: "2"
+      - button "Scheduler & Workers" [ref=f1e64] [cursor=pointer]
+      - button "Audit Log" [ref=f1e69] [cursor=pointer]
+      - button "Bảo mật" [ref=f1e74] [cursor=pointer]
+      - button "Tài liệu & Hệ thống" [ref=f1e79] [cursor=pointer]
+    - generic [ref=f1e84]:
+      - generic [ref=f1e85]: NT
+      - generic [ref=f1e86]:
+        - generic [ref=f1e87]: Nguyễn Nhật Tân
+        - generic [ref=f1e88]: Owner · Online
+      - button "Đăng xuất" [ref=f1e89] [cursor=pointer]
+    - generic [ref=f1e92]:
+      - generic [ref=f1e93]: RUNTIME
+      - generic [ref=f1e94]: v0.8.4
+  - main [ref=f1e96]:
+    - generic [ref=f1e97]:
+      - generic [ref=f1e99]:
+        - paragraph [ref=f1e100]: TELEGRAM AI / KẾT NỐI
+        - heading "Kết nối" [level=1] [ref=f1e856]
+      - generic [ref=f1e102]:
+        - button "Thông báo" [ref=f1e108] [cursor=pointer]
+        - button "Tạo hành động" [ref=f1e112] [cursor=pointer]
+    - generic [ref=f1e857]:
+      - generic [ref=f1e858]:
+        - generic [ref=f1e859]:
+          - generic [ref=f1e862]: 5 kết nối ổn định
+          - generic [ref=f1e863]: 1 runtime cần theo dõi
+        - button "Kiểm tra tất cả" [ref=f1e864] [cursor=pointer]
+      - generic [ref=f1e867]:
+        - article [ref=f1e868]:
+          - generic [ref=f1e869]:
+            - generic [ref=f1e870]:
+              - paragraph [ref=f1e871]: API ID / API Hash
+              - heading "Telegram User Client" [level=2] [ref=f1e872]
+            - generic [ref=f1e873]: connected
+          - generic [ref=f1e877]:
+            - generic [ref=f1e878]: API ID / API Hash
+            - textbox "Telegram User Client API ID / API Hash" [ref=f1e879]: ••••••••••••9812
+          - generic [ref=f1e880]:
+            - button "Kiểm tra" [ref=f1e881] [cursor=pointer]
+            - button "Lưu" [ref=f1e884] [cursor=pointer]
+        - article [ref=f1e887]:
+          - generic [ref=f1e888]:
+            - generic [ref=f1e889]:
+              - paragraph [ref=f1e890]: Bot Token
+              - heading "Control Bot" [level=2] [ref=f1e891]
+            - generic [ref=f1e892]: connected
+          - generic [ref=f1e896]:
+            - generic [ref=f1e897]: Bot Token
+            - textbox "Control Bot Bot Token" [ref=f1e898]: ••••••••••••A7Qs
+          - generic [ref=f1e899]:
+            - button "Kiểm tra" [ref=f1e900] [cursor=pointer]
+            - button "Lưu" [ref=f1e903] [cursor=pointer]
+        - article [ref=f1e906]:
+          - generic [ref=f1e907]:
+            - generic [ref=f1e908]:
+              - paragraph [ref=f1e909]: Connection string
+              - heading "MySQL" [level=2] [ref=f1e910]
+            - generic [ref=f1e911]: connected
+          - generic [ref=f1e915]:
+            - generic [ref=f1e916]: Connection string
+            - textbox "MySQL Connection string" [ref=f1e917]: mysql://admin:••••@localhost/telegram_ai
+          - generic [ref=f1e918]:
+            - button "Kiểm tra" [ref=f1e919] [cursor=pointer]
+            - button "Lưu" [ref=f1e922] [cursor=pointer]
+        - article [ref=f1e925]:
+          - generic [ref=f1e926]:
+            - generic [ref=f1e927]:
+              - paragraph [ref=f1e928]: Vector endpoint
+              - heading "Qdrant" [level=2] [ref=f1e929]
+            - generic [ref=f1e930]: connected
+          - generic [ref=f1e934]:
+            - generic [ref=f1e935]: Vector endpoint
+            - textbox "Qdrant Vector endpoint" [ref=f1e936]: http://127.0.0.1:6333
+          - generic [ref=f1e937]:
+            - button "Kiểm tra" [ref=f1e938] [cursor=pointer]
+            - button "Lưu" [ref=f1e941] [cursor=pointer]
+        - article [ref=f1e944]:
+          - generic [ref=f1e945]:
+            - generic [ref=f1e946]:
+              - paragraph [ref=f1e947]: Provider API key
+              - heading "Cloud AI" [level=2] [ref=f1e948]
+            - generic [ref=f1e949]: connected
+          - generic [ref=f1e953]:
+            - generic [ref=f1e954]: Provider API key
+            - textbox "Cloud AI Provider API key" [ref=f1e955]: sk-proj-••••••••••••
+          - generic [ref=f1e956]:
+            - button "Kiểm tra" [ref=f1e957] [cursor=pointer]
+            - button "Lưu" [ref=f1e960] [cursor=pointer]
+        - article [ref=f1e963]:
+          - generic [ref=f1e964]:
+            - generic [ref=f1e965]:
+              - paragraph [ref=f1e966]: Runtime endpoint
+              - heading "Local AI" [level=2] [ref=f1e967]
+            - generic [ref=f1e968]: warning
+          - generic [ref=f1e969]:
+            - generic [ref=f1e972]:
+              - generic [ref=f1e973]: Runtime endpoint
+              - textbox "Local AI Runtime endpoint" [ref=f1e974]: http://127.0.0.1:11434
+            - generic [ref=f1e975]:
+              - generic [ref=f1e976]: Model mặc định
+              - combobox "Model mặc định" [ref=f1e977] [cursor=pointer]:
+                - option "llama3.1:8b" [selected]
+                - option "qwen2.5:7b"
+                - option "mistral-nemo:12b"
+          - generic [ref=f1e978]:
+            - button "Kiểm tra" [ref=f1e979] [cursor=pointer]
+            - button "Lưu" [ref=f1e982] [cursor=pointer]

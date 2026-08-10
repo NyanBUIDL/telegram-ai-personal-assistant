@@ -1,0 +1,75 @@
+- generic [ref=f3e3]:
+  - complementary [ref=f3e4]:
+    - generic [ref=f3e9]:
+      - strong [ref=f3e10]: TELEGRAM//AI
+      - generic [ref=f3e11]: ADMIN CONSOLE
+    - navigation "Điều hướng chính" [ref=f3e12]:
+      - paragraph [ref=f3e13]: WORKSPACE
+      - button "Tổng quan" [ref=f3e14] [cursor=pointer]
+      - button "Nhóm Telegram 12" [ref=f3e18] [cursor=pointer]:
+        - generic [ref=f3e21]: Nhóm Telegram
+        - generic [ref=f3e22]: "12"
+      - button "Hành động chờ 3" [ref=f3e565] [cursor=pointer]:
+        - generic [ref=f3e26]: Hành động chờ
+        - generic [ref=f3e27]: "3"
+      - button "Kho tri thức" [ref=f3e28] [cursor=pointer]
+      - button "Hệ thống" [ref=f3e32] [cursor=pointer]
+    - generic [ref=f3e37]:
+      - generic [ref=f3e38]: NT
+      - generic [ref=f3e39]:
+        - generic [ref=f3e40]: Nguyễn Nhật Tân
+        - generic [ref=f3e41]: Owner · Online
+      - button "Đăng xuất" [ref=f3e42] [cursor=pointer]
+    - generic [ref=f3e45]:
+      - generic [ref=f3e46]: RUNTIME
+      - generic [ref=f3e47]: v0.8.4
+  - main [ref=f3e49]:
+    - generic [ref=f3e50]:
+      - generic [ref=f3e52]:
+        - paragraph [ref=f3e53]: TELEGRAM AI / HỆ THỐNG
+        - heading "Hệ thống" [level=1] [ref=f3e667]
+      - generic [ref=f3e55]:
+        - button "Thông báo" [ref=f3e61] [cursor=pointer]
+        - button "Tạo hành động" [ref=f3e65] [cursor=pointer]
+    - generic [ref=f3e668]:
+      - generic [ref=f3e669]:
+        - generic [ref=f3e670]:
+          - generic [ref=f3e671]:
+            - paragraph [ref=f3e672]: RUNTIME
+            - heading "Trạng thái dịch vụ" [level=2] [ref=f3e673]
+          - generic [ref=f3e674]: ALL SYSTEMS GO
+        - generic [ref=f3e677]:
+          - article [ref=f3e678]:
+            - generic [ref=f3e680]:
+              - generic [ref=f3e681]: Telegram User Client
+              - generic [ref=f3e682]: Session online
+            - strong [ref=f3e683]: 42ms
+          - article [ref=f3e684]:
+            - generic [ref=f3e686]:
+              - generic [ref=f3e687]: MySQL
+              - generic [ref=f3e688]: Source of truth
+            - strong [ref=f3e689]: 8ms
+          - article [ref=f3e690]:
+            - generic [ref=f3e692]:
+              - generic [ref=f3e693]: Qdrant
+              - generic [ref=f3e694]: 14.2K vectors
+            - strong [ref=f3e695]: 19ms
+          - article [ref=f3e696]:
+            - generic [ref=f3e698]:
+              - generic [ref=f3e699]: Ollama Local
+              - generic [ref=f3e700]: llama3.1:8b
+            - strong [ref=f3e701]: 61%
+      - generic [ref=f3e702]:
+        - generic [ref=f3e703]:
+          - paragraph [ref=f3e704]: MODERATION
+          - heading "AUTO Mode" [level=2] [ref=f3e705]
+          - paragraph [ref=f3e706]: Khi không xác minh được quyền admin, hệ thống luôn giữ lại tin nhắn.
+        - button "OFF" [active] [ref=f3e715] [cursor=pointer]
+      - generic [ref=f3e710]:
+        - generic [ref=f3e711]:
+          - generic [ref=f3e712]: runtime.log
+          - generic [ref=f3e713]: TAIL -F
+        - generic [ref=f3e714]: 14:42:08 [RAG] answer_ready sources=4 route=local 14:39:51 [SAFE] keep_message reason=rights_unknown 14:34:16 [SYNC] qdrant_upsert chunks=26 status=ok 14:28:03 [SECRET] request_blocked pattern=api_key 14:24:40 [POLICY] group=ai_builders mode=AUTO result=allow
+  - status [ref=f3e716]:
+    - generic [ref=f3e719]: AUTO moderation đã tạm dừng.
+    - button "Đóng thông báo" [ref=f3e720] [cursor=pointer]

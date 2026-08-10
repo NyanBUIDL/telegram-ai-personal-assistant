@@ -1,0 +1,187 @@
+- generic [ref=f1e12]:
+  - complementary [ref=f1e13]:
+    - generic [ref=f1e18]:
+      - strong [ref=f1e19]: TELEGRAM//AI
+      - generic [ref=f1e20]: ADMIN CONSOLE
+    - navigation "Điều hướng chính" [ref=f1e21]:
+      - generic [ref=f1e22]:
+        - paragraph [ref=f1e23]: VẬN HÀNH
+        - button "Tổng quan" [ref=f1e24] [cursor=pointer]
+      - button "Kết nối" [ref=f1e29] [cursor=pointer]
+      - button "Nhóm Telegram" [ref=f1e34] [cursor=pointer]
+      - button "Policy Engine" [ref=f1e39] [cursor=pointer]
+      - generic [ref=f1e43]:
+        - paragraph [ref=f1e44]: AI & DỮ LIỆU
+        - button "AI & RAG" [ref=f1e45] [cursor=pointer]
+      - button "Local Models" [ref=f1e50] [cursor=pointer]
+      - button "Kho tri thức" [ref=f1e55] [cursor=pointer]
+      - button "Bộ nhớ & lưu trữ" [ref=f1e60] [cursor=pointer]
+      - generic [ref=f1e64]:
+        - paragraph [ref=f1e65]: KIỂM SOÁT
+        - button "Hành động chờ" [ref=f1e7949] [cursor=pointer]
+      - button "Scheduler & Workers" [ref=f1e71] [cursor=pointer]
+      - button "Audit Log" [ref=f1e76] [cursor=pointer]
+      - button "Bảo mật" [ref=f1e81] [cursor=pointer]
+      - button "Tài liệu & Hệ thống" [ref=f1e86] [cursor=pointer]
+      - generic [ref=f1e90]:
+        - paragraph [ref=f1e91]: TRỢ LÝ CHÍNH
+        - button "Chức năng Telegram" [ref=f1e92] [cursor=pointer]
+    - generic [ref=f1e97]:
+      - generic [ref=f1e98]: OW
+      - generic [ref=f1e99]:
+        - generic [ref=f1e100]: Owner 1134327192
+        - generic [ref=f1e101]: Local · Realtime
+      - button "Đăng xuất" [ref=f1e102] [cursor=pointer]
+    - generic [ref=f1e105]:
+      - generic [ref=f1e106]: RUNTIME
+      - generic [ref=f1e107]: v0.1.0
+  - button "Đóng menu" [ref=f1e7950] [cursor=pointer]
+  - main [ref=f1e109]:
+    - generic [ref=f1e110]:
+      - generic [ref=f1e111]:
+        - button "Mở menu" [active] [ref=f1e7946] [cursor=pointer]
+        - heading "Local Models" [level=1] [ref=f1e7737]
+      - generic [ref=f1e115]:
+        - generic [ref=f1e116]: LIVE
+        - button "Thông báo" [ref=f1e118] [cursor=pointer]
+        - button "Hành động chờ" [ref=f1e121] [cursor=pointer]
+    - generic [ref=f1e7738]:
+      - generic [ref=f1e7739]:
+        - generic [ref=f1e7740]:
+          - paragraph [ref=f1e7741]: OLLAMA LOCAL · LIVE
+          - heading "Local Model Manager" [level=2] [ref=f1e7742]
+          - generic [ref=f1e7743]: Danh sách và thao tác được đọc trực tiếp từ Ollama trên máy này.
+        - generic [ref=f1e7744]:
+          - textbox "Tên model cần tải" [ref=f1e7745]:
+            - /placeholder: "Ví dụ: qwen3:8b"
+          - button "Tải model" [ref=f1e7746] [cursor=pointer]
+      - generic [ref=f1e7754]:
+        - article [ref=f1e7755]:
+          - generic [ref=f1e7756]:
+            - generic [ref=f1e7759]:
+              - heading "deepseek-v2:16b" [level=3] [ref=f1e7760]
+              - text: deepseek2
+            - generic [ref=f1e7761]: INSTALLED
+          - generic [ref=f1e7762]:
+            - generic [ref=f1e7763]: Kích thước8.3 GB
+            - generic [ref=f1e7764]: Tham số15.7B
+            - generic [ref=f1e7765]: QuantizationQ4_0
+            - generic [ref=f1e7766]: Cập nhật20:30 3/3/26
+          - button "Preview xóa" [ref=f1e7768] [cursor=pointer]
+        - article [ref=f1e7771]:
+          - generic [ref=f1e7772]:
+            - generic [ref=f1e7775]:
+              - heading "gemini-3-flash-preview:latest" [level=3] [ref=f1e7776]
+              - text: Ollama model
+            - generic [ref=f1e7777]: INSTALLED
+          - generic [ref=f1e7778]:
+            - generic [ref=f1e7779]: Kích thước367.0 B
+            - generic [ref=f1e7780]: Tham số—
+            - generic [ref=f1e7781]: Quantization—
+            - generic [ref=f1e7782]: Cập nhật17:54 21/2/26
+          - button "Preview xóa" [ref=f1e7784] [cursor=pointer]
+        - article [ref=f1e7787]:
+          - generic [ref=f1e7788]:
+            - generic [ref=f1e7791]:
+              - heading "glm-4.7-flash:latest" [level=3] [ref=f1e7792]
+              - text: glm4moelite
+            - generic [ref=f1e7793]: INSTALLED
+          - generic [ref=f1e7794]:
+            - generic [ref=f1e7795]: Kích thước17.7 GB
+            - generic [ref=f1e7796]: Tham số29.9B
+            - generic [ref=f1e7797]: QuantizationQ4_K_M
+            - generic [ref=f1e7798]: Cập nhật17:59 21/2/26
+          - button "Preview xóa" [ref=f1e7800] [cursor=pointer]
+        - article [ref=f1e7803]:
+          - generic [ref=f1e7804]:
+            - generic [ref=f1e7807]:
+              - heading "glm-5:cloud" [level=3] [ref=f1e7808]
+              - text: Ollama model
+            - generic [ref=f1e7809]: INSTALLED
+          - generic [ref=f1e7810]:
+            - generic [ref=f1e7811]: Kích thước323.0 B
+            - generic [ref=f1e7812]: Tham số—
+            - generic [ref=f1e7813]: Quantization—
+            - generic [ref=f1e7814]: Cập nhật17:49 21/2/26
+          - button "Preview xóa" [ref=f1e7816] [cursor=pointer]
+        - article [ref=f1e7819]:
+          - generic [ref=f1e7820]:
+            - generic [ref=f1e7823]:
+              - heading "kimi-k2.5:cloud" [level=3] [ref=f1e7824]
+              - text: Ollama model
+            - generic [ref=f1e7825]: INSTALLED
+          - generic [ref=f1e7826]:
+            - generic [ref=f1e7827]: Kích thước340.0 B
+            - generic [ref=f1e7828]: Tham số—
+            - generic [ref=f1e7829]: Quantization—
+            - generic [ref=f1e7830]: Cập nhật15:02 21/2/26
+          - button "Preview xóa" [ref=f1e7832] [cursor=pointer]
+        - article [ref=f1e7835]:
+          - generic [ref=f1e7836]:
+            - generic [ref=f1e7839]:
+              - heading "llama3:8b" [level=3] [ref=f1e7840]
+              - text: llama
+            - generic [ref=f1e7841]: INSTALLED
+          - generic [ref=f1e7842]:
+            - generic [ref=f1e7843]: Kích thước4.3 GB
+            - generic [ref=f1e7844]: Tham số8.0B
+            - generic [ref=f1e7845]: QuantizationQ4_0
+            - generic [ref=f1e7846]: Cập nhật10:45 19/2/26
+          - button "Preview xóa" [ref=f1e7848] [cursor=pointer]
+        - article [ref=f1e7851]:
+          - generic [ref=f1e7852]:
+            - generic [ref=f1e7855]:
+              - heading "nomic-embed-text:latest" [level=3] [ref=f1e7856]
+              - text: nomic-bert
+            - generic [ref=f1e7857]: EMBED ACTIVE
+          - generic [ref=f1e7858]:
+            - generic [ref=f1e7859]: Kích thước261.6 MB
+            - generic [ref=f1e7860]: Tham số137M
+            - generic [ref=f1e7861]: QuantizationF16
+            - generic [ref=f1e7862]: Cập nhật22:57 25/2/26
+          - button "Preview xóa" [disabled] [ref=f1e7864]
+        - article [ref=f1e7867]:
+          - generic [ref=f1e7868]:
+            - generic [ref=f1e7871]:
+              - heading "qwen3:8b" [level=3] [ref=f1e7872]
+              - text: qwen3
+            - generic [ref=f1e7873]: CHAT ACTIVE
+          - generic [ref=f1e7874]:
+            - generic [ref=f1e7875]: Kích thước4.9 GB
+            - generic [ref=f1e7876]: Tham số8.2B
+            - generic [ref=f1e7877]: QuantizationQ4_K_M
+            - generic [ref=f1e7878]: Cập nhật10:22 19/2/26
+          - button "Preview xóa" [disabled] [ref=f1e7880]
+      - generic [ref=f1e7883]:
+        - generic [ref=f1e7884]:
+          - generic [ref=f1e7885]:
+            - paragraph [ref=f1e7886]: ACTIVATION · LIVE
+            - heading "Chọn model hoạt động" [level=2] [ref=f1e7887]
+          - generic [ref=f1e7888]: REINDEX-AWARE
+        - generic [ref=f1e7889]:
+          - generic [ref=f1e7890]:
+            - generic [ref=f1e7891]: Chat model
+            - combobox "Chat model" [ref=f1e7892] [cursor=pointer]:
+              - option "deepseek-v2:16b"
+              - option "gemini-3-flash-preview:latest"
+              - option "glm-4.7-flash:latest"
+              - option "glm-5:cloud"
+              - option "kimi-k2.5:cloud"
+              - option "llama3:8b"
+              - option "nomic-embed-text:latest"
+              - option "qwen3:8b" [selected]
+          - generic [ref=f1e7893]:
+            - generic [ref=f1e7894]: Embedding model
+            - combobox "Embedding model" [ref=f1e7895] [cursor=pointer]:
+              - option "deepseek-v2:16b"
+              - option "gemini-3-flash-preview:latest"
+              - option "glm-4.7-flash:latest"
+              - option "glm-5:cloud"
+              - option "kimi-k2.5:cloud"
+              - option "llama3:8b"
+              - option "nomic-embed-text:latest" [selected]
+              - option "qwen3:8b"
+          - button "Kích hoạt Ollama" [ref=f1e7896] [cursor=pointer]
+        - generic [ref=f1e7899]:
+          - generic [ref=f1e7902]: Embedding impact
+          - generic [ref=f1e7903]: Backend tự xác định vector dimension và tách kho Qdrant theo embedding model.

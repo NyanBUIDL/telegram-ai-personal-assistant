@@ -1,0 +1,78 @@
+- generic [ref=f1e12]:
+  - complementary [ref=f1e13]:
+    - generic [ref=f1e18]:
+      - strong [ref=f1e19]: TELEGRAM//AI
+      - generic [ref=f1e20]: ADMIN CONSOLE
+    - navigation "Điều hướng chính" [ref=f1e21]:
+      - generic [ref=f1e22]:
+        - paragraph [ref=f1e23]: VẬN HÀNH
+        - button "Tổng quan" [ref=f1e24] [cursor=pointer]
+      - button "Kết nối" [ref=f1e29] [cursor=pointer]
+      - button "Nhóm Telegram" [ref=f1e34] [cursor=pointer]
+      - button "Policy Engine" [ref=f1e39] [cursor=pointer]
+      - generic [ref=f1e43]:
+        - paragraph [ref=f1e44]: AI & DỮ LIỆU
+        - button "AI & RAG" [ref=f1e45] [cursor=pointer]
+      - button "Local Models" [ref=f1e50] [cursor=pointer]
+      - button "Kho tri thức" [ref=f1e55] [cursor=pointer]
+      - button "Bộ nhớ & lưu trữ" [ref=f1e60] [cursor=pointer]
+      - generic [ref=f1e64]:
+        - paragraph [ref=f1e65]: KIỂM SOÁT
+        - button "Hành động chờ" [ref=f1e5179] [cursor=pointer]
+      - button "Scheduler & Workers" [ref=f1e71] [cursor=pointer]
+      - button "Audit Log" [ref=f1e76] [cursor=pointer]
+      - button "Bảo mật" [ref=f1e81] [cursor=pointer]
+      - button "Tài liệu & Hệ thống" [ref=f1e86] [cursor=pointer]
+      - generic [ref=f1e90]:
+        - paragraph [ref=f1e91]: TRỢ LÝ CHÍNH
+        - button "Chức năng Telegram" [ref=f1e92] [cursor=pointer]
+    - generic [ref=f1e97]:
+      - generic [ref=f1e98]: OW
+      - generic [ref=f1e99]:
+        - generic [ref=f1e100]: Owner 1134327192
+        - generic [ref=f1e101]: Local · Realtime
+      - button "Đăng xuất" [ref=f1e102] [cursor=pointer]
+    - generic [ref=f1e105]:
+      - generic [ref=f1e106]: RUNTIME
+      - generic [ref=f1e107]: v0.1.0
+  - main [ref=f1e109]:
+    - generic [ref=f1e110]:
+      - generic [ref=f1e112]:
+        - paragraph [ref=f1e113]: TELEGRAM AI / BỘ NHỚ & LƯU TRỮ
+        - heading "Bộ nhớ & lưu trữ" [level=1] [ref=f1e7691]
+      - generic [ref=f1e115]:
+        - generic [ref=f1e116]: LIVE
+        - button "Thông báo" [ref=f1e118] [cursor=pointer]
+        - button "Hành động chờ" [ref=f1e121] [cursor=pointer]
+    - generic [ref=f1e7692]:
+      - generic [ref=f1e7693]:
+        - generic [ref=f1e7694]:
+          - paragraph [ref=f1e7695]: LOCAL STORAGE · LIVE
+          - heading "2.0 GB" [level=2] [ref=f1e7696]
+          - text: C:\Users\Nguyen Nhat Tan\AppData\Local\TelegramAIPersonalAssistant
+        - generic [ref=f1e7697]: LIVETELEMETRY
+        - generic [ref=f1e7698]:
+          - generic [ref=f1e7699]: Data 1.0 GB
+          - generic [ref=f1e7700]: Vector 1.0 GB
+          - generic [ref=f1e7701]: Media 0 B
+      - generic [ref=f1e7702]:
+        - generic [ref=f1e7703]:
+          - generic [ref=f1e7704]:
+            - paragraph [ref=f1e7705]: CAPACITY TELEMETRY
+            - heading "Dung lượng theo lớp" [level=2] [ref=f1e7706]
+          - generic [ref=f1e7707]: 12:52 28/7/26
+        - generic [ref=f1e7708]:
+          - generic [ref=f1e7709]:
+            - text: Application data1.0 GB+530 B từ lần đo trước
+            - generic "45%" [ref=f1e7712]
+          - generic [ref=f1e7714]:
+            - text: Qdrant vectors1.0 GB+0 B từ lần đo trước
+            - generic "65%" [ref=f1e7717]
+          - generic [ref=f1e7719]:
+            - text: Telegram media0 B+0 B từ lần đo trước
+            - generic "35%" [ref=f1e7722]
+      - generic [ref=f1e7724]:
+        - generic [ref=f1e7728]:
+          - paragraph [ref=f1e7729]: STORAGE CLEANUP
+          - heading "Dry run → Impact → PendingAction → Owner duyệt." [level=2] [ref=f1e7730]
+        - button "Đang dry run…" [disabled] [ref=f1e7734]

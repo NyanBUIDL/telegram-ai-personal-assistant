@@ -1,0 +1,26 @@
+- main [ref=f2e716]:
+  - generic [ref=f2e717]:
+    - generic [ref=f2e722]:
+      - strong [ref=f2e723]: TELEGRAM//AI
+      - generic [ref=f2e724]: ADMIN CONSOLE
+    - generic [ref=f2e725]:
+      - paragraph [ref=f2e726]: LOCAL OWNER ACCESS
+      - heading "Đăng nhập bảng vận hành." [level=1] [ref=f2e727]: Đăng nhậpbảng vận hành.
+      - paragraph [ref=f2e728]: Dashboard chỉ hoạt động trên máy cục bộ. Secret và session Telegram không được gửi tới trình duyệt.
+    - generic [ref=f2e729]:
+      - generic [ref=f2e730]: LOOPBACK ONLY
+      - generic [ref=f2e731]: HTTPONLY COOKIE
+      - generic [ref=f2e732]: CSRF PROTECTED
+  - generic [ref=f2e734]:
+    - paragraph [ref=f2e738]: OWNER AUTHENTICATION
+    - heading "Mã đăng nhập 8 số" [level=2] [ref=f2e739]
+    - paragraph [ref=f2e740]:
+      - text: Mở PowerShell trong thư mục dự án và chạy
+      - code [ref=f2e741]: .\.venv\Scripts\tg-assistant.exe dashboard-code
+      - text: . Mã hết hạn sau 5 phút.
+    - generic [ref=f2e742]:
+      - generic [ref=f2e743]: Mã đăng nhập
+      - textbox "Mã đăng nhập" [active] [ref=f2e744]:
+        - /placeholder: "00000000"
+    - button "Đăng nhập owner" [disabled] [ref=f2e745]
+    - generic [ref=f2e748]: Không nhập API key, OTP Telegram hoặc mật khẩu vào màn hình này.

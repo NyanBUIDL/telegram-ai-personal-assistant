@@ -1,0 +1,188 @@
+- generic [ref=e36]:
+  - complementary [ref=e37]:
+    - generic [ref=e42]:
+      - strong [ref=e43]: TELEGRAM//AI
+      - generic [ref=e44]: ADMIN CONSOLE
+    - navigation "Điều hướng chính" [ref=e45]:
+      - generic [ref=e46]:
+        - paragraph [ref=e47]: VẬN HÀNH
+        - button "Tổng quan" [ref=e48] [cursor=pointer]
+      - button "Kết nối" [ref=e53] [cursor=pointer]
+      - button "Nhóm Telegram" [ref=e58] [cursor=pointer]
+      - button "Policy Engine" [ref=e63] [cursor=pointer]
+      - generic [ref=e67]:
+        - paragraph [ref=e68]: AI & DỮ LIỆU
+        - button "AI & RAG" [ref=e69] [cursor=pointer]
+      - button "Local Models" [ref=e74] [cursor=pointer]
+      - button "Kho tri thức" [ref=e79] [cursor=pointer]
+      - button "Bộ nhớ & lưu trữ" [ref=e84] [cursor=pointer]
+      - generic [ref=e88]:
+        - paragraph [ref=e89]: KIỂM SOÁT
+        - button "Hành động chờ" [ref=e90] [cursor=pointer]
+      - button "Scheduler & Workers" [ref=e95] [cursor=pointer]
+      - button "Audit Log" [ref=e100] [cursor=pointer]
+      - button "Bảo mật" [ref=e105] [cursor=pointer]
+      - button "Tài liệu & Hệ thống" [ref=e110] [cursor=pointer]
+      - generic [ref=e114]:
+        - paragraph [ref=e115]: TRỢ LÝ CHÍNH
+        - button "Chức năng Telegram" [ref=e116] [cursor=pointer]
+    - generic [ref=e121]:
+      - generic [ref=e122]: OW
+      - generic [ref=e123]:
+        - generic [ref=e124]: Owner 1134327192
+        - generic [ref=e125]: Local · Realtime
+      - button "Đăng xuất" [ref=e126] [cursor=pointer]
+    - generic [ref=e129]:
+      - generic [ref=e130]: RUNTIME
+      - generic [ref=e131]: v0.1.0
+  - main [ref=e133]:
+    - generic [ref=e134]:
+      - generic [ref=e136]:
+        - paragraph [ref=e137]: TELEGRAM AI / TỔNG QUAN
+        - heading "Tổng quan" [level=1] [ref=e138]
+      - generic [ref=e139]:
+        - generic [ref=e140]: LIVE
+        - button "Thông báo" [ref=e142] [cursor=pointer]
+        - button "Hành động chờ" [ref=e145] [cursor=pointer]
+    - generic [ref=e148]:
+      - region "Trạng thái hệ thống" [ref=e149]:
+        - generic [ref=e150]:
+          - generic [ref=e151]: Admin API
+          - generic [ref=e152]: CONNECTED
+          - generic [ref=e153]: Owner auth · CSRF · SSE realtime
+        - generic [ref=e154]:
+          - generic [ref=e155]: Global AI provider
+          - generic [ref=e156]: OPENAI
+          - generic [ref=e157]: gpt-5.6-terra
+        - button "Chức năng Telegram" [ref=e158] [cursor=pointer]
+      - region "Chỉ số 24 giờ" [ref=e161]:
+        - article [ref=e162]:
+          - generic [ref=e163]:
+            - generic [ref=e164]: Tin nhắn 24 giờ
+            - generic [ref=e165]: LIVE
+          - strong [ref=e168]: "1.256"
+          - generic [ref=e169]: Trên 298 nguồn đã tham gia
+        - article [ref=e171]:
+          - generic [ref=e172]:
+            - generic [ref=e173]: Yêu cầu /ask
+            - generic [ref=e174]: LIVE
+          - strong [ref=e177]: "0"
+          - generic [ref=e178]: Câu hỏi bot ghi nhận · không gồm embedding
+        - article [ref=e180]:
+          - generic [ref=e181]:
+            - generic [ref=e182]: Hành động chờ
+            - generic [ref=e183]: LIVE
+          - strong [ref=e186]: "00"
+          - generic [ref=e187]: Cần owner xác nhận
+        - article [ref=e189]:
+          - generic [ref=e190]:
+            - generic [ref=e191]: Bị chặn hoặc lỗi
+            - generic [ref=e192]: LIVE
+          - strong [ref=e195]: "0"
+          - generic [ref=e196]: Audit trong 24 giờ
+      - generic [ref=e198]:
+        - generic [ref=e199]:
+          - generic [ref=e202]: RAM
+          - generic [ref=e203]: 657.8 MB
+          - generic [ref=e204]: PID 23324
+        - generic [ref=e205]:
+          - generic [ref=e208]: Dữ liệu
+          - generic [ref=e209]: 1.0 GB
+          - generic [ref=e210]: MYSQL
+        - generic [ref=e211]:
+          - generic [ref=e214]: Vector
+          - generic [ref=e215]: 1.0 GB
+          - generic [ref=e216]: 0 QUEUED
+        - generic [ref=e217]:
+          - generic [ref=e220]: VRAM
+          - generic [ref=e221]: 0 B
+          - generic [ref=e222]: GPU PROCESS
+      - generic [ref=e223]:
+        - generic [ref=e224]:
+          - generic [ref=e225]:
+            - generic [ref=e226]:
+              - paragraph [ref=e227]: RUNTIME TELEMETRY · LIVE
+              - heading "Tài nguyên theo thời gian" [level=2] [ref=e228]
+            - generic [ref=e229]: 8 MẪU
+          - generic "Chú thích biểu đồ" [ref=e230]:
+            - generic [ref=e231]: RAM tiến trình
+            - generic [ref=e233]: Vector
+            - generic [ref=e235]: Dữ liệu
+          - img "Biểu đồ tài nguyên runtime" [ref=e238]:
+            - generic [ref=e239]: 13:21
+            - generic [ref=e245]: 13:29
+            - generic [ref=e251]: 13:37
+            - generic [ref=e257]: 13:47
+            - generic [ref=e263]: 13:56
+            - generic [ref=e269]: 14:07
+            - generic [ref=e275]: 14:15
+            - generic [ref=e281]: 14:24
+          - generic [ref=e287]:
+            - generic [ref=e288]: 657.7 MB
+            - generic [ref=e289]: RAM của tiến trình tại lần đo gần nhất.
+        - generic [ref=e290]:
+          - generic [ref=e291]:
+            - generic [ref=e292]:
+              - paragraph [ref=e293]: SERVICE HEALTH · LIVE
+              - heading "Nhịp hệ thống" [level=2] [ref=e294]
+            - generic [ref=e295]: RUNTIME SERVICE
+          - generic [ref=e297]:
+            - generic [ref=e299]:
+              - generic [ref=e300]: Admin API
+              - generic [ref=e301]: Phiên dashboard đang hoạt động
+            - strong [ref=e302]: ONLINE
+          - generic [ref=e303]:
+            - button "Mở telemetry" [ref=e304] [cursor=pointer]
+            - button "Xem dung lượng" [ref=e307] [cursor=pointer]
+      - generic [ref=e310]:
+        - generic [ref=e311]:
+          - generic [ref=e312]:
+            - generic [ref=e313]:
+              - paragraph [ref=e314]: OWNER CONFIRMATION · LIVE
+              - heading "Hành động chờ duyệt" [level=2] [ref=e315]
+            - generic [ref=e316]: 0 CHỜ
+          - generic [ref=e317]:
+            - generic [ref=e320]: Không có hành động chờ
+            - generic [ref=e321]: Mọi yêu cầu nhạy cảm đã được owner xử lý.
+        - generic [ref=e322]:
+          - generic [ref=e324]:
+            - paragraph [ref=e325]: AUDIT TRAIL · LIVE
+            - heading "Sự kiện mới nhất" [level=2] [ref=e326]
+          - generic [ref=e329]:
+            - generic [ref=e330]:
+              - time [ref=e331]: 14:27
+              - generic [ref=e333]:
+                - generic [ref=e334]: Dashboard Login
+                - generic [ref=e335]: Runtime
+              - generic [ref=e336]: Success
+            - generic [ref=e337]:
+              - time [ref=e338]: 14:15
+              - generic [ref=e340]:
+                - generic [ref=e341]: Dashboard Login
+                - generic [ref=e342]: Runtime
+              - generic [ref=e343]: Success
+            - generic [ref=e344]:
+              - time [ref=e345]: 14:08
+              - generic [ref=e347]:
+                - generic [ref=e348]: Dashboard Login
+                - generic [ref=e349]: Runtime
+              - generic [ref=e350]: Success
+            - generic [ref=e351]:
+              - time [ref=e352]: 14:08
+              - generic [ref=e354]:
+                - generic [ref=e355]: Dashboard Login
+                - generic [ref=e356]: Runtime
+              - generic [ref=e357]: Success
+            - generic [ref=e358]:
+              - time [ref=e359]: 14:06
+              - generic [ref=e361]:
+                - generic [ref=e362]: Dashboard Login
+                - generic [ref=e363]: Runtime
+              - generic [ref=e364]: Success
+            - generic [ref=e365]:
+              - time [ref=e366]: 14:04
+              - generic [ref=e368]:
+                - generic [ref=e369]: Dashboard Login
+                - generic [ref=e370]: Runtime
+              - generic [ref=e371]: Success
+          - button "Mở audit log" [ref=e372] [cursor=pointer]

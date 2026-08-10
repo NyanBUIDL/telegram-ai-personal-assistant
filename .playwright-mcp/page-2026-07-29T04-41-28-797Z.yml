@@ -1,0 +1,82 @@
+- generic [ref=e1]:
+  - banner [ref=e2]:
+    - link "Mở tổng hợp audit" [ref=e3] [cursor=pointer]:
+      - /url: "#summary"
+      - generic [ref=e4]: TA
+    - navigation "Màn hình prototype" [ref=e8]:
+      - button "Tổng hợp" [ref=e9] [cursor=pointer]
+      - button "Local Models" [ref=e10] [cursor=pointer]
+      - button "Knowledge" [ref=e11] [cursor=pointer]
+      - button "Learning Jobs" [ref=e12] [cursor=pointer]
+      - button "Kết nối" [ref=e13] [cursor=pointer]
+      - button "Modal" [ref=e14] [cursor=pointer]
+    - generic [ref=e15]: OFFLINE
+  - complementary [ref=e18]:
+    - generic [ref=e19]:
+      - paragraph [ref=e20]: PROTOTYPE CONTROLS
+      - heading "Phòng test trạng thái" [level=2] [ref=e21]
+    - generic [ref=e22]:
+      - generic [ref=e23]: Màn hình
+      - group "Mô phỏng kích thước màn hình" [ref=e24]:
+        - button "Desktop" [ref=e25] [cursor=pointer]
+        - button "Mobile" [ref=e26] [cursor=pointer]
+    - generic [ref=e27]:
+      - generic [ref=e28]: Dữ liệu
+      - group "Trạng thái dữ liệu" [ref=e29]:
+        - button "Có dữ liệu" [ref=e30] [cursor=pointer]
+        - button "Loading" [ref=e31] [cursor=pointer]
+        - button "Error" [ref=e32] [cursor=pointer]
+        - button "Empty" [ref=e33] [cursor=pointer]
+    - generic [ref=e34]:
+      - generic [ref=e35]: Mạng
+      - group "Mô phỏng mạng" [ref=e36]:
+        - button "Online" [ref=e37] [cursor=pointer]
+        - button "Offline" [ref=e38] [cursor=pointer]
+    - paragraph [ref=e39]: Desktop · Có dữ liệu · Offline
+  - main [ref=e40]:
+    - generic [ref=e575]:
+      - generic [ref=e576]:
+        - generic [ref=e577]:
+          - paragraph [ref=e578]: RESPONSIVE DIALOG · KEYBOARD SAFE
+          - heading "Modal an toàn tại 360 px" [level=1] [ref=e579]
+          - paragraph [ref=e580]: Có viewport margin, header/footer cố định, content cuộn nội bộ, focus trap và ESC.
+        - generic [ref=e581]: 44 PX TARGETS
+      - generic [ref=e582]:
+        - generic [ref=e584]:
+          - paragraph [ref=e585]: INTERACTION TEST
+          - heading "Mở modal mẫu" [level=2] [ref=e586]
+        - generic [ref=e587]:
+          - article [ref=e588]:
+            - text: SHORT CONTENT
+            - heading "Xác nhận thay model" [level=3] [ref=e589]
+            - paragraph [ref=e590]: Modal ngắn ở giữa màn hình, CTA luôn nhìn thấy.
+            - button "MỞ MODAL NGẮN" [ref=e591] [cursor=pointer]
+          - article [ref=e592]:
+            - text: LONG CONTENT
+            - heading "Tài liệu hệ thống" [level=3] [ref=e593]
+            - paragraph [ref=e594]: Modal dài dùng scroll nội bộ và thành full-screen trên mobile.
+            - button "MỞ MODAL DÀI" [active] [ref=e595] [cursor=pointer]
+        - generic [ref=e596]: "Kiểm tra: Tab / Shift+Tab giữ focus trong modal · ESC đóng · focus trở về nút vừa mở."
+  - dialog [ref=e598]:
+    - banner [ref=e599]:
+      - generic [ref=e600]:
+        - paragraph [ref=e601]: LOCAL DOCUMENT · READ ONLY
+        - heading "USER_GUIDE.md" [level=2] [ref=e602]
+      - button "ĐÓNG" [ref=e603] [cursor=pointer]
+    - generic [ref=e604]:
+      - paragraph [ref=e605]: Hướng dẫn vận hành Telegram AI Personal Assistant. Phần nội dung này dài có chủ đích để kiểm tra scroll nội bộ và footer luôn truy cập được.
+      - heading "Mục tiêu" [level=3] [ref=e606]
+      - paragraph [ref=e607]: Ứng dụng biến lịch sử chat được owner cấp quyền trong các group và channel Telegram thành một kho tri thức chung. “Học” là đồng bộ vào MySQL, làm sạch, tạo embedding và lập chỉ mục để truy xuất; ứng dụng không tự fine-tune model.
+      - heading "Bắt đầu" [level=3] [ref=e608]
+      - paragraph [ref=e609]: Mở dashboard local, đăng nhập bằng mã owner dùng một lần, sau đó kiểm tra trạng thái Admin API và SSE. Chỉ khi header báo LIVE thì snapshot mới được xem là realtime.
+      - heading "Cấp quyền cho nguồn" [level=3] [ref=e610]
+      - paragraph [ref=e611]: Tìm group hoặc channel theo tên, username hay Chat ID. Bật ALLOW trước, rồi chỉ bật các quyền cần dùng. Hành động nhạy cảm luôn đi qua preview và owner confirmation.
+      - heading "Đưa nguồn vào bộ não chung" [level=3] [ref=e612]
+      - paragraph [ref=e613]: Chọn nguồn trong Knowledge, kiểm tra số tin MySQL, vector, dung lượng và lần học gần nhất. Toolbar bulk xuất hiện khi có lựa chọn và ghi rõ phạm vi tác động.
+      - heading "Theo dõi Learning Jobs" [level=3] [ref=e614]
+      - paragraph [ref=e615]: Queued bắt đầu ở 0%; syncing dùng vùng 1–50%; embedding dùng 51–99%; completed luôn là 100%. Failed và paused giữ tiến độ hợp lệ cuối cùng. Khi backend không cung cấp mẫu số tin cậy, giao diện không hiển thị phần trăm.
+      - heading "An toàn vận hành" [level=3] [ref=e616]
+      - paragraph [ref=e617]: Không render secret đã lưu. Mọi thay đổi provider, model, policy hoặc xóa dữ liệu đều phải có impact preview. Khi session hết hạn, quay lại đăng nhập thay vì retry SSE với credential cũ.
+    - contentinfo [ref=e618]:
+      - button "HỦY" [ref=e619] [cursor=pointer]
+      - button "XÁC NHẬN" [ref=e620] [cursor=pointer]

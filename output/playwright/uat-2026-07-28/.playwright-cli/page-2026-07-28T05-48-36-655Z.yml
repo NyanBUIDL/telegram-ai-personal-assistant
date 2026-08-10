@@ -1,0 +1,116 @@
+- generic [ref=f1e12]:
+  - complementary [ref=f1e13]:
+    - generic [ref=f1e18]:
+      - strong [ref=f1e19]: TELEGRAM//AI
+      - generic [ref=f1e20]: ADMIN CONSOLE
+    - navigation "Điều hướng chính" [ref=f1e21]:
+      - generic [ref=f1e22]:
+        - paragraph [ref=f1e23]: VẬN HÀNH
+        - button "Tổng quan" [ref=f1e24] [cursor=pointer]
+      - button "Kết nối" [ref=f1e29] [cursor=pointer]
+      - button "Nhóm Telegram" [ref=f1e34] [cursor=pointer]
+      - button "Policy Engine" [ref=f1e39] [cursor=pointer]
+      - generic [ref=f1e43]:
+        - paragraph [ref=f1e44]: AI & DỮ LIỆU
+        - button "AI & RAG" [active] [ref=f1e45] [cursor=pointer]
+      - button "Local Models" [ref=f1e50] [cursor=pointer]
+      - button "Kho tri thức" [ref=f1e55] [cursor=pointer]
+      - button "Bộ nhớ & lưu trữ" [ref=f1e60] [cursor=pointer]
+      - generic [ref=f1e64]:
+        - paragraph [ref=f1e65]: KIỂM SOÁT
+        - button "Hành động chờ" [ref=f1e66] [cursor=pointer]
+      - button "Scheduler & Workers" [ref=f1e71] [cursor=pointer]
+      - button "Audit Log" [ref=f1e76] [cursor=pointer]
+      - button "Bảo mật" [ref=f1e81] [cursor=pointer]
+      - button "Tài liệu & Hệ thống" [ref=f1e86] [cursor=pointer]
+      - generic [ref=f1e90]:
+        - paragraph [ref=f1e91]: TRỢ LÝ CHÍNH
+        - button "Chức năng Telegram" [ref=f1e92] [cursor=pointer]
+    - generic [ref=f1e97]:
+      - generic [ref=f1e98]: OW
+      - generic [ref=f1e99]:
+        - generic [ref=f1e100]: Owner 1134327192
+        - generic [ref=f1e101]: Local · Realtime
+      - button "Đăng xuất" [ref=f1e102] [cursor=pointer]
+    - generic [ref=f1e105]:
+      - generic [ref=f1e106]: RUNTIME
+      - generic [ref=f1e107]: v0.1.0
+  - main [ref=f1e109]:
+    - generic [ref=f1e110]:
+      - generic [ref=f1e112]:
+        - paragraph [ref=f1e113]: TELEGRAM AI / AI & RAG
+        - heading "AI & RAG" [level=1] [ref=f1e734]
+      - generic [ref=f1e115]:
+        - generic [ref=f1e116]: LIVE
+        - button "Thông báo" [ref=f1e118] [cursor=pointer]
+        - button "Hành động chờ" [ref=f1e121] [cursor=pointer]
+    - generic [ref=f1e735]:
+      - generic [ref=f1e736]:
+        - generic [ref=f1e737]:
+          - paragraph [ref=f1e738]: GLOBAL PROVIDER · LIVE
+          - heading "Nhà cung cấp AI" [level=2] [ref=f1e739]
+          - generic [ref=f1e740]: Provider toàn cục; từng group vẫn có AI mode và fallback riêng.
+        - radiogroup "Nhà cung cấp AI" [ref=f1e741]:
+          - radio "OPENAI" [checked] [ref=f1e742] [cursor=pointer]
+          - radio "OPENROUTER" [ref=f1e743] [cursor=pointer]
+          - radio "OLLAMA" [ref=f1e744] [cursor=pointer]
+          - radio "OFF" [ref=f1e745] [cursor=pointer]
+      - generic [ref=f1e746]:
+        - generic [ref=f1e747]:
+          - generic [ref=f1e750]: Provider
+          - generic [ref=f1e751]: OPENAI
+          - generic [ref=f1e752]: ACTIVE
+        - generic [ref=f1e753]:
+          - generic [ref=f1e756]: Chat model
+          - generic [ref=f1e757]: gpt-5.6-terra
+          - generic [ref=f1e758]: CHAT
+        - generic [ref=f1e759]:
+          - generic [ref=f1e762]: Embedding
+          - generic [ref=f1e763]: text-embedding-3-small
+          - generic [ref=f1e764]: "ON"
+        - generic [ref=f1e765]:
+          - generic [ref=f1e768]: Request 24 giờ
+          - generic [ref=f1e769]: "335"
+          - generic [ref=f1e770]: 0 FAILED
+      - generic [ref=f1e771]:
+        - generic [ref=f1e772]:
+          - generic [ref=f1e773]:
+            - generic [ref=f1e774]:
+              - paragraph [ref=f1e775]: AI USAGE · 24 HOURS
+              - heading "Sử dụng và chi phí" [level=2] [ref=f1e776]
+            - generic [ref=f1e777]: 38.723 TOKENS
+          - generic [ref=f1e778]:
+            - generic [ref=f1e779]:
+              - generic [ref=f1e780]: Input tokens
+              - generic [ref=f1e781]: "38.723"
+              - generic [ref=f1e782]: 24H
+            - generic [ref=f1e783]:
+              - generic [ref=f1e784]: Output tokens
+              - generic [ref=f1e785]: "0"
+              - generic [ref=f1e786]: 24H
+            - generic [ref=f1e787]:
+              - generic [ref=f1e788]: Chi phí ước tính
+              - generic [ref=f1e789]: $0.0008
+              - generic [ref=f1e790]: USD
+            - generic [ref=f1e791]:
+              - generic [ref=f1e792]: Request lỗi
+              - generic [ref=f1e793]: "0"
+              - generic [ref=f1e794]: 24H
+        - generic [ref=f1e795]:
+          - generic [ref=f1e797]:
+            - paragraph [ref=f1e798]: BUDGET GUARD
+            - heading "Ngân sách AI" [level=2] [ref=f1e799]
+          - generic [ref=f1e800]:
+            - generic [ref=f1e801]:
+              - generic [ref=f1e802]:
+                - generic [ref=f1e803]: Ngân sách ngày
+                - generic [ref=f1e804]: Giới hạn cấu hình tại backend
+              - generic [ref=f1e805]: $1.00
+            - generic [ref=f1e806]:
+              - generic [ref=f1e807]:
+                - generic [ref=f1e808]: Ngân sách tháng
+                - generic [ref=f1e809]: Giới hạn cấu hình tại backend
+              - generic [ref=f1e810]: $20.00
+            - generic [ref=f1e811]:
+              - generic [ref=f1e814]: Secret boundary
+              - generic [ref=f1e815]: Dashboard chỉ biết trạng thái provider, không đọc API key.

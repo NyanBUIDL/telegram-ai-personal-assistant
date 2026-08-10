@@ -1,0 +1,126 @@
+- generic [ref=e36]:
+  - complementary [ref=e37]:
+    - generic [ref=e42]:
+      - strong [ref=e43]: TELEGRAM//AI
+      - generic [ref=e44]: ADMIN CONSOLE
+    - navigation "Điều hướng chính" [ref=e45]:
+      - generic [ref=e46]:
+        - paragraph [ref=e47]: VẬN HÀNH
+        - button "Tổng quan" [ref=e48] [cursor=pointer]
+      - button "Kết nối" [ref=e53] [cursor=pointer]
+      - button "Nhóm Telegram" [ref=e58] [cursor=pointer]
+      - button "Policy Engine" [ref=e63] [cursor=pointer]
+      - generic [ref=e67]:
+        - paragraph [ref=e68]: AI & DỮ LIỆU
+        - button "AI & RAG" [active] [ref=e69] [cursor=pointer]
+      - button "Local Models" [ref=e74] [cursor=pointer]
+      - button "Kho tri thức" [ref=e79] [cursor=pointer]
+      - button "Bộ nhớ & lưu trữ" [ref=e84] [cursor=pointer]
+      - generic [ref=e88]:
+        - paragraph [ref=e89]: KIỂM SOÁT
+        - button "Hành động chờ" [ref=e4846] [cursor=pointer]
+      - button "Scheduler & Workers" [ref=e95] [cursor=pointer]
+      - button "Audit Log" [ref=e100] [cursor=pointer]
+      - button "Bảo mật" [ref=e105] [cursor=pointer]
+      - button "Tài liệu & Hệ thống" [ref=e110] [cursor=pointer]
+      - generic [ref=e114]:
+        - paragraph [ref=e115]: TRỢ LÝ CHÍNH
+        - button "Chức năng Telegram" [ref=e116] [cursor=pointer]
+    - generic [ref=e121]:
+      - generic [ref=e122]: OW
+      - generic [ref=e123]:
+        - generic [ref=e124]: Owner 1134327192
+        - generic [ref=e125]: Local · Realtime
+      - button "Đăng xuất" [ref=e126] [cursor=pointer]
+    - generic [ref=e129]:
+      - generic [ref=e130]: RUNTIME
+      - generic [ref=e131]: v0.1.0
+  - main [ref=e133]:
+    - generic [ref=e134]:
+      - generic [ref=e136]:
+        - paragraph [ref=e137]: TELEGRAM AI / AI & RAG
+        - heading "AI & RAG" [level=1] [ref=e7257]
+      - generic [ref=e139]:
+        - generic [ref=e140]: LIVE
+        - button "Thông báo" [ref=e142] [cursor=pointer]
+        - button "Hành động chờ" [ref=e145] [cursor=pointer]
+    - generic [ref=e7258]:
+      - generic [ref=e7259]:
+        - generic [ref=e7260]:
+          - paragraph [ref=e7261]: GLOBAL PROVIDER · LIVE
+          - heading "Nhà cung cấp AI" [level=2] [ref=e7262]
+          - generic [ref=e7263]: Provider toàn cục; từng group vẫn có AI mode và fallback riêng.
+        - radiogroup "Nhà cung cấp AI" [ref=e7264]:
+          - radio "OPENAI" [checked] [ref=e7265] [cursor=pointer]
+          - radio "OPENROUTER" [ref=e7266] [cursor=pointer]
+          - radio "OLLAMA" [ref=e7267] [cursor=pointer]
+          - radio "OFF" [ref=e7268] [cursor=pointer]
+      - generic [ref=e7269]:
+        - generic [ref=e7270]:
+          - generic [ref=e7273]: Provider
+          - generic [ref=e7274]: OPENAI
+          - generic [ref=e7275]: ACTIVE
+        - generic [ref=e7276]:
+          - generic [ref=e7279]: Chat model
+          - generic [ref=e7280]: gpt-5.6-terra
+          - generic [ref=e7281]: CHAT
+        - generic [ref=e7282]:
+          - generic [ref=e7285]: Embedding
+          - generic [ref=e7286]: text-embedding-3-small
+          - generic [ref=e7287]: "ON"
+        - generic [ref=e7288]:
+          - generic [ref=e7291]: Request 24 giờ
+          - generic [ref=e7292]: "399"
+          - generic [ref=e7293]: 0 FAILED
+      - generic [ref=e7294]:
+        - generic [ref=e7295]:
+          - generic [ref=e7296]:
+            - generic [ref=e7297]:
+              - paragraph [ref=e7298]: AI USAGE · 24 HOURS
+              - heading "Sử dụng và chi phí" [level=2] [ref=e7299]
+            - generic [ref=e7300]: 69.800 TOKENS
+          - generic [ref=e7301]:
+            - generic [ref=e7302]:
+              - generic [ref=e7303]: Input tokens
+              - generic [ref=e7304]: "66.728"
+              - generic [ref=e7305]: 24H
+            - generic [ref=e7306]:
+              - generic [ref=e7307]: Output tokens
+              - generic [ref=e7308]: "3.072"
+              - generic [ref=e7309]: 24H
+            - generic [ref=e7310]:
+              - generic [ref=e7311]: Chi phí ước tính
+              - generic [ref=e7312]: $0.0962
+              - generic [ref=e7313]: USD
+            - generic [ref=e7314]:
+              - generic [ref=e7315]: Request lỗi
+              - generic [ref=e7316]: "0"
+              - generic [ref=e7317]: 24H
+          - generic [ref=e7318]:
+            - generic [ref=e7319]: Phân rã theo công năng
+            - generic [ref=e7320]:
+              - generic [ref=e7321]: Tạo embedding
+              - strong [ref=e7322]: 394 request
+              - generic [ref=e7323]: 47.063 tokens · 0 lỗi
+            - generic [ref=e7324]:
+              - generic [ref=e7325]: Trả lời AI
+              - strong [ref=e7326]: 5 request
+              - generic [ref=e7327]: 22.737 tokens · 0 lỗi
+        - generic [ref=e7328]:
+          - generic [ref=e7330]:
+            - paragraph [ref=e7331]: BUDGET GUARD
+            - heading "Ngân sách AI" [level=2] [ref=e7332]
+          - generic [ref=e7333]:
+            - generic [ref=e7334]:
+              - generic [ref=e7335]:
+                - generic [ref=e7336]: Ngân sách ngày
+                - generic [ref=e7337]: Giới hạn cấu hình tại backend
+              - generic [ref=e7338]: $1.00
+            - generic [ref=e7339]:
+              - generic [ref=e7340]:
+                - generic [ref=e7341]: Ngân sách tháng
+                - generic [ref=e7342]: Giới hạn cấu hình tại backend
+              - generic [ref=e7343]: $20.00
+            - generic [ref=e7344]:
+              - generic [ref=e7347]: Secret boundary
+              - generic [ref=e7348]: Dashboard chỉ biết trạng thái provider, không đọc API key.
