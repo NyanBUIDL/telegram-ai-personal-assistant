@@ -136,6 +136,11 @@ export const api = {
       { responseType: "blob" },
     );
   },
+  previewHistoryLinkDeletion: (chatId, mode) =>
+    request(`/groups/${encodeURIComponent(chatId)}/history-delete-preview`, {
+      method: "POST",
+      body: { mode },
+    }),
   setPermission: (chatId, permission, enabled) =>
     request(`/groups/${encodeURIComponent(chatId)}/permissions`, {
       method: "POST",
@@ -219,6 +224,10 @@ export const api = {
   historyBackfillJobs: (chatId, limit = 10) =>
     request(
       `/history-backfill-jobs?chat_id=${encodeURIComponent(chatId)}&limit=${limit}`,
+    ),
+  historyLinkDeleteJobs: (chatId, limit = 10) =>
+    request(
+      `/history-link-delete-jobs?chat_id=${encodeURIComponent(chatId)}&limit=${limit}`,
     ),
   pauseAllLearning: () => request("/learning-jobs/pause-all", { method: "POST" }),
   resumeAllLearning: () =>

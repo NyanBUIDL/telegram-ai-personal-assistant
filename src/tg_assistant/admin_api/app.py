@@ -45,6 +45,7 @@ from ..services.history_export import (
     encode_csv_row,
     history_csv_header,
     history_csv_row,
+    matches_history_delete_mode,
     parse_search_terms,
 )
 from ..services.knowledge_inventory import (
@@ -68,6 +69,7 @@ from .schemas import (
     AiRouteUpdate,
     DashboardPreferencesUpdate,
     GroupActionRequest,
+    HistoryDeletePreviewRequest,
     KnowledgeDeleteRequest,
     KnowledgeNoteUpdate,
     KnowledgeSelectionRequest,
@@ -1014,6 +1016,79 @@ def create_admin_app(context: AdminContext) -> FastAPI:
             headers={"Content-Disposition": f'attachment; filename="{filename}"'},
         )
 
+    @app.post("/api/v1/groups/{chat_id}/history-delete-preview", status_code=201)
+    async def preview_history_link_deletion(
+        chat_id: int,
+        payload: HistoryDeletePreviewRequest,
+        _session: AdminSession = Depends(require_write_session),
+    ) -> dict:
+        async with context.database.session() as db:
+            chat = await db.scalar(select(TelegramChat).where(TelegramChat.chat_id == chat_id))
+            if not chat:
+                raise HTTPException(status_code=404, detail="Không tìm thấy group/channel.")
+            rows = list(
+                (
+                    await db.scalars(
+                        select(TelegramMessage)
+                        .where(
+                            TelegramMessage.chat_id == chat_id,
+                            TelegramMessage.is_deleted.is_(False),
+                            TelegramMessage.text.is_not(None),
+                        )
+                        .order_by(TelegramMessage.message_id.asc())
+                    )
+                ).all()
+            )
+            candidates = [
+                row for row in rows if matches_history_delete_mode(row.text, payload.mode)
+            ]
+            if not candidates:
+                raise HTTPException(
+                    status_code=422,
+                    detail="Không có post phù hợp với điều kiện xóa đã chọn.",
+                )
+            mode_label = (
+                "mọi post có link"
+                if payload.mode == "all_links"
+                else "post có link kèm dấu hiệu promotion"
+            )
+            action = await pending.create(
+                db,
+                action_type="delete_history_link_posts",
+                requested_by=context.owner_id,
+                chat_id=chat_id,
+                payload={
+                    "mode": payload.mode,
+                    "candidate_count": len(candidates),
+                    "max_message_id": max(row.message_id for row in candidates),
+                    "sample_message_ids": [row.message_id for row in candidates[:20]],
+                },
+                preview=(
+                    f"Xóa {len(candidates):,} {mode_label} khỏi Telegram source "
+                    f"“{chat.title or chat_id}”. Preview khóa ở Message ID "
+                    f"≤ {max(row.message_id for row in candidates)}; post mới sau preview không bị xóa."
+                ),
+                reason=(
+                    "Không thể hoàn tác trên Telegram. Sau owner confirmation, worker sẽ "
+                    "xóa theo lô và ghi audit log. Cần quyền delete_messages thực tế."
+                ),
+            )
+            db.add(
+                _audit(
+                    owner_id=context.owner_id,
+                    action="history_link_delete_preview_created",
+                    outcome="pending",
+                    target_type="telegram_chat",
+                    target_id=chat_id,
+                    details={
+                        "action_id": action.action_id,
+                        "mode": payload.mode,
+                        "candidate_count": len(candidates),
+                    },
+                )
+            )
+        return _action_json(action)
+
     @app.post("/api/v1/groups/{chat_id}/permissions", status_code=status.HTTP_201_CREATED)
     async def create_permission_action(
         chat_id: int,
@@ -1604,6 +1679,25 @@ def create_admin_app(context: AdminContext) -> FastAPI:
         _session: AdminSession = Depends(require_session),
     ) -> dict:
         query = select(BackgroundJob).where(BackgroundJob.job_type == "history_backfill")
+        if chat_id is not None:
+            query = query.where(cast(BackgroundJob.payload["chat_id"], String) == str(chat_id))
+        async with context.database.session() as db:
+            rows = list(
+                (
+                    await db.scalars(
+                        query.order_by(BackgroundJob.created_at.desc()).limit(limit)
+                    )
+                ).all()
+            )
+        return {"items": [_job_json(row) for row in rows]}
+
+    @app.get("/api/v1/history-link-delete-jobs")
+    async def history_link_delete_jobs(
+        chat_id: int | None = Query(default=None),
+        limit: int = Query(default=50, ge=1, le=500),
+        _session: AdminSession = Depends(require_session),
+    ) -> dict:
+        query = select(BackgroundJob).where(BackgroundJob.job_type == "history_link_delete")
         if chat_id is not None:
             query = query.where(cast(BackgroundJob.payload["chat_id"], String) == str(chat_id))
         async with context.database.session() as db:

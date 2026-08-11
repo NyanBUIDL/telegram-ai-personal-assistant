@@ -63,6 +63,7 @@ from .services.coingecko import (
     format_coin_price,
 )
 from .services.daily_digest import referenced_item_indexes
+from .services.history_export import matches_history_delete_mode
 from .services.memory import MemoryService
 from .services.ollama import OllamaPullCancelled, OllamaService
 from .services.operations import (
@@ -1519,6 +1520,128 @@ class Application:
                 )
             log.warning("history_backfill_job_failed", job_id=job_id, error=error)
 
+    async def _run_history_link_delete_job(self, job_id: str) -> None:
+        """Delete a confirmed, bounded historical-link selection in safe Telegram batches."""
+        try:
+            async with self.database.session() as session:
+                job = await session.get(BackgroundJob, job_id)
+                if not job:
+                    return
+                payload = dict(job.payload or {})
+                chat_id = int(payload["chat_id"])
+                owner_id = int(payload["owner_id"])
+                mode = str(payload["mode"])
+                max_message_id = int(payload["max_message_id"])
+                cursor = int(payload.get("scan_cursor", 0))
+                rows = list(
+                    (
+                        await session.scalars(
+                            select(TelegramMessage)
+                            .where(
+                                TelegramMessage.chat_id == chat_id,
+                                TelegramMessage.is_deleted.is_(False),
+                                TelegramMessage.text.is_not(None),
+                                TelegramMessage.message_id > cursor,
+                                TelegramMessage.message_id <= max_message_id,
+                            )
+                            .order_by(TelegramMessage.message_id.asc())
+                            .limit(500)
+                        )
+                    ).all()
+                )
+                candidates = [
+                    row for row in rows if matches_history_delete_mode(row.text, mode)
+                ]
+                if candidates:
+                    actual_rights = await self.user.get_actual_rights(chat_id)
+                    rights = frozenset(key for key, enabled in actual_rights.items() if enabled)
+                    for start in range(0, len(candidates), 100):
+                        batch = candidates[start : start + 100]
+                        await self.user.delete_messages_bulk(
+                            session,
+                            chat_id=chat_id,
+                            message_ids=[int(row.message_id) for row in batch],
+                            actor_id=owner_id,
+                            owner_id=int(self.user.owner_id),
+                            telegram_rights=rights,
+                        )
+                        for row in batch:
+                            row.is_deleted = True
+                scanned = int(payload.get("scanned", 0)) + len(rows)
+                deleted = int(payload.get("deleted", 0)) + len(candidates)
+                completed = len(rows) < 500
+                candidate_count = max(int(payload.get("candidate_count", 0)), 1)
+                job.payload = {
+                    **payload,
+                    "phase": "completed" if completed else "deleting",
+                    "scan_cursor": rows[-1].message_id if rows else cursor,
+                    "scanned": scanned,
+                    "deleted": deleted,
+                    "last_batch": len(candidates),
+                    "progress": 100 if completed else min(99, round(deleted * 100 / candidate_count)),
+                    "progress_note": (
+                        "Đã xử lý hết phạm vi preview." if completed
+                        else "Đang xóa theo lô; post mới sau preview không nằm trong phạm vi."
+                    ),
+                }
+                job.locked_by = None
+                job.locked_at = None
+                job.last_error = None
+                if completed:
+                    job.status = "completed"
+                    job.attempts = 0
+                    session.add(
+                        AuditLog(
+                            occurred_at=datetime.now(UTC),
+                            actor_id=owner_id,
+                            action="history_link_delete_completed",
+                            target_type="telegram_chat",
+                            target_id=str(chat_id),
+                            outcome="success",
+                            details_redacted={
+                                "job_id": job.id,
+                                "mode": mode,
+                                "deleted": deleted,
+                            },
+                            correlation_id=job.id,
+                        )
+                    )
+                else:
+                    job.status = "queued"
+                    job.attempts = 0
+                    job.run_after = datetime.now(UTC) + timedelta(seconds=2)
+        except Exception as exc:
+            error = str(redact(str(exc)))[:1000]
+            async with self.database.session() as session:
+                job = await session.get(BackgroundJob, job_id)
+                if not job:
+                    return
+                job.locked_by = None
+                job.locked_at = None
+                job.last_error = error
+                if job.attempts >= job.max_attempts:
+                    job.status = "failed"
+                    phase = "failed"
+                else:
+                    job.status = "queued"
+                    job.run_after = datetime.now(UTC) + timedelta(minutes=job.attempts)
+                    phase = "retrying"
+                job.payload = {**(job.payload or {}), "phase": phase}
+                session.add(
+                    AuditLog(
+                        occurred_at=datetime.now(UTC),
+                        actor_id=int(self.user.owner_id),
+                        action="history_link_delete",
+                        target_type="telegram_chat",
+                        target_id=str((job.payload or {}).get("chat_id", "")),
+                        outcome="failed",
+                        reason=error,
+                        details_redacted={"job_id": job.id, "attempt": job.attempts},
+                        correlation_id=job.id,
+                    )
+                )
+            log.warning("history_link_delete_job_failed", job_id=job_id, error=error)
+
     async def _process_admin_jobs(self) -> None:
         """Run bounded dashboard jobs that must not block an HTTP request."""
         job_id: str | None = None
@@ -1527,7 +1650,9 @@ class Application:
                 (
                     await session.scalars(
                         select(BackgroundJob).where(
-                            BackgroundJob.job_type == "history_backfill",
+                            BackgroundJob.job_type.in_(
+                                ("history_backfill", "history_link_delete")
+                            ),
                             BackgroundJob.status == "running",
                             BackgroundJob.locked_at < datetime.now(UTC) - timedelta(minutes=15),
                         )
@@ -1542,7 +1667,9 @@ class Application:
             job = await session.scalar(
                 select(BackgroundJob)
                 .where(
-                    BackgroundJob.job_type.in_(("ollama_pull", "history_backfill")),
+                    BackgroundJob.job_type.in_(
+                        ("ollama_pull", "history_backfill", "history_link_delete")
+                    ),
                     BackgroundJob.status == "queued",
                     (BackgroundJob.run_after.is_(None))
                     | (BackgroundJob.run_after <= datetime.now(UTC)),
@@ -1562,6 +1689,9 @@ class Application:
             job_type = job.job_type
         if job_type == "history_backfill":
             await self._run_history_backfill_job(job_id)
+            return
+        if job_type == "history_link_delete":
+            await self._run_history_link_delete_job(job_id)
             return
         try:
             async with self.database.session() as session:
@@ -2059,6 +2189,7 @@ class Application:
             "enable_group_learning",
             "leave_telegram_chat",
             "delete_learned_data",
+            "delete_history_link_posts",
             "recover_source_index",
         }:
             target_type, target_id = "chat_policy", str(action.chat_id)
@@ -2128,6 +2259,7 @@ class Application:
                             "send_message",
                             "edit_message",
                             "delete_message",
+                            "delete_history_link_posts",
                             "pin_message",
                             "set_group_ai_ask",
                             "leave_telegram_chat",
@@ -2305,6 +2437,57 @@ class Application:
                                         "phase": "queued",
                                         "progress": None,
                                         "progress_note": "Chờ worker quét lịch sử cũ.",
+                                    },
+                                    status="queued",
+                                    max_attempts=5,
+                                )
+                                session.add(job)
+                                await session.flush()
+                            action.payload = {
+                                **action.payload,
+                                "job_id": job.id,
+                                "job_status": job.status,
+                            }
+                        elif action.action_type == "delete_history_link_posts":
+                            chat_id = int(action.chat_id)
+                            active_jobs = list(
+                                (
+                                    await session.scalars(
+                                        select(BackgroundJob).where(
+                                            BackgroundJob.job_type == "history_link_delete",
+                                            BackgroundJob.status.in_(("queued", "running")),
+                                        )
+                                    )
+                                ).all()
+                            )
+                            existing_job = next(
+                                (
+                                    item
+                                    for item in active_jobs
+                                    if str((item.payload or {}).get("chat_id")) == str(chat_id)
+                                ),
+                                None,
+                            )
+                            if existing_job:
+                                job = existing_job
+                            else:
+                                job = BackgroundJob(
+                                    job_type="history_link_delete",
+                                    payload={
+                                        "action_id": action.action_id,
+                                        "chat_id": chat_id,
+                                        "owner_id": action.requested_by,
+                                        "mode": str(action.payload["mode"]),
+                                        "max_message_id": int(action.payload["max_message_id"]),
+                                        "candidate_count": int(
+                                            action.payload["candidate_count"]
+                                        ),
+                                        "scan_cursor": 0,
+                                        "scanned": 0,
+                                        "deleted": 0,
+                                        "phase": "queued",
+                                        "progress": 0,
+                                        "progress_note": "Chờ worker xóa các post trong phạm vi preview.",
                                     },
                                     status="queued",
                                     max_attempts=5,

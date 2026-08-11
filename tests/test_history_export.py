@@ -7,7 +7,11 @@ import pytest
 
 from tg_assistant.db.models import PermissionName, TelegramChat, TelegramMessage
 from tg_assistant.policy import PolicyEngine
-from tg_assistant.services.history_export import history_csv_row, parse_search_terms
+from tg_assistant.services.history_export import (
+    history_csv_row,
+    matches_history_delete_mode,
+    parse_search_terms,
+)
 from tg_assistant.telegram.user_client import UserClientAdapter
 
 
@@ -36,6 +40,9 @@ def test_history_export_marks_promotion_and_requested_terms() -> None:
     assert row[10] == "yes"
     assert row[11] == "sol"
     assert row[12] == "https://t.me/source_channel/42"
+    assert matches_history_delete_mode(message.text, "all_links")
+    assert matches_history_delete_mode(message.text, "promotion_links")
+    assert not matches_history_delete_mode("Đọc https://example.com/tin", "promotion_links")
 
 
 class FakeHistoryClient:

@@ -43,6 +43,15 @@ def promotion_reasons(text: str | None) -> list[str]:
     return [label for label, pattern in PROMOTION_PATTERNS if pattern.search(content)]
 
 
+def matches_history_delete_mode(text: str | None, mode: str) -> bool:
+    reasons = set(promotion_reasons(text))
+    if mode == "all_links":
+        return "link" in reasons
+    if mode == "promotion_links":
+        return {"link", "promotion_keyword"}.issubset(reasons)
+    raise ValueError("Chế độ xóa lịch sử không hợp lệ.")
+
+
 def matched_terms(text: str | None, terms: Iterable[str]) -> list[str]:
     content = (text or "").casefold()
     return [term for term in terms if term.casefold() in content]

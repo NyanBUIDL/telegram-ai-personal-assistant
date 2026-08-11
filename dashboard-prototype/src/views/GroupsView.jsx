@@ -585,6 +585,11 @@ export function GroupDetailView({
     [chatId],
     refreshKey,
   );
+  const deletionResource = useResource(
+    () => api.historyLinkDeleteJobs(chatId),
+    [chatId],
+    refreshKey,
+  );
   const group = resource.data;
   const [aiRoute, setAiRoute] = useState(null);
   const [aiEfficiency, setAiEfficiency] = useState(null);
@@ -770,6 +775,15 @@ export function GroupDetailView({
     }
   };
 
+  const previewHistoryLinkDeletion = async (mode) => {
+    const action = await perform(
+      `history-delete-${mode}`,
+      () => api.previewHistoryLinkDeletion(chatId, mode),
+      "Đã tạo preview xóa; chưa có post Telegram nào bị xóa.",
+    );
+    if (action) onCreatedAction(action);
+  };
+
   if (resource.loading && !group) return <LoadingState label="Đang tải policy nguồn…" />;
   if (resource.error && !group)
     return <ErrorState error={resource.error} onRetry={resource.reload} />;
@@ -779,6 +793,8 @@ export function GroupDetailView({
   const policy = group.policy;
   const latestBackfill = backfillResource.data?.items?.[0] || null;
   const backfillPayload = latestBackfill?.payload || {};
+  const latestDeletion = deletionResource.data?.items?.[0] || null;
+  const deletionPayload = latestDeletion?.payload || {};
 
   return (
     <section className="ops-stack group-detail">
@@ -993,6 +1009,44 @@ export function GroupDetailView({
             <DownloadSimple size={18} />
             {saving === "history-export" ? "Đang tạo CSV…" : "Xuất lịch sử CSV"}
           </button>
+        </div>
+        <div className="history-delete-zone">
+          <div>
+            <span className="eyebrow">DESTRUCTIVE · OWNER CONFIRMATION</span>
+            <b>Xóa post lịch sử trên Telegram</b>
+            <p>
+              Chỉ dùng khi tài khoản có quyền <code>delete_messages</code>. Bước dưới đây
+              chỉ tạo preview; post mới sau preview không bị xóa.
+            </p>
+          </div>
+          {latestDeletion ? (
+            <div className="history-delete-progress" aria-live="polite">
+              <span>{humanize(latestDeletion.status)}</span>
+              <b>{formatNumber(deletionPayload.deleted || 0)} post đã xóa</b>
+              <small>{deletionPayload.progress_note || "Chờ worker cập nhật."}</small>
+            </div>
+          ) : null}
+          <div className="history-delete-actions">
+            <button
+              className="button button--danger"
+              disabled={Boolean(saving) || !policy.allowed || !permissions.delete_any_messages}
+              onClick={() => previewHistoryLinkDeletion("all_links")}
+            >
+              Preview: xóa mọi post có link
+            </button>
+            <button
+              className="button button--danger"
+              disabled={Boolean(saving) || !policy.allowed || !permissions.delete_any_messages}
+              onClick={() => previewHistoryLinkDeletion("promotion_links")}
+            >
+              Preview: xóa link + promotion
+            </button>
+          </div>
+          {!permissions.delete_any_messages ? (
+            <small className="field-helper">
+              Hãy bật quyền <code>delete_any_messages</code> cho nguồn trước khi tạo preview.
+            </small>
+          ) : null}
         </div>
       </section>
 

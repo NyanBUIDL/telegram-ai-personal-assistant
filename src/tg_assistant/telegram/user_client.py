@@ -764,6 +764,33 @@ class UserClientAdapter:
             raise PermissionError(decision.reason.value)
         await self.client.delete_messages(chat_id, [message_id])
 
+    async def delete_messages_bulk(
+        self,
+        session: AsyncSession,
+        *,
+        chat_id: int,
+        message_ids: list[int],
+        actor_id: int,
+        owner_id: int,
+        telegram_rights: frozenset[str],
+    ) -> None:
+        if not message_ids:
+            return
+        decision = await self.policy.evaluate(
+            session,
+            PolicyContext(
+                actor_id,
+                owner_id,
+                chat_id,
+                PermissionName.DELETE_ANY_MESSAGES,
+                telegram_rights,
+                True,
+            ),
+        )
+        if not decision.allowed:
+            raise PermissionError(decision.reason.value)
+        await self.client.delete_messages(chat_id, message_ids)
+
     async def edit_message(
         self,
         session: AsyncSession,

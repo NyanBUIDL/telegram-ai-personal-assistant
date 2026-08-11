@@ -23,6 +23,7 @@ class GroupActionRequest(BaseModel):
         "set_group_ai_ask",
         "sync_chat_history",
         "backfill_chat_history",
+        "delete_history_link_posts",
         "enable_group_learning",
     ]
     payload: dict = Field(default_factory=dict)
@@ -35,6 +36,10 @@ class GroupActionRequest(BaseModel):
         if len(str(value)) > 20_000:
             raise ValueError("Payload vượt giới hạn an toàn.")
         return value
+
+
+class HistoryDeletePreviewRequest(BaseModel):
+    mode: Literal["all_links", "promotion_links"]
 
 
 class PermissionUpdate(BaseModel):

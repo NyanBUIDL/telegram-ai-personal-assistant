@@ -79,6 +79,7 @@ const ACTION_LABELS = {
   set_group_ai_ask: "Bật/tắt AI trong group",
   sync_chat_history: "Đồng bộ lịch sử Telegram",
   backfill_chat_history: "Quét toàn bộ lịch sử Telegram",
+  delete_history_link_posts: "Xóa hàng loạt post lịch sử",
   enable_group_learning: "Học một nguồn",
   enable_group_learning_bulk: "Học nhiều nguồn",
   leave_telegram_chat: "Rời group/channel",

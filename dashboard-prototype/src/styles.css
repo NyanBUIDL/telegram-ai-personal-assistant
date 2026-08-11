@@ -940,6 +940,12 @@ tbody tr:hover td { background: #f7eec5; }
 .history-export-form { padding: 18px; display: grid; grid-template-columns: minmax(280px, 1fr) auto auto auto; gap: 12px; align-items: end; }
 .history-check { min-height: 44px; display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: var(--paper); border: 2px solid var(--ink); font-size: 12px; font-weight: 700; }
 .history-check input { width: 18px; height: 18px; accent-color: var(--teal-dark); }
+.history-delete-zone { padding: 18px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 14px; background: #f3d9df; border-top: 2px solid var(--ink); }
+.history-delete-zone > div:first-child b { display: block; margin-top: 5px; font-size: 18px; text-transform: uppercase; }
+.history-delete-zone p { max-width: 680px; margin: 5px 0 0; color: #682039; font-size: 13px; font-weight: 600; line-height: 1.4; }
+.history-delete-progress { grid-column: 1 / -1; display: grid; grid-template-columns: 130px auto 1fr; gap: 12px; align-items: center; padding: 10px 12px; border: 2px solid var(--ink); background: var(--paper); }
+.history-delete-progress span, .history-delete-progress small { font-size: 12px; font-weight: 700; }
+.history-delete-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; align-items: center; }
 .button--danger { color: var(--paper); background: var(--magenta); border-color: var(--ink); }
 .button--danger:hover { color: var(--ink); background: var(--yellow); }
 
@@ -2204,6 +2210,10 @@ tbody tr:hover td { background: #f7eec5; }
   .history-job-strip { grid-template-columns: 1fr; gap: 3px; }
   .history-export-form { grid-template-columns: 1fr; padding: 14px; }
   .history-export-form .button { width: 100%; justify-content: center; }
+  .history-delete-zone { grid-template-columns: 1fr; padding: 14px; }
+  .history-delete-progress { grid-template-columns: 1fr; gap: 3px; }
+  .history-delete-actions { display: grid; grid-template-columns: 1fr; }
+  .history-delete-actions .button { width: 100%; justify-content: center; }
   .model-grid,
   .knowledge-source-cards { grid-template-columns: 1fr; }
   .model-card-actions { align-items: stretch; flex-direction: column; }
