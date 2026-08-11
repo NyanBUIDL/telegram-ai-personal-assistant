@@ -1468,6 +1468,7 @@ class Application:
                 job.last_error = None
                 if page.completed:
                     job.status = "completed"
+                    job.attempts = 0
                     session.add(
                         AuditLog(
                             occurred_at=datetime.now(UTC),
@@ -1482,6 +1483,9 @@ class Application:
                     )
                 else:
                     job.status = "queued"
+                    # ``attempts`` tracks failures, not successful 500-post pages.
+                    # Otherwise a long channel would always stop after max_attempts pages.
+                    job.attempts = 0
                     job.run_after = datetime.now(UTC) + timedelta(seconds=2)
         except Exception as exc:
             error = str(redact(str(exc)))[:1000]
