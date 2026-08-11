@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime
+
 import httpx
 import pytest
 from fastapi import HTTPException
@@ -8,7 +10,7 @@ from tg_assistant.admin_api import AdminContext, create_admin_app, dashboard_log
 from tg_assistant.admin_api.app import _job_json, _update_job_state
 from tg_assistant.config import Settings
 from tg_assistant.db.base import Base, Database
-from tg_assistant.db.models import BackgroundJob, TelegramChat
+from tg_assistant.db.models import BackgroundJob, TelegramChat, TelegramMessage
 from tg_assistant.policy import PolicyEngine
 from tg_assistant.services.ollama import OllamaService
 
@@ -160,6 +162,49 @@ async def test_admin_api_creates_backfill_preview_and_exports_history(admin_clie
     jobs = await client.get("/api/v1/history-backfill-jobs", params={"chat_id": chat_id})
     assert jobs.status_code == 200
     assert jobs.json()["items"] == []
+
+
+async def test_admin_api_lists_and_previews_selected_history_link_posts(admin_client) -> None:
+    client, secret = admin_client
+    chat_id = -1001315055119
+    async with client._transport.app.state.admin_context.database.session() as session:
+        session.add_all(
+            [
+                TelegramMessage(
+                    chat_id=chat_id,
+                    message_id=101,
+                    text="Bài thường có link https://example.com",
+                    sent_at=datetime.now(UTC),
+                ),
+                TelegramMessage(
+                    chat_id=chat_id,
+                    message_id=102,
+                    text="Airdrop promotion https://example.com",
+                    sent_at=datetime.now(UTC),
+                ),
+            ]
+        )
+    login = await client.post(
+        "/api/v1/auth/login", json={"code": dashboard_login_code(secret)}
+    )
+    csrf = login.json()["csrf_token"]
+
+    candidates = await client.get(
+        f"/api/v1/groups/{chat_id}/history-delete-candidates",
+        params={"mode": "all_links", "page": 1, "page_size": 50},
+    )
+    assert candidates.status_code == 200
+    assert candidates.json()["total"] == 2
+    assert candidates.json()["items"][0]["message_id"] == 102
+
+    action = await client.post(
+        f"/api/v1/groups/{chat_id}/history-delete-preview",
+        json={"mode": "all_links", "selected_message_ids": [102]},
+        headers={"X-CSRF-Token": csrf},
+    )
+    assert action.status_code == 201
+    assert action.json()["payload"]["candidate_count"] == 1
+    assert action.json()["payload"]["selected_message_ids"] == [102]
 
 
 async def test_admin_api_knowledge_coverage_export_and_enable_all_preview(

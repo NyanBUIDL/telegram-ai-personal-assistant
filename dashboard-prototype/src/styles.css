@@ -948,6 +948,39 @@ tbody tr:hover td { background: #f7eec5; }
 .history-delete-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; align-items: center; }
 .button--danger { color: var(--paper); background: var(--magenta); border-color: var(--ink); }
 .button--danger:hover { color: var(--ink); background: var(--yellow); }
+.history-delete-modal {
+  width: min(900px, calc(100vw - 40px));
+  max-height: calc(100dvh - 40px);
+  padding: 0;
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  overflow: hidden;
+  background: #dbe8e6;
+}
+.history-delete-modal-note { display: block; max-width: 640px; margin-top: 7px; color: var(--muted); font-size: 13px; font-weight: 700; line-height: 1.35; }
+.history-delete-selectbar { display: flex; justify-content: space-between; align-items: center; gap: 14px; padding: 12px 18px; border-bottom: 2px solid var(--ink); background: var(--yellow); }
+.history-delete-selectbar label { display: flex; align-items: center; gap: 9px; font-size: 13px; font-weight: 800; }
+.history-delete-selectbar input,
+.telegram-delete-check input { width: 20px; height: 20px; accent-color: var(--magenta); }
+.history-delete-selectbar > div { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 10px; }
+.history-delete-selectbar b { font-size: 13px; white-space: nowrap; }
+.history-delete-list { min-height: 0; padding: 16px; overflow-y: auto; overscroll-behavior: contain; background: #bed6d3; }
+.telegram-delete-post { display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 9px; align-items: start; padding: 8px 0; }
+.telegram-delete-check { min-height: 48px; display: grid; place-items: center; cursor: pointer; }
+.telegram-post-bubble { min-width: 0; padding: 11px 13px; background: var(--paper-2); border: 2px solid var(--ink); box-shadow: 3px 3px 0 rgba(9, 9, 9, .23); }
+.telegram-delete-post.is-selected .telegram-post-bubble { background: #fff1be; box-shadow: 4px 4px 0 var(--magenta); }
+.telegram-post-bubble header,
+.telegram-post-bubble footer { display: flex; align-items: center; gap: 8px; }
+.telegram-post-bubble header { justify-content: space-between; }
+.telegram-post-bubble header b { min-width: 0; color: var(--teal-dark); font-size: 13px; overflow-wrap: anywhere; }
+.telegram-post-bubble header span,
+.telegram-post-bubble footer > span { color: var(--muted); font-size: 11px; font-weight: 700; }
+.telegram-post-bubble p { margin: 8px 0 9px; white-space: pre-wrap; overflow-wrap: anywhere; font-family: Arial, sans-serif; font-size: 14px; line-height: 1.42; }
+.telegram-post-bubble footer { flex-wrap: wrap; }
+.telegram-post-bubble footer a { margin-left: auto; color: var(--teal-dark); font-size: 12px; font-weight: 800; }
+.history-delete-modal-footer { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 13px 18px; border-top: 2px solid var(--ink); background: var(--paper-2); }
+.history-delete-pagination { display: flex; align-items: center; gap: 8px; }
+.history-delete-pagination > span { min-width: 88px; text-align: center; font-size: 12px; font-weight: 800; }
 
 .ops-toggle {
   width: 76px;
@@ -2214,6 +2247,13 @@ tbody tr:hover td { background: #f7eec5; }
   .history-delete-progress { grid-template-columns: 1fr; gap: 3px; }
   .history-delete-actions { display: grid; grid-template-columns: 1fr; }
   .history-delete-actions .button { width: 100%; justify-content: center; }
+  .history-delete-modal { width: min(900px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); }
+  .history-delete-selectbar,
+  .history-delete-modal-footer { align-items: stretch; flex-direction: column; padding: 12px 14px; }
+  .history-delete-selectbar > div { justify-content: space-between; }
+  .history-delete-modal-footer > .button { width: 100%; justify-content: center; }
+  .history-delete-pagination { justify-content: space-between; }
+  .history-delete-list { padding: 11px; }
   .model-grid,
   .knowledge-source-cards { grid-template-columns: 1fr; }
   .model-card-actions { align-items: stretch; flex-direction: column; }

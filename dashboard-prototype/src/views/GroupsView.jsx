@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ArrowLeft,
   ArrowsClockwise,
@@ -13,6 +13,7 @@ import {
   MagnifyingGlass,
   ShieldCheck,
   SignOut,
+  Trash,
   Warning,
 } from "@phosphor-icons/react";
 
@@ -33,6 +34,7 @@ import {
   PanelHeader,
   Toggle,
 } from "../ui.jsx";
+import { useDialogA11y } from "../useDialogA11y.js";
 
 const PERMISSION_GROUPS = [
   ["Đọc và đồng bộ", ["read_messages", "sync_history", "monitor_new_messages", "search_messages"]],
@@ -572,6 +574,198 @@ function PolicyAction({
   );
 }
 
+function HistoryLinkDeletePreviewModal({
+  preview,
+  candidates,
+  loading,
+  error,
+  saving,
+  triggerRef,
+  onClose,
+  onRetry,
+  onChange,
+  onDelete,
+}) {
+  const dialogRef = useDialogA11y(Boolean(preview), onClose, triggerRef);
+  if (!preview) return null;
+
+  const items = candidates?.items || [];
+  const total = candidates?.total || 0;
+  const pageSize = candidates?.page_size || 50;
+  const page = candidates?.page || preview.page;
+  const pageCount = Math.max(1, Math.ceil(total / pageSize));
+  const selectedCount = preview.selectAll
+    ? Math.max(0, total - preview.excluded.length)
+    : preview.selected.length;
+  const isSelected = (messageId) =>
+    preview.selectAll
+      ? !preview.excluded.includes(messageId)
+      : preview.selected.includes(messageId);
+  const setMessageSelected = (messageId, nextChecked) => {
+    onChange((current) => {
+      if (!current) return current;
+      if (current.selectAll) {
+        const excluded = nextChecked
+          ? current.excluded.filter((id) => id !== messageId)
+          : [...current.excluded, messageId];
+        return { ...current, excluded };
+      }
+      const selected = nextChecked
+        ? [...current.selected, messageId]
+        : current.selected.filter((id) => id !== messageId);
+      return { ...current, selected };
+    });
+  };
+  const pageFullySelected = items.length > 0 && items.every((item) => isSelected(item.message_id));
+  const togglePage = (checked) => {
+    onChange((current) => {
+      if (!current) return current;
+      const ids = items.map((item) => item.message_id);
+      if (current.selectAll) {
+        const excluded = checked
+          ? current.excluded.filter((id) => !ids.includes(id))
+          : [...new Set([...current.excluded, ...ids])];
+        return { ...current, excluded };
+      }
+      const selected = checked
+        ? [...new Set([...current.selected, ...ids])]
+        : current.selected.filter((id) => !ids.includes(id));
+      return { ...current, selected };
+    });
+  };
+  const selectAll = () =>
+    onChange((current) =>
+      current ? { ...current, selectAll: true, selected: [], excluded: [] } : current,
+    );
+  const clearSelection = () =>
+    onChange((current) =>
+      current ? { ...current, selectAll: false, selected: [], excluded: [] } : current,
+    );
+
+  return (
+    <div
+      className="modal-backdrop"
+      role="presentation"
+      onMouseDown={(event) => event.target === event.currentTarget && onClose()}
+    >
+      <section
+        ref={dialogRef}
+        className="modal history-delete-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="history-delete-title"
+        tabIndex={-1}
+      >
+        <header className="modal-header">
+          <div>
+            <p className="eyebrow">TELEGRAM · DELETE PREVIEW</p>
+            <h2 id="history-delete-title">
+              {preview.mode === "all_links" ? "Post có link" : "Link + promotion"}
+            </h2>
+            <span className="history-delete-modal-note">
+              Chọn những post cần xóa. Chưa có hành động nào được gửi lên Telegram ở bước này.
+            </span>
+          </div>
+          <button className="icon-button modal-close" aria-label="Đóng" onClick={onClose}>×</button>
+        </header>
+
+        <div className="history-delete-selectbar">
+          <label>
+            <input
+              type="checkbox"
+              checked={pageFullySelected}
+              disabled={!items.length || loading}
+              onChange={(event) => togglePage(event.target.checked)}
+            />
+            Chọn {items.length} post của trang này
+          </label>
+          <div>
+            <b>{formatNumber(selectedCount)} / {formatNumber(total)} đã chọn</b>
+            {preview.selectAll ? (
+              <button className="button button--small button--outline" onClick={clearSelection}>
+                Bỏ chọn tất cả
+              </button>
+            ) : (
+              <button
+                className="button button--small button--outline"
+                disabled={!total}
+                onClick={selectAll}
+              >
+                Chọn tất cả {formatNumber(total)}
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div className="history-delete-list">
+          {loading && !candidates ? <LoadingState label="Đang tìm post phù hợp…" /> : null}
+          {error ? <ErrorState error={error} onRetry={onRetry} /> : null}
+          {!loading && !error && !items.length ? (
+            <EmptyState
+              title="Không có post phù hợp"
+              description="Có thể các post đã bị xóa hoặc chưa có lịch sử được đồng bộ."
+            />
+          ) : null}
+          {items.map((item) => (
+            <article className={`telegram-delete-post ${isSelected(item.message_id) ? "is-selected" : ""}`} key={item.message_id}>
+              <label className="telegram-delete-check">
+                <input
+                  type="checkbox"
+                  checked={isSelected(item.message_id)}
+                  onChange={(event) => setMessageSelected(item.message_id, event.target.checked)}
+                  aria-label={`Chọn post ${item.message_id}`}
+                />
+              </label>
+              <div className="telegram-post-bubble">
+                <header>
+                  <b>{item.sender_id ? `Thành viên · ${item.sender_id}` : "Channel / admin"}</b>
+                  <span>{formatRelative(item.sent_at)}</span>
+                </header>
+                <p>{item.text}</p>
+                <footer>
+                  <span>#{item.message_id}</span>
+                  {item.reasons?.map((reason) => <Badge tone="yellow" key={reason}>{humanize(reason)}</Badge>)}
+                  {item.telegram_url ? (
+                    <a href={item.telegram_url} target="_blank" rel="noreferrer">Mở trên Telegram</a>
+                  ) : null}
+                </footer>
+              </div>
+            </article>
+          ))}
+        </div>
+
+        <footer className="history-delete-modal-footer">
+          <div className="history-delete-pagination">
+            <button
+              className="button button--small button--outline"
+              disabled={page <= 1 || loading}
+              onClick={() => onChange((current) => ({ ...current, page: page - 1 }))}
+            >
+              <CaretLeft size={17} /> Trước
+            </button>
+            <span>Trang {page} / {pageCount}</span>
+            <button
+              className="button button--small button--outline"
+              disabled={page >= pageCount || loading}
+              onClick={() => onChange((current) => ({ ...current, page: page + 1 }))}
+            >
+              Sau <CaretRight size={17} />
+            </button>
+          </div>
+          <button
+            className="button button--danger"
+            disabled={!selectedCount || saving}
+            onClick={onDelete}
+          >
+            <Trash size={18} weight="bold" />
+            {saving ? "Đang tạo yêu cầu…" : `Hãy xóa ${formatNumber(selectedCount)} post đã chọn`}
+          </button>
+        </footer>
+      </section>
+    </div>
+  );
+}
+
 export function GroupDetailView({
   chatId,
   refreshKey,
@@ -601,6 +795,19 @@ export function GroupDetailView({
   const [historySearchTerms, setHistorySearchTerms] = useState("");
   const [promotionOnly, setPromotionOnly] = useState(false);
   const [onlyMatches, setOnlyMatches] = useState(false);
+  const [historyDeletePreview, setHistoryDeletePreview] = useState(null);
+  const historyDeleteTriggerRef = useRef(null);
+  const candidatesResource = useResource(
+    () =>
+      historyDeletePreview
+        ? api.historyLinkDeleteCandidates(chatId, {
+            mode: historyDeletePreview.mode,
+            page: historyDeletePreview.page,
+          })
+        : Promise.resolve(null),
+    [chatId, historyDeletePreview?.mode, historyDeletePreview?.page],
+    refreshKey,
+  );
 
   useEffect(() => {
     if (!group) return;
@@ -775,13 +982,35 @@ export function GroupDetailView({
     }
   };
 
-  const previewHistoryLinkDeletion = async (mode) => {
+  const openHistoryLinkPreview = (event, mode) => {
+    historyDeleteTriggerRef.current = event.currentTarget;
+    setHistoryDeletePreview({
+      mode,
+      page: 1,
+      selectAll: false,
+      selected: [],
+      excluded: [],
+    });
+  };
+
+  const previewHistoryLinkDeletion = async () => {
+    if (!historyDeletePreview) return;
+    const { mode, selectAll, selected, excluded } = historyDeletePreview;
     const action = await perform(
       `history-delete-${mode}`,
-      () => api.previewHistoryLinkDeletion(chatId, mode),
-      "Đã tạo preview xóa; chưa có post Telegram nào bị xóa.",
+      () =>
+        api.previewHistoryLinkDeletion(chatId, {
+          mode,
+          select_all: selectAll,
+          selected_message_ids: selected,
+          excluded_message_ids: excluded,
+        }),
+      "Đã tạo yêu cầu xóa; chưa có post Telegram nào bị xóa.",
     );
-    if (action) onCreatedAction(action);
+    if (action) {
+      onCreatedAction(action);
+      setHistoryDeletePreview(null);
+    }
   };
 
   if (resource.loading && !group) return <LoadingState label="Đang tải policy nguồn…" />;
@@ -1030,14 +1259,14 @@ export function GroupDetailView({
             <button
               className="button button--danger"
               disabled={Boolean(saving) || !policy.allowed || !permissions.delete_any_messages}
-              onClick={() => previewHistoryLinkDeletion("all_links")}
+              onClick={(event) => openHistoryLinkPreview(event, "all_links")}
             >
               Preview: xóa mọi post có link
             </button>
             <button
               className="button button--danger"
               disabled={Boolean(saving) || !policy.allowed || !permissions.delete_any_messages}
-              onClick={() => previewHistoryLinkDeletion("promotion_links")}
+              onClick={(event) => openHistoryLinkPreview(event, "promotion_links")}
             >
               Preview: xóa link + promotion
             </button>
@@ -1049,6 +1278,19 @@ export function GroupDetailView({
           ) : null}
         </div>
       </section>
+
+      <HistoryLinkDeletePreviewModal
+        preview={historyDeletePreview}
+        candidates={candidatesResource.data}
+        loading={candidatesResource.loading}
+        error={candidatesResource.error}
+        saving={Boolean(saving)}
+        triggerRef={historyDeleteTriggerRef}
+        onClose={() => setHistoryDeletePreview(null)}
+        onRetry={candidatesResource.reload}
+        onChange={setHistoryDeletePreview}
+        onDelete={previewHistoryLinkDeletion}
+      />
 
       <section className="panel">
         <PanelHeader

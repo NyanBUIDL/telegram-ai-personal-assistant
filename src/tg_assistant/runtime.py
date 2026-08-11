@@ -1531,6 +1531,9 @@ class Application:
                 chat_id = int(payload["chat_id"])
                 owner_id = int(payload["owner_id"])
                 mode = str(payload["mode"])
+                selection_type = str(payload.get("selection_type", "all_matching"))
+                selected_ids = {int(value) for value in payload.get("selected_message_ids", [])}
+                excluded_ids = {int(value) for value in payload.get("excluded_message_ids", [])}
                 max_message_id = int(payload["max_message_id"])
                 cursor = int(payload.get("scan_cursor", 0))
                 rows = list(
@@ -1550,7 +1553,14 @@ class Application:
                     ).all()
                 )
                 candidates = [
-                    row for row in rows if matches_history_delete_mode(row.text, mode)
+                    row
+                    for row in rows
+                    if matches_history_delete_mode(row.text, mode)
+                    and (
+                        row.message_id in selected_ids
+                        if selection_type == "specific"
+                        else row.message_id not in excluded_ids
+                    )
                 ]
                 if candidates:
                     actual_rights = await self.user.get_actual_rights(chat_id)
@@ -2478,6 +2488,15 @@ class Application:
                                         "chat_id": chat_id,
                                         "owner_id": action.requested_by,
                                         "mode": str(action.payload["mode"]),
+                                        "selection_type": str(
+                                            action.payload.get("selection_type", "all_matching")
+                                        ),
+                                        "selected_message_ids": list(
+                                            action.payload.get("selected_message_ids", [])
+                                        ),
+                                        "excluded_message_ids": list(
+                                            action.payload.get("excluded_message_ids", [])
+                                        ),
                                         "max_message_id": int(action.payload["max_message_id"]),
                                         "candidate_count": int(
                                             action.payload["candidate_count"]

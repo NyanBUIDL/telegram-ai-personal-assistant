@@ -47,6 +47,8 @@ from ..services.history_export import (
     history_csv_row,
     matches_history_delete_mode,
     parse_search_terms,
+    promotion_reasons,
+    telegram_post_url,
 )
 from ..services.knowledge_inventory import (
     LEARNING_CHAT_TYPES,
@@ -1039,13 +1041,21 @@ def create_admin_app(context: AdminContext) -> FastAPI:
                     )
                 ).all()
             )
-            candidates = [
+            matching = [
                 row for row in rows if matches_history_delete_mode(row.text, payload.mode)
             ]
+            if payload.select_all:
+                excluded = set(payload.excluded_message_ids)
+                candidates = [row for row in matching if row.message_id not in excluded]
+                selection_type = "all_matching"
+            else:
+                selected = set(payload.selected_message_ids)
+                candidates = [row for row in matching if row.message_id in selected]
+                selection_type = "specific"
             if not candidates:
                 raise HTTPException(
                     status_code=422,
-                    detail="Không có post phù hợp với điều kiện xóa đã chọn.",
+                    detail="Chưa có post hợp lệ nào được chọn để xóa.",
                 )
             mode_label = (
                 "mọi post có link"
@@ -1059,8 +1069,19 @@ def create_admin_app(context: AdminContext) -> FastAPI:
                 chat_id=chat_id,
                 payload={
                     "mode": payload.mode,
+                    "selection_type": selection_type,
                     "candidate_count": len(candidates),
                     "max_message_id": max(row.message_id for row in candidates),
+                    "selected_message_ids": (
+                        [row.message_id for row in candidates]
+                        if selection_type == "specific"
+                        else []
+                    ),
+                    "excluded_message_ids": (
+                        sorted(set(payload.excluded_message_ids))
+                        if selection_type == "all_matching"
+                        else []
+                    ),
                     "sample_message_ids": [row.message_id for row in candidates[:20]],
                 },
                 preview=(
@@ -1088,6 +1109,54 @@ def create_admin_app(context: AdminContext) -> FastAPI:
                 )
             )
         return _action_json(action)
+
+    @app.get("/api/v1/groups/{chat_id}/history-delete-candidates")
+    async def list_history_link_delete_candidates(
+        chat_id: int,
+        mode: str = Query(pattern="^(all_links|promotion_links)$"),
+        page: int = Query(default=1, ge=1),
+        page_size: int = Query(default=50, ge=10, le=100),
+        _session: AdminSession = Depends(require_session),
+    ) -> dict:
+        """Return safe, paginated MySQL candidates for the Telegram-like delete preview."""
+        async with context.database.session() as db:
+            chat = await db.scalar(select(TelegramChat).where(TelegramChat.chat_id == chat_id))
+            if not chat:
+                raise HTTPException(status_code=404, detail="Không tìm thấy group/channel.")
+            rows = list(
+                (
+                    await db.scalars(
+                        select(TelegramMessage)
+                        .where(
+                            TelegramMessage.chat_id == chat_id,
+                            TelegramMessage.is_deleted.is_(False),
+                            TelegramMessage.text.is_not(None),
+                        )
+                        .order_by(TelegramMessage.message_id.desc())
+                    )
+                ).all()
+            )
+            matching = [row for row in rows if matches_history_delete_mode(row.text, mode)]
+            start = (page - 1) * page_size
+            slice_rows = matching[start : start + page_size]
+            return {
+                "mode": mode,
+                "page": page,
+                "page_size": page_size,
+                "total": len(matching),
+                "items": [
+                    {
+                        "message_id": row.message_id,
+                        "sender_id": row.sender_id,
+                        "text": row.text or "",
+                        "sent_at": row.sent_at.isoformat(),
+                        "has_media": row.has_media,
+                        "reasons": promotion_reasons(row.text),
+                        "telegram_url": telegram_post_url(chat, row.message_id),
+                    }
+                    for row in slice_rows
+                ],
+            }
 
     @app.post("/api/v1/groups/{chat_id}/permissions", status_code=status.HTTP_201_CREATED)
     async def create_permission_action(

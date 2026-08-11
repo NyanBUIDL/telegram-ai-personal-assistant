@@ -40,6 +40,16 @@ class GroupActionRequest(BaseModel):
 
 class HistoryDeletePreviewRequest(BaseModel):
     mode: Literal["all_links", "promotion_links"]
+    select_all: bool = False
+    selected_message_ids: list[int] = Field(default_factory=list, max_length=2_500)
+    excluded_message_ids: list[int] = Field(default_factory=list, max_length=2_500)
+
+    @field_validator("selected_message_ids", "excluded_message_ids")
+    @classmethod
+    def unique_message_ids(cls, value: list[int]) -> list[int]:
+        if any(item <= 0 for item in value):
+            raise ValueError("Message ID phải là số dương.")
+        return list(dict.fromkeys(value))
 
 
 class PermissionUpdate(BaseModel):

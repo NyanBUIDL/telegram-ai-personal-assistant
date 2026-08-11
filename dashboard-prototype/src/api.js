@@ -136,10 +136,18 @@ export const api = {
       { responseType: "blob" },
     );
   },
-  previewHistoryLinkDeletion: (chatId, mode) =>
+  historyLinkDeleteCandidates: (chatId, { mode, page = 1, pageSize = 50 }) =>
+    request(
+      `/groups/${encodeURIComponent(chatId)}/history-delete-candidates?${new URLSearchParams({
+        mode,
+        page: String(page),
+        page_size: String(pageSize),
+      })}`,
+    ),
+  previewHistoryLinkDeletion: (chatId, body) =>
     request(`/groups/${encodeURIComponent(chatId)}/history-delete-preview`, {
       method: "POST",
-      body: { mode },
+      body,
     }),
   setPermission: (chatId, permission, enabled) =>
     request(`/groups/${encodeURIComponent(chatId)}/permissions`, {
