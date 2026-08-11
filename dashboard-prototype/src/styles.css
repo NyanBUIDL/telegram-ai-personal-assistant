@@ -929,6 +929,17 @@ tbody tr:hover td { background: #f7eec5; }
   opacity: 1;
 }
 .ops-panel-actions { margin-top: auto; padding: 14px 18px; display: flex; justify-content: flex-end; gap: 10px; border-top: 2px solid var(--ink); }
+.history-tools { padding: 18px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px; align-items: center; border-bottom: 2px solid var(--ink); }
+.history-tool-copy { display: flex; align-items: flex-start; gap: 12px; }
+.history-tool-copy > svg { flex: 0 0 auto; color: var(--teal-dark); }
+.history-tool-copy b { display: block; font-size: 18px; text-transform: uppercase; }
+.history-tool-copy p { max-width: 660px; margin: 5px 0 0; color: var(--muted); font-size: 13px; font-weight: 600; line-height: 1.45; }
+.history-job-strip { grid-column: 1 / -1; display: grid; grid-template-columns: 180px auto 1fr; gap: 12px; align-items: center; padding: 10px 12px; background: var(--yellow); border: 2px solid var(--ink); }
+.history-job-strip span, .history-job-strip small { font-size: 12px; font-weight: 700; }
+.history-job-strip small { color: #554b21; }
+.history-export-form { padding: 18px; display: grid; grid-template-columns: minmax(280px, 1fr) auto auto auto; gap: 12px; align-items: end; }
+.history-check { min-height: 44px; display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: var(--paper); border: 2px solid var(--ink); font-size: 12px; font-weight: 700; }
+.history-check input { width: 18px; height: 18px; accent-color: var(--teal-dark); }
 .button--danger { color: var(--paper); background: var(--magenta); border-color: var(--ink); }
 .button--danger:hover { color: var(--ink); background: var(--yellow); }
 
@@ -2187,6 +2198,12 @@ tbody tr:hover td { background: #f7eec5; }
 }
 
 @media (max-width: 720px) {
+  .history-tools { grid-template-columns: 1fr; padding: 14px; }
+  .history-tools .ops-panel-actions { width: 100%; padding: 0; border: 0; }
+  .history-tools .ops-panel-actions .button { width: 100%; justify-content: center; }
+  .history-job-strip { grid-template-columns: 1fr; gap: 3px; }
+  .history-export-form { grid-template-columns: 1fr; padding: 14px; }
+  .history-export-form .button { width: 100%; justify-content: center; }
   .model-grid,
   .knowledge-source-cards { grid-template-columns: 1fr; }
   .model-card-actions { align-items: stretch; flex-direction: column; }

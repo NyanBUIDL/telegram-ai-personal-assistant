@@ -6,7 +6,7 @@ from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 from pathlib import Path
 from time import monotonic
-from typing import Any
+from typing import Any, NamedTuple
 
 import structlog
 from sqlalchemy import func, select
@@ -48,6 +48,12 @@ EXTERNAL_LINK_RE = re.compile(
     """
 )
 GroupAskHandler = Callable[[int, int, int, str], Awaitable[None]]
+
+
+class HistoryBackfillPage(NamedTuple):
+    synced_count: int
+    next_before_message_id: int | None
+    completed: bool
 
 
 def extract_group_ai_question(text: str | None, username: str | None) -> str | None:
@@ -636,6 +642,50 @@ class UserClientAdapter:
             "idle",
         )
         return count
+
+    async def backfill_history_page(
+        self,
+        session: AsyncSession,
+        *,
+        chat_id: int,
+        actor_id: int,
+        owner_id: int,
+        before_message_id: int | None,
+        limit: int = 500,
+    ) -> HistoryBackfillPage:
+        """Append one older-history page without moving the live-sync cursor.
+
+        Telegram returns newest-to-oldest for ``max_id``.  The background job keeps
+        the oldest ID from each page as its next exclusive cursor, which makes the
+        operation restartable and harmless when it overlaps with normal sync.
+        """
+        decision = await self.policy.evaluate(
+            session, PolicyContext(actor_id, owner_id, chat_id, PermissionName.SYNC_HISTORY)
+        )
+        if not decision.allowed:
+            raise PermissionError(decision.reason.value)
+        page_size = min(max(int(limit), 1), 1000)
+        cursor = max(int(before_message_id or 0), 0)
+        count = 0
+        oldest_id: int | None = None
+        try:
+            async for message in self.client.iter_messages(
+                chat_id,
+                max_id=cursor,
+                limit=page_size,
+            ):
+                await self._upsert_message(session, message)
+                message_id = int(message.id)
+                oldest_id = message_id if oldest_id is None else min(oldest_id, message_id)
+                count += 1
+        except FloodWaitError as exc:
+            await asyncio.sleep(min(exc.seconds, 60))
+            raise RuntimeError(f"Telegram FloodWait {exc.seconds}s") from exc
+        return HistoryBackfillPage(
+            synced_count=count,
+            next_before_message_id=oldest_id,
+            completed=count < page_size or oldest_id is None,
+        )
 
     async def sync_sender_history(
         self,

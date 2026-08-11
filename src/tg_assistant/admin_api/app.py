@@ -41,6 +41,12 @@ from ..db.models import (
 from ..policy import PolicyEngine
 from ..security import contains_secret, redact
 from ..services.actions import PendingActionService
+from ..services.history_export import (
+    encode_csv_row,
+    history_csv_header,
+    history_csv_row,
+    parse_search_terms,
+)
 from ..services.knowledge_inventory import (
     LEARNING_CHAT_TYPES,
     LearningInventoryRow,
@@ -956,6 +962,58 @@ def create_admin_app(context: AdminContext) -> FastAPI:
             )
         return _action_json(action)
 
+    @app.get("/api/v1/groups/{chat_id}/history-export")
+    async def export_group_history(
+        chat_id: int,
+        search_terms: str = Query(default="", max_length=2000),
+        promotion_only: bool = False,
+        only_matches: bool = False,
+        _session: AdminSession = Depends(require_session),
+    ) -> StreamingResponse:
+        terms = parse_search_terms(search_terms)
+        if only_matches and not terms:
+            raise HTTPException(
+                status_code=422,
+                detail="Nhập ít nhất một từ khóa trước khi chỉ xuất nội dung khớp.",
+            )
+        async with context.database.session() as db:
+            chat = await db.scalar(select(TelegramChat).where(TelegramChat.chat_id == chat_id))
+            if not chat:
+                raise HTTPException(status_code=404, detail="Không tìm thấy group/channel.")
+            filename = f"telegram-history-{chat_id}-{datetime.now(UTC):%Y-%m-%d}.csv"
+
+        async def csv_stream():
+            yield "\ufeff".encode("utf-8")
+            yield encode_csv_row(history_csv_header())
+            async with context.database.session() as db:
+                source = await db.scalar(
+                    select(TelegramChat).where(TelegramChat.chat_id == chat_id)
+                )
+                if not source:
+                    return
+                result = await db.stream_scalars(
+                    select(TelegramMessage)
+                    .where(
+                        TelegramMessage.chat_id == chat_id,
+                        TelegramMessage.is_deleted.is_(False),
+                    )
+                    .order_by(TelegramMessage.sent_at.asc(), TelegramMessage.message_id.asc())
+                    .execution_options(yield_per=500)
+                )
+                async for message in result:
+                    row, is_promotion, is_match = history_csv_row(source, message, terms)
+                    if promotion_only and not is_promotion:
+                        continue
+                    if only_matches and not is_match:
+                        continue
+                    yield encode_csv_row(row)
+
+        return StreamingResponse(
+            csv_stream(),
+            media_type="text/csv; charset=utf-8",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
+
     @app.post("/api/v1/groups/{chat_id}/permissions", status_code=status.HTTP_201_CREATED)
     async def create_permission_action(
         chat_id: int,
@@ -1529,6 +1587,25 @@ def create_admin_app(context: AdminContext) -> FastAPI:
         query = select(BackgroundJob).where(BackgroundJob.job_type == "learn_group")
         if job_status:
             query = query.where(BackgroundJob.status == job_status)
+        async with context.database.session() as db:
+            rows = list(
+                (
+                    await db.scalars(
+                        query.order_by(BackgroundJob.created_at.desc()).limit(limit)
+                    )
+                ).all()
+            )
+        return {"items": [_job_json(row) for row in rows]}
+
+    @app.get("/api/v1/history-backfill-jobs")
+    async def history_backfill_jobs(
+        chat_id: int | None = Query(default=None),
+        limit: int = Query(default=50, ge=1, le=500),
+        _session: AdminSession = Depends(require_session),
+    ) -> dict:
+        query = select(BackgroundJob).where(BackgroundJob.job_type == "history_backfill")
+        if chat_id is not None:
+            query = query.where(cast(BackgroundJob.payload["chat_id"], String) == str(chat_id))
         async with context.database.session() as db:
             rows = list(
                 (

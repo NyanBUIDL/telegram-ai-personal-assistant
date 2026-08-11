@@ -122,6 +122,20 @@ export const api = {
       method: "POST",
       body,
     }),
+  exportGroupHistory: (
+    chatId,
+    { searchTerms = "", promotionOnly = false, onlyMatches = false } = {},
+  ) => {
+    const params = new URLSearchParams();
+    if (searchTerms.trim()) params.set("search_terms", searchTerms.trim());
+    if (promotionOnly) params.set("promotion_only", "true");
+    if (onlyMatches) params.set("only_matches", "true");
+    const suffix = params.size ? `?${params}` : "";
+    return request(
+      `/groups/${encodeURIComponent(chatId)}/history-export${suffix}`,
+      { responseType: "blob" },
+    );
+  },
   setPermission: (chatId, permission, enabled) =>
     request(`/groups/${encodeURIComponent(chatId)}/permissions`, {
       method: "POST",
@@ -201,6 +215,10 @@ export const api = {
   learningJobs: ({ status = "", limit = 200 } = {}) =>
     request(
       `/learning-jobs?job_status=${encodeURIComponent(status)}&limit=${limit}`,
+    ),
+  historyBackfillJobs: (chatId, limit = 10) =>
+    request(
+      `/history-backfill-jobs?chat_id=${encodeURIComponent(chatId)}&limit=${limit}`,
     ),
   pauseAllLearning: () => request("/learning-jobs/pause-all", { method: "POST" }),
   resumeAllLearning: () =>

@@ -1426,14 +1426,119 @@ class Application:
         except Exception as exc:
             log.warning("storage_cleanup_failed", error=str(redact(str(exc))))
 
+    async def _run_history_backfill_job(self, job_id: str) -> None:
+        """Fetch one bounded older-history page and persist a restartable cursor."""
+        try:
+            async with self.database.session() as session:
+                job = await session.get(BackgroundJob, job_id)
+                if not job:
+                    return
+                payload = dict(job.payload or {})
+                chat_id = int(payload["chat_id"])
+                owner_id = int(payload["owner_id"])
+                batch_size = min(max(int(payload.get("batch_size", 500)), 1), 1000)
+                chat = await session.scalar(
+                    select(TelegramChat).where(TelegramChat.chat_id == chat_id)
+                )
+                if not chat or chat.chat_type not in {"group", "supergroup", "channel"}:
+                    raise LookupError(f"Không tìm thấy nguồn Telegram {chat_id}.")
+                page = await self.user.backfill_history_page(
+                    session,
+                    chat_id=chat_id,
+                    actor_id=owner_id,
+                    owner_id=int(self.user.owner_id),
+                    before_message_id=payload.get("before_message_id"),
+                    limit=batch_size,
+                )
+                processed = int(payload.get("processed", 0)) + page.synced_count
+                job.payload = {
+                    **payload,
+                    "phase": "completed" if page.completed else "backfilling",
+                    "processed": processed,
+                    "last_batch": page.synced_count,
+                    "before_message_id": page.next_before_message_id,
+                    "progress": 100 if page.completed else None,
+                    "progress_note": (
+                        "Đã đến bài đăng đầu tiên." if page.completed
+                        else "Đang quét ngược lịch sử; Telegram không cung cấp tổng số bài."
+                    ),
+                }
+                job.locked_by = None
+                job.locked_at = None
+                job.last_error = None
+                if page.completed:
+                    job.status = "completed"
+                    session.add(
+                        AuditLog(
+                            occurred_at=datetime.now(UTC),
+                            actor_id=owner_id,
+                            action="history_backfill_completed",
+                            target_type="telegram_chat",
+                            target_id=str(chat_id),
+                            outcome="success",
+                            details_redacted={"job_id": job.id, "processed": processed},
+                            correlation_id=job.id,
+                        )
+                    )
+                else:
+                    job.status = "queued"
+                    job.run_after = datetime.now(UTC) + timedelta(seconds=2)
+        except Exception as exc:
+            error = str(redact(str(exc)))[:1000]
+            async with self.database.session() as session:
+                job = await session.get(BackgroundJob, job_id)
+                if not job:
+                    return
+                job.locked_by = None
+                job.locked_at = None
+                job.last_error = error
+                if job.attempts >= job.max_attempts:
+                    job.status = "failed"
+                    phase = "failed"
+                else:
+                    job.status = "queued"
+                    job.run_after = datetime.now(UTC) + timedelta(minutes=job.attempts)
+                    phase = "retrying"
+                job.payload = {**(job.payload or {}), "phase": phase, "progress": None}
+                session.add(
+                    AuditLog(
+                        occurred_at=datetime.now(UTC),
+                        actor_id=int(self.user.owner_id),
+                        action="history_backfill",
+                        target_type="telegram_chat",
+                        target_id=str((job.payload or {}).get("chat_id", "")),
+                        outcome="failed",
+                        reason=error,
+                        details_redacted={"job_id": job.id, "attempt": job.attempts},
+                        correlation_id=job.id,
+                    )
+                )
+            log.warning("history_backfill_job_failed", job_id=job_id, error=error)
+
     async def _process_admin_jobs(self) -> None:
         """Run bounded dashboard jobs that must not block an HTTP request."""
         job_id: str | None = None
         async with self.database.session() as session:
+            stale_backfills = list(
+                (
+                    await session.scalars(
+                        select(BackgroundJob).where(
+                            BackgroundJob.job_type == "history_backfill",
+                            BackgroundJob.status == "running",
+                            BackgroundJob.locked_at < datetime.now(UTC) - timedelta(minutes=15),
+                        )
+                    )
+                ).all()
+            )
+            for stale_job in stale_backfills:
+                stale_job.status = "queued"
+                stale_job.locked_by = None
+                stale_job.locked_at = None
+                stale_job.run_after = datetime.now(UTC)
             job = await session.scalar(
                 select(BackgroundJob)
                 .where(
-                    BackgroundJob.job_type == "ollama_pull",
+                    BackgroundJob.job_type.in_(("ollama_pull", "history_backfill")),
                     BackgroundJob.status == "queued",
                     (BackgroundJob.run_after.is_(None))
                     | (BackgroundJob.run_after <= datetime.now(UTC)),
@@ -1450,6 +1555,10 @@ class Application:
             job.locked_by = "telegram-assistant-runtime"
             job.locked_at = datetime.now(UTC)
             job_id = job.id
+            job_type = job.job_type
+        if job_type == "history_backfill":
+            await self._run_history_backfill_job(job_id)
+            return
         try:
             async with self.database.session() as session:
                 job = await session.get(BackgroundJob, job_id)
@@ -2151,6 +2260,58 @@ class Application:
                                 limit=min(max(int(action.payload.get("limit", 1000)), 1), 1000),
                             )
                             action.payload = {**action.payload, "synced_count": synced}
+                        elif action.action_type == "backfill_chat_history":
+                            chat_id = int(action.chat_id)
+                            active_backfills = list(
+                                (
+                                    await session.scalars(
+                                        select(BackgroundJob).where(
+                                            BackgroundJob.job_type == "history_backfill",
+                                            BackgroundJob.status.in_(("queued", "running")),
+                                        )
+                                    )
+                                ).all()
+                            )
+                            existing_job = next(
+                                (
+                                    item
+                                    for item in active_backfills
+                                    if str((item.payload or {}).get("chat_id")) == str(chat_id)
+                                ),
+                                None,
+                            )
+                            if existing_job:
+                                job = existing_job
+                            else:
+                                job = BackgroundJob(
+                                    job_type="history_backfill",
+                                    payload={
+                                        "action_id": action.action_id,
+                                        "chat_id": chat_id,
+                                        "owner_id": action.requested_by,
+                                        "batch_size": min(
+                                            max(
+                                                int(action.payload.get("batch_size", 500)),
+                                                1,
+                                            ),
+                                            1000,
+                                        ),
+                                        "before_message_id": 0,
+                                        "processed": 0,
+                                        "phase": "queued",
+                                        "progress": None,
+                                        "progress_note": "Chờ worker quét lịch sử cũ.",
+                                    },
+                                    status="queued",
+                                    max_attempts=5,
+                                )
+                                session.add(job)
+                                await session.flush()
+                            action.payload = {
+                                **action.payload,
+                                "job_id": job.id,
+                                "job_status": job.status,
+                            }
                         elif action.action_type == "enable_group_learning":
                             chat_id = int(action.chat_id)
                             active_jobs = list(

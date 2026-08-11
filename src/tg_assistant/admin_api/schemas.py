@@ -22,6 +22,7 @@ class GroupActionRequest(BaseModel):
         "set_link_spam_auto_moderation",
         "set_group_ai_ask",
         "sync_chat_history",
+        "backfill_chat_history",
         "enable_group_learning",
     ]
     payload: dict = Field(default_factory=dict)

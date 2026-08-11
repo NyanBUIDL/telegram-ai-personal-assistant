@@ -5,7 +5,9 @@ import {
   Brain,
   CaretLeft,
   CaretRight,
+  ClockCounterClockwise,
   Database,
+  DownloadSimple,
   FloppyDisk,
   LockKey,
   MagnifyingGlass,
@@ -578,6 +580,11 @@ export function GroupDetailView({
   onToast,
 }) {
   const resource = useResource(() => api.group(chatId), [chatId], refreshKey);
+  const backfillResource = useResource(
+    () => api.historyBackfillJobs(chatId),
+    [chatId],
+    refreshKey,
+  );
   const group = resource.data;
   const [aiRoute, setAiRoute] = useState(null);
   const [aiEfficiency, setAiEfficiency] = useState(null);
@@ -586,6 +593,9 @@ export function GroupDetailView({
   const [deleteScope, setDeleteScope] = useState("vectors_only");
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
   const [coverage, setCoverage] = useState(null);
+  const [historySearchTerms, setHistorySearchTerms] = useState("");
+  const [promotionOnly, setPromotionOnly] = useState(false);
+  const [onlyMatches, setOnlyMatches] = useState(false);
 
   useEffect(() => {
     if (!group) return;
@@ -732,6 +742,34 @@ export function GroupDetailView({
     if (result?.coverage) setCoverage(result.coverage);
   };
 
+  const downloadHistory = async () => {
+    if (onlyMatches && !historySearchTerms.trim()) {
+      onToast("Nhập từ khóa trước khi chỉ xuất nội dung khớp.", "error");
+      return;
+    }
+    setSaving("history-export");
+    try {
+      const blob = await api.exportGroupHistory(chatId, {
+        searchTerms: historySearchTerms,
+        promotionOnly,
+        onlyMatches,
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `telegram-history-${group.title || chatId}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      onToast("Đã xuất lịch sử nguồn thành CSV.");
+    } catch (error) {
+      onToast(error.message, "error");
+    } finally {
+      setSaving("");
+    }
+  };
+
   if (resource.loading && !group) return <LoadingState label="Đang tải policy nguồn…" />;
   if (resource.error && !group)
     return <ErrorState error={resource.error} onRetry={resource.reload} />;
@@ -739,6 +777,8 @@ export function GroupDetailView({
 
   const permissions = group.permissions || {};
   const policy = group.policy;
+  const latestBackfill = backfillResource.data?.items?.[0] || null;
+  const backfillPayload = latestBackfill?.payload || {};
 
   return (
     <section className="ops-stack group-detail">
@@ -864,6 +904,96 @@ export function GroupDetailView({
             </div>
           ) : null}
         </section>
+      </section>
+
+      <section className="panel">
+        <PanelHeader
+          eyebrow="CHANNEL ARCHIVE · MYSQL"
+          title="Lịch sử & xuất post"
+          action={
+            latestBackfill ? (
+              <Badge tone={statusTone(latestBackfill.status)}>
+                {humanize(latestBackfill.status)}
+              </Badge>
+            ) : (
+              <Badge tone="yellow">CHƯA QUÉT TOÀN BỘ</Badge>
+            )
+          }
+        />
+        <div className="history-tools">
+          <div className="history-tool-copy">
+            <ClockCounterClockwise size={28} weight="bold" />
+            <div>
+              <b>Quét ngược đến bài đăng đầu tiên</b>
+              <p>
+                Worker đọc tối đa 500 post mỗi đợt, lưu checkpoint để có thể tiếp tục
+                sau khi khởi động lại. Tin mới vẫn đồng bộ theo luồng riêng.
+              </p>
+            </div>
+          </div>
+          {latestBackfill ? (
+            <div className="history-job-strip" aria-live="polite">
+              <span>Đã lưu từ đợt quét</span>
+              <b>{formatNumber(backfillPayload.processed || 0)} post</b>
+              <small>{backfillPayload.progress_note || "Đang chờ worker cập nhật."}</small>
+            </div>
+          ) : null}
+          <div className="ops-panel-actions">
+            <button
+              className="button button--outline"
+              disabled={Boolean(saving) || !policy.allowed}
+              onClick={() =>
+                createAction(
+                  "backfill_chat_history",
+                  { batch_size: 500 },
+                  `Quét toàn bộ lịch sử của ${group.title} từ post mới nhất về post đầu tiên; mỗi đợt tối đa 500 post.`,
+                  "Chỉ đọc nguồn đã được cấp quyền. Tiến độ chạy nền, có checkpoint và không gửi nội dung sang AI.",
+                )
+              }
+            >
+              <ClockCounterClockwise size={18} />
+              Quét toàn bộ lịch sử
+            </button>
+          </div>
+        </div>
+        <div className="history-export-form">
+          <label className="ops-field">
+            <span>Nội dung cần tìm</span>
+            <input
+              value={historySearchTerms}
+              onChange={(event) => setHistorySearchTerms(event.target.value)}
+              placeholder="Ví dụ: SOL, ETF, airdrop (ngăn cách bằng dấu phẩy)"
+              maxLength={2000}
+            />
+            <small className="field-helper">
+              CSV luôn đánh dấu post khớp từ khóa; có thể chỉ xuất các post đó.
+            </small>
+          </label>
+          <label className="history-check">
+            <input
+              type="checkbox"
+              checked={promotionOnly}
+              onChange={(event) => setPromotionOnly(event.target.checked)}
+            />
+            <span>Chỉ xuất post có promotion/link</span>
+          </label>
+          <label className="history-check">
+            <input
+              type="checkbox"
+              checked={onlyMatches}
+              onChange={(event) => setOnlyMatches(event.target.checked)}
+            />
+            <span>Chỉ xuất nội dung khớp từ khóa</span>
+          </label>
+          <button
+            className="button button--primary"
+            disabled={Boolean(saving)}
+            onClick={downloadHistory}
+          >
+            <DownloadSimple size={18} />
+            {saving === "history-export" ? "Đang tạo CSV…" : "Xuất lịch sử CSV"}
+          </button>
+        </div>
       </section>
 
       <section className="panel">

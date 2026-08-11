@@ -127,6 +127,41 @@ async def test_admin_api_rejects_invalid_login_code(admin_client) -> None:
     assert response.status_code == 401
 
 
+async def test_admin_api_creates_backfill_preview_and_exports_history(admin_client) -> None:
+    client, secret = admin_client
+    login = await client.post(
+        "/api/v1/auth/login",
+        json={"code": dashboard_login_code(secret)},
+    )
+    csrf = login.json()["csrf_token"]
+    chat_id = -1001315055119
+
+    created = await client.post(
+        f"/api/v1/groups/{chat_id}/actions",
+        json={
+            "action_type": "backfill_chat_history",
+            "payload": {"batch_size": 500},
+            "preview": "Quét toàn bộ lịch sử.",
+        },
+        headers={"X-CSRF-Token": csrf},
+    )
+    assert created.status_code == 201
+    assert created.json()["action_type"] == "backfill_chat_history"
+
+    exported = await client.get(
+        f"/api/v1/groups/{chat_id}/history-export",
+        params={"search_terms": "SOL, ETF"},
+    )
+    assert exported.status_code == 200
+    assert exported.headers["content-type"].startswith("text/csv")
+    assert "is_promotion" in exported.text
+    assert "matches_search_terms" in exported.text
+
+    jobs = await client.get("/api/v1/history-backfill-jobs", params={"chat_id": chat_id})
+    assert jobs.status_code == 200
+    assert jobs.json()["items"] == []
+
+
 async def test_admin_api_knowledge_coverage_export_and_enable_all_preview(
     admin_client,
 ) -> None:
