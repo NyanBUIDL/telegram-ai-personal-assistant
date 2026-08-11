@@ -16,6 +16,7 @@ from aiogram import Bot
 from apscheduler.events import EVENT_JOB_ERROR, EVENT_JOB_EXECUTED, EVENT_JOB_MISSED
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from sqlalchemy import delete, func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from .admin_api import AdminContext, create_admin_app, ensure_dashboard_secret
 from .ai.budget import BudgetService
@@ -1652,6 +1653,26 @@ class Application:
                 )
             log.warning("history_link_delete_job_failed", job_id=job_id, error=error)
 
+    async def _classify_history_delete_with_openai(
+        self,
+        session: AsyncSession,
+        chat_id: int,
+        instruction: str,
+        posts: list[dict[str, object]],
+    ) -> list[dict[str, object]]:
+        """Use direct OpenAI only to suggest, never execute, historical deletions."""
+        engine = self.ai_router.engines.get("openai")
+        if not engine or not engine.available:
+            raise RuntimeError(
+                "Chưa có OpenAI trực tiếp. Hãy cấu hình OPENAI_API_KEY trong terminal rồi thử lại."
+            )
+        return await engine.classify_history_delete_candidates(
+            session,
+            instruction=instruction,
+            posts=posts,
+            chat_id=chat_id,
+        )
+
     async def _process_admin_jobs(self) -> None:
         """Run bounded dashboard jobs that must not block an HTTP request."""
         job_id: str | None = None
@@ -3040,6 +3061,7 @@ class Application:
                     paths=self.paths,
                     admin_secret=ensure_dashboard_secret(self.store),
                     scheduler_getter=lambda: self.scheduler,
+                    history_ai_filter_handler=self._classify_history_delete_with_openai,
                 )
             )
             self.admin_server = uvicorn.Server(

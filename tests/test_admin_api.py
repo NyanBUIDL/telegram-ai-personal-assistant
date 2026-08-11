@@ -49,6 +49,17 @@ async def admin_client(tmp_path):
     async def no_jobs(_session) -> int:
         return 0
 
+    async def filter_history_posts(_session, _chat_id, _instruction, posts):
+        return [
+            {
+                "message_id": post["message_id"],
+                "match": True,
+                "confidence": 91,
+                "reason": "Khớp tiêu chí kiểm thử.",
+            }
+            for post in posts
+        ]
+
     secret = "dashboard-test-secret"
     application = create_admin_app(
         AdminContext(
@@ -64,6 +75,7 @@ async def admin_client(tmp_path):
             resume_all_handler=no_jobs,
             paths={"data": tmp_path, "downloads": tmp_path / "downloads"},
             admin_secret=secret,
+            history_ai_filter_handler=filter_history_posts,
         )
     )
     async with httpx.AsyncClient(
@@ -205,6 +217,18 @@ async def test_admin_api_lists_and_previews_selected_history_link_posts(admin_cl
     assert action.status_code == 201
     assert action.json()["payload"]["candidate_count"] == 1
     assert action.json()["payload"]["selected_message_ids"] == [102]
+
+    ai_filter = await client.post(
+        f"/api/v1/groups/{chat_id}/history-ai-delete-filter",
+        json={
+            "mode": "all_links",
+            "instruction": "Tìm quảng cáo cần xóa",
+            "message_ids": [102],
+        },
+        headers={"X-CSRF-Token": csrf},
+    )
+    assert ai_filter.status_code == 200
+    assert ai_filter.json()["items"][0]["confidence"] == 91
 
 
 async def test_admin_api_knowledge_coverage_export_and_enable_all_preview(

@@ -585,6 +585,7 @@ function HistoryLinkDeletePreviewModal({
   onRetry,
   onChange,
   onDelete,
+  onAnalyze,
 }) {
   const dialogRef = useDialogA11y(Boolean(preview), onClose, triggerRef);
   if (!preview) return null;
@@ -697,6 +698,33 @@ function HistoryLinkDeletePreviewModal({
           </div>
         </div>
 
+        <div className="history-delete-ai-filter">
+          <div>
+            <span className="eyebrow">CHATGPT · GỢI Ý LỌC NỘI DUNG</span>
+            <b>Bạn muốn AI tìm và đề xuất xóa nội dung nào?</b>
+            <small>
+              Chỉ gửi tối đa 25 post đang hiển thị cho OpenAI trực tiếp; kết quả không tự xóa
+              và không ghi prompt hay nội dung phân tích xuống MySQL.
+            </small>
+          </div>
+          <textarea
+            value={preview.aiInstruction}
+            maxLength={1_000}
+            onChange={(event) =>
+              onChange((current) => ({ ...current, aiInstruction: event.target.value }))
+            }
+            placeholder="Ví dụ: Tìm các bài quảng cáo sàn, airdrop hoặc mời tham gia group khác."
+          />
+          <button
+            className="button button--primary"
+            disabled={saving || loading || items.length === 0 || preview.aiInstruction.trim().length < 3}
+            onClick={() => onAnalyze(items)}
+          >
+            <Brain size={18} weight="bold" />
+            {saving ? "Đang phân tích…" : `Dùng ChatGPT phân tích ${Math.min(items.length, 25)} post`}
+          </button>
+        </div>
+
         <div className="history-delete-list">
           {loading && !candidates ? <LoadingState label="Đang tìm post phù hợp…" /> : null}
           {error ? <ErrorState error={error} onRetry={onRetry} /> : null}
@@ -725,6 +753,12 @@ function HistoryLinkDeletePreviewModal({
                 <footer>
                   <span>#{item.message_id}</span>
                   {item.reasons?.map((reason) => <Badge tone="yellow" key={reason}>{humanize(reason)}</Badge>)}
+                  {preview.aiResults?.[item.message_id] ? (
+                    <span className={`ai-delete-result ${preview.aiResults[item.message_id].match ? "is-match" : ""}`}>
+                      AI {preview.aiResults[item.message_id].match ? "ĐỀ XUẤT" : "KHÔNG KHỚP"} · {preview.aiResults[item.message_id].confidence}%
+                      {preview.aiResults[item.message_id].reason ? ` · ${preview.aiResults[item.message_id].reason}` : ""}
+                    </span>
+                  ) : null}
                   {item.telegram_url ? (
                     <a href={item.telegram_url} target="_blank" rel="noreferrer">Mở trên Telegram</a>
                   ) : null}
@@ -990,6 +1024,8 @@ export function GroupDetailView({
       selectAll: false,
       selected: [],
       excluded: [],
+      aiInstruction: "",
+      aiResults: {},
     });
   };
 
@@ -1010,6 +1046,49 @@ export function GroupDetailView({
     if (action) {
       onCreatedAction(action);
       setHistoryDeletePreview(null);
+    }
+  };
+
+  const analyzeHistoryDeleteCandidatesWithAi = async (items) => {
+    if (!historyDeletePreview) return;
+    const instruction = historyDeletePreview.aiInstruction.trim();
+    if (instruction.length < 3) {
+      onToast("Hãy mô tả nội dung AI cần tìm, tối thiểu 3 ký tự.", "error");
+      return;
+    }
+    const messageIds = items.slice(0, 25).map((item) => item.message_id);
+    if (!messageIds.length) return;
+    setSaving("history-ai-filter");
+    try {
+      const response = await api.filterHistoryDeleteCandidatesWithAi(chatId, {
+        mode: historyDeletePreview.mode,
+        instruction,
+        message_ids: messageIds,
+      });
+      const aiResults = Object.fromEntries(
+        (response.items || []).map((item) => [item.message_id, item]),
+      );
+      const matchedIds = (response.items || [])
+        .filter((item) => item.match)
+        .map((item) => item.message_id);
+      setHistoryDeletePreview((current) => {
+        if (!current) return current;
+        return {
+          ...current,
+          aiResults: { ...current.aiResults, ...aiResults },
+          selected: current.selectAll
+            ? current.selected
+            : [...new Set([...current.selected, ...matchedIds])],
+          excluded: current.selectAll
+            ? current.excluded.filter((id) => !matchedIds.includes(id))
+            : current.excluded,
+        };
+      });
+      onToast(`ChatGPT đã phân tích ${response.analyzed_count} post và tick các đề xuất.`);
+    } catch (error) {
+      onToast(error.message, "error");
+    } finally {
+      setSaving("");
     }
   };
 
@@ -1290,6 +1369,7 @@ export function GroupDetailView({
         onRetry={candidatesResource.reload}
         onChange={setHistoryDeletePreview}
         onDelete={previewHistoryLinkDeletion}
+        onAnalyze={analyzeHistoryDeleteCandidatesWithAi}
       />
 
       <section className="panel">

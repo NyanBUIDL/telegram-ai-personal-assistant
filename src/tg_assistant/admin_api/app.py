@@ -71,6 +71,7 @@ from .schemas import (
     AiRouteUpdate,
     DashboardPreferencesUpdate,
     GroupActionRequest,
+    HistoryAiFilterRequest,
     HistoryDeletePreviewRequest,
     KnowledgeDeleteRequest,
     KnowledgeNoteUpdate,
@@ -107,6 +108,9 @@ PauseAllHandler = Callable[[AsyncSession], Awaitable[int]]
 ResumeAllHandler = Callable[[AsyncSession], Awaitable[int]]
 ProviderSwitchHandler = Callable[[str], Awaitable[str]]
 OllamaActivateHandler = Callable[[str, str, int], Awaitable[str]]
+HistoryAiFilterHandler = Callable[
+    [AsyncSession, int, str, list[dict[str, object]]], Awaitable[list[dict[str, object]]]
+]
 
 
 @dataclass(slots=True)
@@ -124,6 +128,7 @@ class AdminContext:
     paths: dict[str, Path]
     admin_secret: str
     scheduler_getter: Callable[[], Any] | None = None
+    history_ai_filter_handler: HistoryAiFilterHandler | None = None
 
 
 def _utc(value: datetime | None) -> datetime | None:
@@ -1157,6 +1162,66 @@ def create_admin_app(context: AdminContext) -> FastAPI:
                     for row in slice_rows
                 ],
             }
+
+    @app.post("/api/v1/groups/{chat_id}/history-ai-delete-filter")
+    async def classify_history_delete_candidates(
+        chat_id: int,
+        payload: HistoryAiFilterRequest,
+        _session: AdminSession = Depends(require_write_session),
+    ) -> dict:
+        if not context.history_ai_filter_handler:
+            raise HTTPException(
+                status_code=503,
+                detail="Bộ lọc AI OpenAI chưa sẵn sàng trong runtime.",
+            )
+        async with context.database.session() as db:
+            chat = await db.scalar(select(TelegramChat).where(TelegramChat.chat_id == chat_id))
+            if not chat:
+                raise HTTPException(status_code=404, detail="Không tìm thấy group/channel.")
+            rows = list(
+                (
+                    await db.scalars(
+                        select(TelegramMessage).where(
+                            TelegramMessage.chat_id == chat_id,
+                            TelegramMessage.message_id.in_(payload.message_ids),
+                            TelegramMessage.is_deleted.is_(False),
+                            TelegramMessage.text.is_not(None),
+                        )
+                    )
+                ).all()
+            )
+            candidates = [
+                row for row in rows if matches_history_delete_mode(row.text, payload.mode)
+            ]
+            if not candidates:
+                raise HTTPException(
+                    status_code=422,
+                    detail="Không còn post hợp lệ để AI phân tích trong lựa chọn này.",
+                )
+            results = await context.history_ai_filter_handler(
+                db,
+                chat_id,
+                payload.instruction.strip(),
+                [
+                    {"message_id": row.message_id, "text": row.text or ""}
+                    for row in candidates
+                ],
+            )
+            db.add(
+                _audit(
+                    owner_id=context.owner_id,
+                    action="history_delete_ai_filter",
+                    outcome="success",
+                    target_type="telegram_chat",
+                    target_id=chat_id,
+                    details={
+                        "mode": payload.mode,
+                        "analyzed_count": len(candidates),
+                        "matched_count": sum(1 for item in results if item.get("match")),
+                    },
+                )
+            )
+        return {"items": results, "analyzed_count": len(candidates)}
 
     @app.post("/api/v1/groups/{chat_id}/permissions", status_code=status.HTTP_201_CREATED)
     async def create_permission_action(

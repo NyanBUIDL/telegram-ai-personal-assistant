@@ -149,6 +149,11 @@ export const api = {
       method: "POST",
       body,
     }),
+  filterHistoryDeleteCandidatesWithAi: (chatId, body) =>
+    request(`/groups/${encodeURIComponent(chatId)}/history-ai-delete-filter`, {
+      method: "POST",
+      body,
+    }),
   setPermission: (chatId, permission, enabled) =>
     request(`/groups/${encodeURIComponent(chatId)}/permissions`, {
       method: "POST",

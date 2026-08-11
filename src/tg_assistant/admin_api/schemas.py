@@ -52,6 +52,19 @@ class HistoryDeletePreviewRequest(BaseModel):
         return list(dict.fromkeys(value))
 
 
+class HistoryAiFilterRequest(BaseModel):
+    mode: Literal["all_links", "promotion_links"]
+    instruction: str = Field(min_length=3, max_length=1_000)
+    message_ids: list[int] = Field(min_length=1, max_length=25)
+
+    @field_validator("message_ids")
+    @classmethod
+    def unique_filter_message_ids(cls, value: list[int]) -> list[int]:
+        if any(item <= 0 for item in value):
+            raise ValueError("Message ID phải là số dương.")
+        return list(dict.fromkeys(value))
+
+
 class PermissionUpdate(BaseModel):
     permission: PermissionName
     enabled: bool

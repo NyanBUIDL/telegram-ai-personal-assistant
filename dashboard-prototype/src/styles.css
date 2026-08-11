@@ -964,6 +964,11 @@ tbody tr:hover td { background: #f7eec5; }
 .telegram-delete-check input { width: 20px; height: 20px; accent-color: var(--magenta); }
 .history-delete-selectbar > div { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 10px; }
 .history-delete-selectbar b { font-size: 13px; white-space: nowrap; }
+.history-delete-ai-filter { display: grid; grid-template-columns: minmax(180px, .85fr) minmax(260px, 1.35fr) auto; gap: 12px; align-items: center; padding: 14px 18px; border-bottom: 2px solid var(--ink); background: var(--paper-2); }
+.history-delete-ai-filter b { display: block; margin: 5px 0; font-size: 15px; text-transform: uppercase; line-height: 1.05; }
+.history-delete-ai-filter small { display: block; color: var(--muted); font-size: 11px; font-weight: 700; line-height: 1.3; }
+.history-delete-ai-filter textarea { width: 100%; min-height: 72px; padding: 9px 11px; resize: vertical; color: var(--ink); background: var(--paper); border: 2px solid var(--ink); border-radius: 0; font: inherit; font-size: 13px; font-weight: 700; line-height: 1.35; }
+.history-delete-ai-filter .button { align-self: stretch; max-width: 200px; justify-content: center; }
 .history-delete-list { min-height: 0; padding: 16px; overflow-y: auto; overscroll-behavior: contain; background: #bed6d3; }
 .telegram-delete-post { display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 9px; align-items: start; padding: 8px 0; }
 .telegram-delete-check { min-height: 48px; display: grid; place-items: center; cursor: pointer; }
@@ -978,6 +983,8 @@ tbody tr:hover td { background: #f7eec5; }
 .telegram-post-bubble p { margin: 8px 0 9px; white-space: pre-wrap; overflow-wrap: anywhere; font-family: Arial, sans-serif; font-size: 14px; line-height: 1.42; }
 .telegram-post-bubble footer { flex-wrap: wrap; }
 .telegram-post-bubble footer a { margin-left: auto; color: var(--teal-dark); font-size: 12px; font-weight: 800; }
+.ai-delete-result { flex: 1 1 230px; color: #6e1a58; font-size: 11px; font-weight: 800; line-height: 1.25; }
+.ai-delete-result.is-match { color: #007173; }
 .history-delete-modal-footer { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 13px 18px; border-top: 2px solid var(--ink); background: var(--paper-2); }
 .history-delete-pagination { display: flex; align-items: center; gap: 8px; }
 .history-delete-pagination > span { min-width: 88px; text-align: center; font-size: 12px; font-weight: 800; }
@@ -2250,6 +2257,8 @@ tbody tr:hover td { background: #f7eec5; }
   .history-delete-modal { width: min(900px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); }
   .history-delete-selectbar,
   .history-delete-modal-footer { align-items: stretch; flex-direction: column; padding: 12px 14px; }
+  .history-delete-ai-filter { grid-template-columns: 1fr; padding: 12px 14px; }
+  .history-delete-ai-filter .button { width: 100%; max-width: none; }
   .history-delete-selectbar > div { justify-content: space-between; }
   .history-delete-modal-footer > .button { width: 100%; justify-content: center; }
   .history-delete-pagination { justify-content: space-between; }
