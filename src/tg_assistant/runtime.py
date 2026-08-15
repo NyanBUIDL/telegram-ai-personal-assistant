@@ -1532,6 +1532,7 @@ class Application:
                 chat_id = int(payload["chat_id"])
                 owner_id = int(payload["owner_id"])
                 mode = str(payload["mode"])
+                keyword_terms = list(payload.get("keyword_terms", []))
                 selection_type = str(payload.get("selection_type", "all_matching"))
                 selected_ids = {int(value) for value in payload.get("selected_message_ids", [])}
                 excluded_ids = {int(value) for value in payload.get("excluded_message_ids", [])}
@@ -1556,7 +1557,9 @@ class Application:
                 candidates = [
                     row
                     for row in rows
-                    if matches_history_delete_mode(row.text, mode)
+                    if matches_history_delete_mode(
+                        row.text, mode, keyword_terms=keyword_terms
+                    )
                     and (
                         row.message_id in selected_ids
                         if selection_type == "specific"
@@ -2509,6 +2512,9 @@ class Application:
                                         "chat_id": chat_id,
                                         "owner_id": action.requested_by,
                                         "mode": str(action.payload["mode"]),
+                                        "keyword_terms": list(
+                                            action.payload.get("keyword_terms", [])
+                                        ),
                                         "selection_type": str(
                                             action.payload.get("selection_type", "all_matching")
                                         ),

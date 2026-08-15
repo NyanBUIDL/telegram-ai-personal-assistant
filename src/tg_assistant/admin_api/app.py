@@ -45,6 +45,7 @@ from ..services.history_export import (
     encode_csv_row,
     history_csv_header,
     history_csv_row,
+    matched_terms,
     matches_history_delete_mode,
     parse_search_terms,
     promotion_reasons,
@@ -1046,8 +1047,18 @@ def create_admin_app(context: AdminContext) -> FastAPI:
                     )
                 ).all()
             )
+            keyword_terms = parse_search_terms(payload.keyword_terms)
+            if payload.mode == "keywords" and not keyword_terms:
+                raise HTTPException(
+                    status_code=422,
+                    detail="Nhập ít nhất một tên hoặc từ khóa để tạo preview xóa.",
+                )
             matching = [
-                row for row in rows if matches_history_delete_mode(row.text, payload.mode)
+                row
+                for row in rows
+                if matches_history_delete_mode(
+                    row.text, payload.mode, keyword_terms=keyword_terms
+                )
             ]
             if payload.select_all:
                 excluded = set(payload.excluded_message_ids)
@@ -1062,11 +1073,11 @@ def create_admin_app(context: AdminContext) -> FastAPI:
                     status_code=422,
                     detail="Chưa có post hợp lệ nào được chọn để xóa.",
                 )
-            mode_label = (
-                "mọi post có link"
-                if payload.mode == "all_links"
-                else "post có link kèm dấu hiệu promotion"
-            )
+            mode_label = {
+                "all_links": "mọi post có link",
+                "promotion_links": "post có link kèm dấu hiệu promotion",
+                "keywords": f"post khớp tên/từ khóa: {', '.join(keyword_terms)}",
+            }[payload.mode]
             action = await pending.create(
                 db,
                 action_type="delete_history_link_posts",
@@ -1074,6 +1085,7 @@ def create_admin_app(context: AdminContext) -> FastAPI:
                 chat_id=chat_id,
                 payload={
                     "mode": payload.mode,
+                    "keyword_terms": keyword_terms,
                     "selection_type": selection_type,
                     "candidate_count": len(candidates),
                     "max_message_id": max(row.message_id for row in candidates),
@@ -1118,7 +1130,8 @@ def create_admin_app(context: AdminContext) -> FastAPI:
     @app.get("/api/v1/groups/{chat_id}/history-delete-candidates")
     async def list_history_link_delete_candidates(
         chat_id: int,
-        mode: str = Query(pattern="^(all_links|promotion_links)$"),
+        mode: str = Query(pattern="^(all_links|promotion_links|keywords)$"),
+        keyword_terms: str = Query(default="", max_length=1_000),
         page: int = Query(default=1, ge=1),
         page_size: int = Query(default=50, ge=10, le=100),
         _session: AdminSession = Depends(require_session),
@@ -1141,11 +1154,24 @@ def create_admin_app(context: AdminContext) -> FastAPI:
                     )
                 ).all()
             )
-            matching = [row for row in rows if matches_history_delete_mode(row.text, mode)]
+            terms = parse_search_terms(keyword_terms)
+            if mode == "keywords" and not terms:
+                return {
+                    "mode": mode,
+                    "keyword_terms": [],
+                    "page": page,
+                    "page_size": page_size,
+                    "total": 0,
+                    "items": [],
+                }
+            matching = [
+                row for row in rows if matches_history_delete_mode(row.text, mode, keyword_terms=terms)
+            ]
             start = (page - 1) * page_size
             slice_rows = matching[start : start + page_size]
             return {
                 "mode": mode,
+                "keyword_terms": terms,
                 "page": page,
                 "page_size": page_size,
                 "total": len(matching),
@@ -1157,6 +1183,7 @@ def create_admin_app(context: AdminContext) -> FastAPI:
                         "sent_at": row.sent_at.isoformat(),
                         "has_media": row.has_media,
                         "reasons": promotion_reasons(row.text),
+                        "matched_terms": matched_terms(row.text, terms) if mode == "keywords" else [],
                         "telegram_url": telegram_post_url(chat, row.message_id),
                     }
                     for row in slice_rows
@@ -1190,8 +1217,20 @@ def create_admin_app(context: AdminContext) -> FastAPI:
                     )
                 ).all()
             )
+            keyword_terms = parse_search_terms(payload.keyword_terms)
+            if payload.mode == "keywords" and not keyword_terms:
+                raise HTTPException(
+                    status_code=422,
+                    detail="Nhập ít nhất một tên hoặc từ khóa trước khi dùng AI.",
+                )
             candidates = [
-                row for row in rows if matches_history_delete_mode(row.text, payload.mode)
+                row
+                for row in rows
+                if matches_history_delete_mode(
+                    row.text,
+                    payload.mode,
+                    keyword_terms=keyword_terms,
+                )
             ]
             if not candidates:
                 raise HTTPException(

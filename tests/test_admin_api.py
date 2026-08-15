@@ -218,6 +218,26 @@ async def test_admin_api_lists_and_previews_selected_history_link_posts(admin_cl
     assert action.json()["payload"]["candidate_count"] == 1
     assert action.json()["payload"]["selected_message_ids"] == [102]
 
+    keyword_candidates = await client.get(
+        f"/api/v1/groups/{chat_id}/history-delete-candidates",
+        params={"mode": "keywords", "keyword_terms": "airdrop, Binance"},
+    )
+    assert keyword_candidates.status_code == 200
+    assert keyword_candidates.json()["total"] == 1
+    assert keyword_candidates.json()["items"][0]["matched_terms"] == ["airdrop"]
+
+    keyword_action = await client.post(
+        f"/api/v1/groups/{chat_id}/history-delete-preview",
+        json={
+            "mode": "keywords",
+            "keyword_terms": "airdrop",
+            "selected_message_ids": [102],
+        },
+        headers={"X-CSRF-Token": csrf},
+    )
+    assert keyword_action.status_code == 201
+    assert keyword_action.json()["payload"]["keyword_terms"] == ["airdrop"]
+
     ai_filter = await client.post(
         f"/api/v1/groups/{chat_id}/history-ai-delete-filter",
         json={

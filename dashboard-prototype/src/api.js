@@ -136,10 +136,14 @@ export const api = {
       { responseType: "blob" },
     );
   },
-  historyLinkDeleteCandidates: (chatId, { mode, page = 1, pageSize = 50 }) =>
+  historyLinkDeleteCandidates: (
+    chatId,
+    { mode, keywordTerms = "", page = 1, pageSize = 50 },
+  ) =>
     request(
       `/groups/${encodeURIComponent(chatId)}/history-delete-candidates?${new URLSearchParams({
         mode,
+        keyword_terms: keywordTerms,
         page: String(page),
         page_size: String(pageSize),
       })}`,

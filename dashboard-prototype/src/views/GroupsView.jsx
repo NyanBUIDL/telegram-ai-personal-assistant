@@ -661,7 +661,11 @@ function HistoryLinkDeletePreviewModal({
           <div>
             <p className="eyebrow">TELEGRAM · DELETE PREVIEW</p>
             <h2 id="history-delete-title">
-              {preview.mode === "all_links" ? "Post có link" : "Link + promotion"}
+              {preview.mode === "all_links"
+                ? "Post có link"
+                : preview.mode === "promotion_links"
+                  ? "Link + promotion"
+                  : "Tên / từ khóa trong post"}
             </h2>
             <span className="history-delete-modal-note">
               Chọn những post cần xóa. Chưa có hành động nào được gửi lên Telegram ở bước này.
@@ -669,6 +673,42 @@ function HistoryLinkDeletePreviewModal({
           </div>
           <button className="icon-button modal-close" aria-label="Đóng" onClick={onClose}>×</button>
         </header>
+
+        {preview.mode === "keywords" ? (
+          <div className="history-delete-keyword-filter">
+            <div>
+              <span className="eyebrow">MYSQL · KHÔNG DÙNG AI</span>
+              <b>Lọc theo tên hoặc từ khóa trong nội dung</b>
+              <small>Nhập nhiều từ khóa bằng dấu phẩy. Post khớp ít nhất một từ sẽ hiện ra.</small>
+            </div>
+            <input
+              value={preview.keywordTerms}
+              maxLength={1_000}
+              onChange={(event) =>
+                onChange((current) => ({ ...current, keywordTerms: event.target.value }))
+              }
+              placeholder="Ví dụ: Binance, OKX, airdrop"
+              aria-label="Tên hoặc từ khóa cần xóa"
+            />
+            <button
+              className="button button--primary"
+              disabled={loading || preview.keywordTerms.trim().length < 1}
+              onClick={() =>
+                onChange((current) => ({
+                  ...current,
+                  appliedKeywordTerms: current.keywordTerms,
+                  page: 1,
+                  selectAll: false,
+                  selected: [],
+                  excluded: [],
+                  aiResults: {},
+                }))
+              }
+            >
+              <MagnifyingGlass size={18} weight="bold" /> Áp dụng lọc
+            </button>
+          </div>
+        ) : null}
 
         <div className="history-delete-selectbar">
           <label>
@@ -753,6 +793,7 @@ function HistoryLinkDeletePreviewModal({
                 <footer>
                   <span>#{item.message_id}</span>
                   {item.reasons?.map((reason) => <Badge tone="yellow" key={reason}>{humanize(reason)}</Badge>)}
+                  {item.matched_terms?.map((term) => <Badge tone="teal" key={term}>{term}</Badge>)}
                   {preview.aiResults?.[item.message_id] ? (
                     <span className={`ai-delete-result ${preview.aiResults[item.message_id].match ? "is-match" : ""}`}>
                       AI {preview.aiResults[item.message_id].match ? "ĐỀ XUẤT" : "KHÔNG KHỚP"} · {preview.aiResults[item.message_id].confidence}%
@@ -836,10 +877,16 @@ export function GroupDetailView({
       historyDeletePreview
         ? api.historyLinkDeleteCandidates(chatId, {
             mode: historyDeletePreview.mode,
+            keywordTerms: historyDeletePreview.appliedKeywordTerms,
             page: historyDeletePreview.page,
           })
         : Promise.resolve(null),
-    [chatId, historyDeletePreview?.mode, historyDeletePreview?.page],
+    [
+      chatId,
+      historyDeletePreview?.mode,
+      historyDeletePreview?.appliedKeywordTerms,
+      historyDeletePreview?.page,
+    ],
     refreshKey,
   );
 
@@ -1026,6 +1073,8 @@ export function GroupDetailView({
       excluded: [],
       aiInstruction: "",
       aiResults: {},
+      keywordTerms: "",
+      appliedKeywordTerms: "",
     });
   };
 
@@ -1037,6 +1086,7 @@ export function GroupDetailView({
       () =>
         api.previewHistoryLinkDeletion(chatId, {
           mode,
+          keyword_terms: historyDeletePreview.appliedKeywordTerms,
           select_all: selectAll,
           selected_message_ids: selected,
           excluded_message_ids: excluded,
@@ -1062,6 +1112,7 @@ export function GroupDetailView({
     try {
       const response = await api.filterHistoryDeleteCandidatesWithAi(chatId, {
         mode: historyDeletePreview.mode,
+        keyword_terms: historyDeletePreview.appliedKeywordTerms,
         instruction,
         message_ids: messageIds,
       });
@@ -1348,6 +1399,13 @@ export function GroupDetailView({
               onClick={(event) => openHistoryLinkPreview(event, "promotion_links")}
             >
               Preview: xóa link + promotion
+            </button>
+            <button
+              className="button button--danger"
+              disabled={Boolean(saving) || !policy.allowed || !permissions.delete_any_messages}
+              onClick={(event) => openHistoryLinkPreview(event, "keywords")}
+            >
+              Preview: xóa theo tên/từ khóa
             </button>
           </div>
           {!permissions.delete_any_messages ? (

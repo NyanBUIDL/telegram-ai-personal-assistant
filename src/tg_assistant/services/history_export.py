@@ -43,12 +43,19 @@ def promotion_reasons(text: str | None) -> list[str]:
     return [label for label, pattern in PROMOTION_PATTERNS if pattern.search(content)]
 
 
-def matches_history_delete_mode(text: str | None, mode: str) -> bool:
+def matches_history_delete_mode(
+    text: str | None,
+    mode: str,
+    *,
+    keyword_terms: Iterable[str] | None = None,
+) -> bool:
     reasons = set(promotion_reasons(text))
     if mode == "all_links":
         return "link" in reasons
     if mode == "promotion_links":
         return {"link", "promotion_keyword"}.issubset(reasons)
+    if mode == "keywords":
+        return bool(matched_terms(text, keyword_terms or []))
     raise ValueError("Chế độ xóa lịch sử không hợp lệ.")
 
 
