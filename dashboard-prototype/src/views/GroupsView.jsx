@@ -665,9 +665,11 @@ function HistoryLinkDeletePreviewModal({
                 ? "Post có link"
                 : preview.mode === "promotion_links"
                   ? "Link + promotion"
-                  : preview.mode === "sender"
+                : preview.mode === "sender"
                     ? "Người đăng / channel"
-                    : "Tên / từ khóa trong post"}
+                    : preview.mode === "images"
+                      ? "Post có hình ảnh"
+                      : "Tên / từ khóa trong post"}
             </h2>
             <span className="history-delete-modal-note">
               Chọn những post cần xóa. Chưa có hành động nào được gửi lên Telegram ở bước này.
@@ -751,6 +753,19 @@ function HistoryLinkDeletePreviewModal({
           </div>
         ) : null}
 
+        {preview.mode === "images" ? (
+          <div className="history-delete-image-note">
+            <div>
+              <span className="eyebrow">TELEGRAM · IMAGE ONLY</span>
+              <b>Chỉ chọn ảnh, không gồm video hoặc tài liệu</b>
+              <small>
+                Chỉ post Telegram đã được đánh dấu là <code>photo</code> hoặc <code>image/*</code>
+                mới hiện ở đây. Nếu lịch sử cũ chưa có kết quả, hãy quét lại toàn bộ lịch sử một lần.
+              </small>
+            </div>
+          </div>
+        ) : null}
+
         <div className="history-delete-selectbar">
           <label>
             <input
@@ -779,6 +794,7 @@ function HistoryLinkDeletePreviewModal({
           </div>
         </div>
 
+        {preview.mode !== "images" ? (
         <div className="history-delete-ai-filter">
           <div>
             <span className="eyebrow">CHATGPT · GỢI Ý LỌC NỘI DUNG</span>
@@ -805,6 +821,7 @@ function HistoryLinkDeletePreviewModal({
             {saving ? "Đang phân tích…" : `Dùng ChatGPT phân tích ${Math.min(items.length, 25)} post`}
           </button>
         </div>
+        ) : null}
 
         <div className="history-delete-list">
           {loading && !candidates ? <LoadingState label="Đang tìm post phù hợp…" /> : null}
@@ -836,9 +853,13 @@ function HistoryLinkDeletePreviewModal({
                   </b>
                   <span>{formatRelative(item.sent_at)}</span>
                 </header>
-                <p>{item.text}</p>
+                {item.has_image ? (
+                  <div className="telegram-image-indicator">ẢNH TELEGRAM · MỞ LINK ĐỂ XEM</div>
+                ) : null}
+                {item.text ? <p>{item.text}</p> : null}
                 <footer>
                   <span>#{item.message_id}</span>
+                  {item.has_image ? <Badge tone="teal">ẢNH</Badge> : null}
                   {item.reasons?.map((reason) => <Badge tone="yellow" key={reason}>{humanize(reason)}</Badge>)}
                   {item.matched_terms?.map((term) => <Badge tone="teal" key={term}>{term}</Badge>)}
                   {preview.aiResults?.[item.message_id] ? (
@@ -1466,6 +1487,13 @@ export function GroupDetailView({
               onClick={(event) => openHistoryLinkPreview(event, "sender")}
             >
               Preview: xóa theo người đăng
+            </button>
+            <button
+              className="button button--danger"
+              disabled={Boolean(saving) || !policy.allowed || !permissions.delete_any_messages}
+              onClick={(event) => openHistoryLinkPreview(event, "images")}
+            >
+              Preview: xóa post có ảnh
             </button>
           </div>
           {!permissions.delete_any_messages ? (

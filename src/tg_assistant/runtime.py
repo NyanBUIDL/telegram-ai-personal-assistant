@@ -64,7 +64,7 @@ from .services.coingecko import (
     format_coin_price,
 )
 from .services.daily_digest import referenced_item_indexes
-from .services.history_export import matches_history_delete_mode
+from .services.history_export import matches_history_delete_message
 from .services.memory import MemoryService
 from .services.ollama import OllamaPullCancelled, OllamaService
 from .services.operations import (
@@ -1546,7 +1546,6 @@ class Application:
                             .where(
                                 TelegramMessage.chat_id == chat_id,
                                 TelegramMessage.is_deleted.is_(False),
-                                TelegramMessage.text.is_not(None),
                                 TelegramMessage.message_id > cursor,
                                 TelegramMessage.message_id <= max_message_id,
                             )
@@ -1561,8 +1560,8 @@ class Application:
                     if (
                         row.sender_id in sender_ids
                         if mode == "sender"
-                        else matches_history_delete_mode(
-                            row.text, mode, keyword_terms=keyword_terms
+                        else matches_history_delete_message(
+                            row, mode, keyword_terms=keyword_terms
                         )
                     )
                     and (

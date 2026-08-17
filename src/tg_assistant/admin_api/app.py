@@ -46,7 +46,7 @@ from ..services.history_export import (
     history_csv_header,
     history_csv_row,
     matched_terms,
-    matches_history_delete_mode,
+    matches_history_delete_message,
     parse_search_terms,
     promotion_reasons,
     telegram_post_url,
@@ -1086,7 +1086,6 @@ def create_admin_app(context: AdminContext) -> FastAPI:
                         .where(
                             TelegramMessage.chat_id == chat_id,
                             TelegramMessage.is_deleted.is_(False),
-                            TelegramMessage.text.is_not(None),
                         )
                         .order_by(TelegramMessage.message_id.asc())
                     )
@@ -1110,8 +1109,8 @@ def create_admin_app(context: AdminContext) -> FastAPI:
                 if (
                     row.sender_id in sender_identities
                     if payload.mode == "sender"
-                    else matches_history_delete_mode(
-                        row.text, payload.mode, keyword_terms=keyword_terms
+                    else matches_history_delete_message(
+                        row, payload.mode, keyword_terms=keyword_terms
                     )
                 )
             ]
@@ -1133,6 +1132,7 @@ def create_admin_app(context: AdminContext) -> FastAPI:
                 "promotion_links": "post có link kèm dấu hiệu promotion",
                 "keywords": f"post khớp tên/từ khóa: {', '.join(keyword_terms)}",
                 "sender": "post của người đăng/channel đã chọn",
+                "images": "post có hình ảnh",
             }[payload.mode]
             action = await pending.create(
                 db,
@@ -1189,7 +1189,7 @@ def create_admin_app(context: AdminContext) -> FastAPI:
     @app.get("/api/v1/groups/{chat_id}/history-delete-candidates")
     async def list_history_link_delete_candidates(
         chat_id: int,
-        mode: str = Query(pattern="^(all_links|promotion_links|keywords|sender)$"),
+        mode: str = Query(pattern="^(all_links|promotion_links|keywords|sender|images)$"),
         keyword_terms: str = Query(default="", max_length=1_000),
         sender_query: str = Query(default="", max_length=255),
         page: int = Query(default=1, ge=1),
@@ -1208,7 +1208,6 @@ def create_admin_app(context: AdminContext) -> FastAPI:
                         .where(
                             TelegramMessage.chat_id == chat_id,
                             TelegramMessage.is_deleted.is_(False),
-                            TelegramMessage.text.is_not(None),
                         )
                         .order_by(TelegramMessage.message_id.desc())
                     )
@@ -1241,7 +1240,7 @@ def create_admin_app(context: AdminContext) -> FastAPI:
                 if (
                     row.sender_id in sender_identities
                     if mode == "sender"
-                    else matches_history_delete_mode(row.text, mode, keyword_terms=terms)
+                    else matches_history_delete_message(row, mode, keyword_terms=terms)
                 )
             ]
             start = (page - 1) * page_size
@@ -1262,6 +1261,10 @@ def create_admin_app(context: AdminContext) -> FastAPI:
                         "text": row.text or "",
                         "sent_at": row.sent_at.isoformat(),
                         "has_media": row.has_media,
+                        "has_image": bool(
+                            row.has_media
+                            and (row.metadata_json or {}).get("media_kind") == "image"
+                        ),
                         "reasons": promotion_reasons(row.text),
                         "matched_terms": matched_terms(row.text, terms) if mode == "keywords" else [],
                         "telegram_url": telegram_post_url(chat, row.message_id),
@@ -1292,7 +1295,6 @@ def create_admin_app(context: AdminContext) -> FastAPI:
                             TelegramMessage.chat_id == chat_id,
                             TelegramMessage.message_id.in_(payload.message_ids),
                             TelegramMessage.is_deleted.is_(False),
-                            TelegramMessage.text.is_not(None),
                         )
                     )
                 ).all()
@@ -1315,10 +1317,8 @@ def create_admin_app(context: AdminContext) -> FastAPI:
                 if (
                     row.sender_id in sender_identities
                     if payload.mode == "sender"
-                    else matches_history_delete_mode(
-                        row.text,
-                        payload.mode,
-                        keyword_terms=keyword_terms,
+                    else matches_history_delete_message(
+                        row, payload.mode, keyword_terms=keyword_terms
                     )
                 )
             ]

@@ -211,6 +211,22 @@ async def test_admin_api_lists_and_previews_selected_history_link_posts(admin_cl
                     text="Post do linked channel đăng",
                     sent_at=datetime.now(UTC),
                 ),
+                TelegramMessage(
+                    chat_id=chat_id,
+                    message_id=104,
+                    text=None,
+                    sent_at=datetime.now(UTC),
+                    has_media=True,
+                    metadata_json={"media_kind": "image"},
+                ),
+                TelegramMessage(
+                    chat_id=chat_id,
+                    message_id=105,
+                    text=None,
+                    sent_at=datetime.now(UTC),
+                    has_media=True,
+                    metadata_json={"media_kind": "video"},
+                ),
             ]
         )
     login = await client.post(
@@ -274,6 +290,23 @@ async def test_admin_api_lists_and_previews_selected_history_link_posts(admin_cl
     )
     assert sender_action.status_code == 201
     assert sender_action.json()["payload"]["sender_ids"] == [777]
+
+    image_candidates = await client.get(
+        f"/api/v1/groups/{chat_id}/history-delete-candidates",
+        params={"mode": "images"},
+    )
+    assert image_candidates.status_code == 200
+    assert image_candidates.json()["total"] == 1
+    assert image_candidates.json()["items"][0]["message_id"] == 104
+    assert image_candidates.json()["items"][0]["has_image"] is True
+
+    image_action = await client.post(
+        f"/api/v1/groups/{chat_id}/history-delete-preview",
+        json={"mode": "images", "selected_message_ids": [104]},
+        headers={"X-CSRF-Token": csrf},
+    )
+    assert image_action.status_code == 201
+    assert image_action.json()["payload"]["candidate_count"] == 1
 
     ai_filter = await client.post(
         f"/api/v1/groups/{chat_id}/history-ai-delete-filter",

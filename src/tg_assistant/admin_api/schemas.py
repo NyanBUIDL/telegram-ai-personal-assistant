@@ -39,7 +39,7 @@ class GroupActionRequest(BaseModel):
 
 
 class HistoryDeletePreviewRequest(BaseModel):
-    mode: Literal["all_links", "promotion_links", "keywords", "sender"]
+    mode: Literal["all_links", "promotion_links", "keywords", "sender", "images"]
     keyword_terms: str = Field(default="", max_length=1_000)
     sender_query: str = Field(default="", max_length=255)
     select_all: bool = False
@@ -55,7 +55,7 @@ class HistoryDeletePreviewRequest(BaseModel):
 
 
 class HistoryAiFilterRequest(BaseModel):
-    mode: Literal["all_links", "promotion_links", "keywords", "sender"]
+    mode: Literal["all_links", "promotion_links", "keywords", "sender", "images"]
     keyword_terms: str = Field(default="", max_length=1_000)
     sender_query: str = Field(default="", max_length=255)
     instruction: str = Field(min_length=3, max_length=1_000)

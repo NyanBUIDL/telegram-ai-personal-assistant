@@ -9,6 +9,7 @@ from tg_assistant.db.models import PermissionName, TelegramChat, TelegramMessage
 from tg_assistant.policy import PolicyEngine
 from tg_assistant.services.history_export import (
     history_csv_row,
+    matches_history_delete_message,
     matches_history_delete_mode,
     parse_search_terms,
 )
@@ -43,6 +44,24 @@ def test_history_export_marks_promotion_and_requested_terms() -> None:
     assert matches_history_delete_mode(message.text, "all_links")
     assert matches_history_delete_mode(message.text, "promotion_links")
     assert not matches_history_delete_mode("Đọc https://example.com/tin", "promotion_links")
+    image = TelegramMessage(
+        chat_id=chat.chat_id,
+        message_id=43,
+        text=None,
+        sent_at=datetime(2026, 1, 1, tzinfo=UTC),
+        has_media=True,
+        metadata_json={"media_kind": "image"},
+    )
+    video = TelegramMessage(
+        chat_id=chat.chat_id,
+        message_id=44,
+        text=None,
+        sent_at=datetime(2026, 1, 1, tzinfo=UTC),
+        has_media=True,
+        metadata_json={"media_kind": "video"},
+    )
+    assert matches_history_delete_message(image, "images")
+    assert not matches_history_delete_message(video, "images")
 
 
 class FakeHistoryClient:

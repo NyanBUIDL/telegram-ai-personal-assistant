@@ -952,8 +952,8 @@ tbody tr:hover td { background: #f7eec5; }
   width: min(900px, calc(100vw - 40px));
   max-height: calc(100dvh - 40px);
   padding: 0;
-  display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
   background: #dbe8e6;
 }
@@ -969,12 +969,15 @@ tbody tr:hover td { background: #f7eec5; }
 .history-delete-keyword-filter small { display: block; color: var(--muted); font-size: 11px; font-weight: 700; line-height: 1.3; }
 .history-delete-keyword-filter input { width: 100%; min-height: 44px; padding: 9px 11px; color: var(--ink); background: var(--paper); border: 2px solid var(--ink); border-radius: 0; outline: 0; font: inherit; font-size: 13px; font-weight: 700; }
 .history-delete-keyword-filter .button { align-self: stretch; justify-content: center; }
+.history-delete-image-note { padding: 14px 18px; border-bottom: 2px solid var(--ink); background: #ddf4ef; }
+.history-delete-image-note b { display: block; margin: 5px 0; font-size: 15px; text-transform: uppercase; line-height: 1.05; }
+.history-delete-image-note small { display: block; max-width: 700px; color: var(--muted); font-size: 11px; font-weight: 700; line-height: 1.3; }
 .history-delete-ai-filter { display: grid; grid-template-columns: minmax(180px, .85fr) minmax(260px, 1.35fr) auto; gap: 12px; align-items: center; padding: 14px 18px; border-bottom: 2px solid var(--ink); background: var(--paper-2); }
 .history-delete-ai-filter b { display: block; margin: 5px 0; font-size: 15px; text-transform: uppercase; line-height: 1.05; }
 .history-delete-ai-filter small { display: block; color: var(--muted); font-size: 11px; font-weight: 700; line-height: 1.3; }
 .history-delete-ai-filter textarea { width: 100%; min-height: 72px; padding: 9px 11px; resize: vertical; color: var(--ink); background: var(--paper); border: 2px solid var(--ink); border-radius: 0; font: inherit; font-size: 13px; font-weight: 700; line-height: 1.35; }
 .history-delete-ai-filter .button { align-self: stretch; max-width: 200px; justify-content: center; }
-.history-delete-list { min-height: 0; padding: 16px; overflow-y: auto; overscroll-behavior: contain; background: #bed6d3; }
+.history-delete-list { min-height: 0; flex: 1 1 auto; padding: 16px; overflow-y: auto; overscroll-behavior: contain; background: #bed6d3; }
 .telegram-delete-post { display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 9px; align-items: start; padding: 8px 0; }
 .telegram-delete-check { min-height: 48px; display: grid; place-items: center; cursor: pointer; }
 .telegram-post-bubble { min-width: 0; padding: 11px 13px; background: var(--paper-2); border: 2px solid var(--ink); box-shadow: 3px 3px 0 rgba(9, 9, 9, .23); }
@@ -986,6 +989,7 @@ tbody tr:hover td { background: #f7eec5; }
 .telegram-post-bubble header span,
 .telegram-post-bubble footer > span { color: var(--muted); font-size: 11px; font-weight: 700; }
 .telegram-post-bubble p { margin: 8px 0 9px; white-space: pre-wrap; overflow-wrap: anywhere; font-family: Arial, sans-serif; font-size: 14px; line-height: 1.42; }
+.telegram-image-indicator { width: min(280px, 100%); margin-top: 9px; padding: 22px 12px; color: var(--ink); background: #d2ece7; border: 2px solid var(--ink); font-size: 12px; font-weight: 900; letter-spacing: .04em; text-align: center; }
 .telegram-post-bubble footer { flex-wrap: wrap; }
 .telegram-post-bubble footer a { margin-left: auto; color: var(--teal-dark); font-size: 12px; font-weight: 800; }
 .ai-delete-result { flex: 1 1 230px; color: #6e1a58; font-size: 11px; font-weight: 800; line-height: 1.25; }

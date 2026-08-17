@@ -134,6 +134,21 @@ def message_contains_external_link(message: Any) -> bool:
     return bool(EXTERNAL_LINK_RE.search(getattr(message, "message", None) or ""))
 
 
+def message_media_kind(message: Any) -> str:
+    """Classify Telegram media narrowly so image deletion never includes videos/documents."""
+    if getattr(message, "photo", None) is not None:
+        return "image"
+    document = getattr(message, "document", None)
+    mime_type = str(getattr(document, "mime_type", "") or "").lower()
+    if mime_type.startswith("image/"):
+        return "image"
+    if mime_type.startswith("video/") or getattr(message, "video", None) is not None:
+        return "video"
+    if document is not None:
+        return "document"
+    return "none"
+
+
 class UserClientAdapter:
     def __init__(
         self,
@@ -565,6 +580,11 @@ class UserClientAdapter:
             row.text = message.message
             row.edited_at = message.edit_date
             row.is_deleted = False
+            row.has_media = message.media is not None
+            row.metadata_json = {
+                **(row.metadata_json or {}),
+                "media_kind": message_media_kind(message),
+            }
             return
         values = {
             "chat_id": int(message.chat_id),
@@ -577,6 +597,7 @@ class UserClientAdapter:
             "is_outgoing": bool(message.out),
             "is_deleted": False,
             "has_media": message.media is not None,
+            "metadata_json": {"media_kind": message_media_kind(message)},
         }
         update_columns = {
             key: value
@@ -626,6 +647,10 @@ class UserClientAdapter:
             row.is_outgoing = bool(message.out)
             row.is_deleted = False
             row.has_media = message.media is not None
+            row.metadata_json = {
+                **(row.metadata_json or {}),
+                "media_kind": message_media_kind(message),
+            }
 
     async def sync_history(
         self,

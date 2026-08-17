@@ -59,6 +59,22 @@ def matches_history_delete_mode(
     raise ValueError("Chế độ xóa lịch sử không hợp lệ.")
 
 
+def matches_history_delete_message(
+    message: TelegramMessage,
+    mode: str,
+    *,
+    keyword_terms: Iterable[str] | None = None,
+) -> bool:
+    """Match one stored post, including the Telegram-derived media classification."""
+    if mode == "images":
+        return bool(message.has_media and (message.metadata_json or {}).get("media_kind") == "image")
+    return matches_history_delete_mode(
+        message.text,
+        mode,
+        keyword_terms=keyword_terms,
+    )
+
+
 def matched_terms(text: str | None, terms: Iterable[str]) -> list[str]:
     content = (text or "").casefold()
     return [term for term in terms if term.casefold() in content]
