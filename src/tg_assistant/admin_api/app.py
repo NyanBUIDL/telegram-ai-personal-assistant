@@ -112,6 +112,7 @@ OllamaActivateHandler = Callable[[str, str, int], Awaitable[str]]
 HistoryAiFilterHandler = Callable[
     [AsyncSession, int, str, list[dict[str, object]]], Awaitable[list[dict[str, object]]]
 ]
+HistorySenderLookupHandler = Callable[[str], Awaitable[dict[str, object]]]
 
 
 @dataclass(slots=True)
@@ -130,6 +131,7 @@ class AdminContext:
     admin_secret: str
     scheduler_getter: Callable[[], Any] | None = None
     history_ai_filter_handler: HistoryAiFilterHandler | None = None
+    history_sender_lookup_handler: HistorySenderLookupHandler | None = None
 
 
 def _utc(value: datetime | None) -> datetime | None:
@@ -395,6 +397,49 @@ def create_admin_app(context: AdminContext) -> FastAPI:
         if not csrf_token or not secrets_compare(csrf_token, session.csrf_token):
             raise HTTPException(status_code=403, detail="CSRF token không hợp lệ.")
         return session
+
+    async def resolve_history_sender_filter(
+        db: AsyncSession,
+        sender_query: str,
+    ) -> dict[int, dict[str, object]]:
+        """Resolve names from joined sources and @handles from Telegram on demand."""
+        query = sender_query.strip()
+        if not query:
+            return {}
+        needle = query.lstrip("@").casefold()
+        identities: dict[int, dict[str, object]] = {}
+        if query.lstrip("-").isdigit():
+            identities[int(query.lstrip("-"))] = {
+                "sender_id": int(query.lstrip("-")),
+                "display_name": f"Sender {query.lstrip('-')}",
+                "username": None,
+                "kind": "account",
+            }
+        sources = list((await db.scalars(select(TelegramChat))).all())
+        for source in sources:
+            username = (source.username or "").lstrip("@").casefold()
+            title = (source.title or "").casefold()
+            if needle not in {username, title} and needle not in title:
+                continue
+            raw_chat_id = str(source.chat_id)
+            sender_id = int(raw_chat_id[4:]) if raw_chat_id.startswith("-100") else abs(source.chat_id)
+            label = source.title or (f"@{source.username}" if source.username else f"Sender {sender_id}")
+            identities[sender_id] = {
+                "sender_id": sender_id,
+                "display_name": label,
+                "username": source.username,
+                "kind": source.chat_type,
+            }
+        if query.startswith("@") and context.history_sender_lookup_handler:
+            try:
+                identity = await context.history_sender_lookup_handler(query)
+            except ValueError as exc:
+                if not identities:
+                    raise HTTPException(status_code=422, detail=str(exc)) from exc
+            else:
+                sender_id = int(identity["sender_id"])
+                identities[sender_id] = identity
+        return identities
 
     @app.get("/healthz")
     async def public_health() -> dict:
@@ -1053,11 +1098,21 @@ def create_admin_app(context: AdminContext) -> FastAPI:
                     status_code=422,
                     detail="Nhập ít nhất một tên hoặc từ khóa để tạo preview xóa.",
                 )
+            sender_identities = await resolve_history_sender_filter(db, payload.sender_query)
+            if payload.mode == "sender" and not sender_identities:
+                raise HTTPException(
+                    status_code=422,
+                    detail="Không tìm thấy người đăng/channel. Hãy dùng @handle hoặc tên nguồn đã đồng bộ.",
+                )
             matching = [
                 row
                 for row in rows
-                if matches_history_delete_mode(
-                    row.text, payload.mode, keyword_terms=keyword_terms
+                if (
+                    row.sender_id in sender_identities
+                    if payload.mode == "sender"
+                    else matches_history_delete_mode(
+                        row.text, payload.mode, keyword_terms=keyword_terms
+                    )
                 )
             ]
             if payload.select_all:
@@ -1077,6 +1132,7 @@ def create_admin_app(context: AdminContext) -> FastAPI:
                 "all_links": "mọi post có link",
                 "promotion_links": "post có link kèm dấu hiệu promotion",
                 "keywords": f"post khớp tên/từ khóa: {', '.join(keyword_terms)}",
+                "sender": "post của người đăng/channel đã chọn",
             }[payload.mode]
             action = await pending.create(
                 db,
@@ -1086,6 +1142,9 @@ def create_admin_app(context: AdminContext) -> FastAPI:
                 payload={
                     "mode": payload.mode,
                     "keyword_terms": keyword_terms,
+                    "sender_query": payload.sender_query.strip(),
+                    "sender_ids": sorted(sender_identities),
+                    "sender_identities": list(sender_identities.values()),
                     "selection_type": selection_type,
                     "candidate_count": len(candidates),
                     "max_message_id": max(row.message_id for row in candidates),
@@ -1130,8 +1189,9 @@ def create_admin_app(context: AdminContext) -> FastAPI:
     @app.get("/api/v1/groups/{chat_id}/history-delete-candidates")
     async def list_history_link_delete_candidates(
         chat_id: int,
-        mode: str = Query(pattern="^(all_links|promotion_links|keywords)$"),
+        mode: str = Query(pattern="^(all_links|promotion_links|keywords|sender)$"),
         keyword_terms: str = Query(default="", max_length=1_000),
+        sender_query: str = Query(default="", max_length=255),
         page: int = Query(default=1, ge=1),
         page_size: int = Query(default=50, ge=10, le=100),
         _session: AdminSession = Depends(require_session),
@@ -1164,14 +1224,33 @@ def create_admin_app(context: AdminContext) -> FastAPI:
                     "total": 0,
                     "items": [],
                 }
+            sender_identities = await resolve_history_sender_filter(db, sender_query)
+            if mode == "sender" and not sender_identities:
+                return {
+                    "mode": mode,
+                    "sender_query": sender_query,
+                    "resolved_senders": [],
+                    "page": page,
+                    "page_size": page_size,
+                    "total": 0,
+                    "items": [],
+                }
             matching = [
-                row for row in rows if matches_history_delete_mode(row.text, mode, keyword_terms=terms)
+                row
+                for row in rows
+                if (
+                    row.sender_id in sender_identities
+                    if mode == "sender"
+                    else matches_history_delete_mode(row.text, mode, keyword_terms=terms)
+                )
             ]
             start = (page - 1) * page_size
             slice_rows = matching[start : start + page_size]
             return {
                 "mode": mode,
                 "keyword_terms": terms,
+                "sender_query": sender_query.strip(),
+                "resolved_senders": list(sender_identities.values()),
                 "page": page,
                 "page_size": page_size,
                 "total": len(matching),
@@ -1179,6 +1258,7 @@ def create_admin_app(context: AdminContext) -> FastAPI:
                     {
                         "message_id": row.message_id,
                         "sender_id": row.sender_id,
+                        "sender": sender_identities.get(row.sender_id),
                         "text": row.text or "",
                         "sent_at": row.sent_at.isoformat(),
                         "has_media": row.has_media,
@@ -1223,13 +1303,23 @@ def create_admin_app(context: AdminContext) -> FastAPI:
                     status_code=422,
                     detail="Nhập ít nhất một tên hoặc từ khóa trước khi dùng AI.",
                 )
+            sender_identities = await resolve_history_sender_filter(db, payload.sender_query)
+            if payload.mode == "sender" and not sender_identities:
+                raise HTTPException(
+                    status_code=422,
+                    detail="Không tìm thấy người đăng/channel trước khi dùng AI.",
+                )
             candidates = [
                 row
                 for row in rows
-                if matches_history_delete_mode(
-                    row.text,
-                    payload.mode,
-                    keyword_terms=keyword_terms,
+                if (
+                    row.sender_id in sender_identities
+                    if payload.mode == "sender"
+                    else matches_history_delete_mode(
+                        row.text,
+                        payload.mode,
+                        keyword_terms=keyword_terms,
+                    )
                 )
             ]
             if not candidates:

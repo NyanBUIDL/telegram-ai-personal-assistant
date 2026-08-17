@@ -205,6 +205,38 @@ class UserClientAdapter:
             count += 1
         return count
 
+    async def resolve_sender_identity(self, reference: str) -> dict[str, object]:
+        """Resolve a Telegram @handle (including a channel) into its sender ID and label."""
+        query = reference.strip()
+        if not query:
+            raise ValueError("Nhập @handle hoặc ID người đăng.")
+        try:
+            entity = await self.client.get_entity(
+                int(query) if re.fullmatch(r"-?\d+", query) else f"@{query.lstrip('@')}"
+            )
+        except Exception as exc:
+            raise ValueError("Không tìm thấy tài khoản/channel Telegram theo handle này.") from exc
+        sender_id = getattr(entity, "id", None)
+        if sender_id is None:
+            raise ValueError("Telegram không trả về định danh người đăng hợp lệ.")
+        username = getattr(entity, "username", None)
+        display_name = (
+            getattr(entity, "title", None)
+            or " ".join(
+                value
+                for value in (getattr(entity, "first_name", None), getattr(entity, "last_name", None))
+                if value
+            )
+            or (f"@{username}" if username else None)
+            or f"Sender {sender_id}"
+        )
+        return {
+            "sender_id": int(sender_id),
+            "display_name": str(display_name),
+            "username": str(username) if username else None,
+            "kind": "channel" if isinstance(entity, types.Channel) else "account",
+        }
+
     @staticmethod
     def _rights(entity: Any) -> dict:
         rights = getattr(entity, "admin_rights", None)

@@ -60,6 +60,15 @@ async def admin_client(tmp_path):
             for post in posts
         ]
 
+    async def lookup_history_sender(reference: str):
+        assert reference == "@linkedchannel"
+        return {
+            "sender_id": 777,
+            "display_name": "Linked Channel",
+            "username": "linkedchannel",
+            "kind": "channel",
+        }
+
     secret = "dashboard-test-secret"
     application = create_admin_app(
         AdminContext(
@@ -76,6 +85,7 @@ async def admin_client(tmp_path):
             paths={"data": tmp_path, "downloads": tmp_path / "downloads"},
             admin_secret=secret,
             history_ai_filter_handler=filter_history_posts,
+            history_sender_lookup_handler=lookup_history_sender,
         )
     )
     async with httpx.AsyncClient(
@@ -194,6 +204,13 @@ async def test_admin_api_lists_and_previews_selected_history_link_posts(admin_cl
                     text="Airdrop promotion https://example.com",
                     sent_at=datetime.now(UTC),
                 ),
+                TelegramMessage(
+                    chat_id=chat_id,
+                    message_id=103,
+                    sender_id=777,
+                    text="Post do linked channel đăng",
+                    sent_at=datetime.now(UTC),
+                ),
             ]
         )
     login = await client.post(
@@ -237,6 +254,26 @@ async def test_admin_api_lists_and_previews_selected_history_link_posts(admin_cl
     )
     assert keyword_action.status_code == 201
     assert keyword_action.json()["payload"]["keyword_terms"] == ["airdrop"]
+
+    sender_candidates = await client.get(
+        f"/api/v1/groups/{chat_id}/history-delete-candidates",
+        params={"mode": "sender", "sender_query": "@linkedchannel"},
+    )
+    assert sender_candidates.status_code == 200
+    assert sender_candidates.json()["total"] == 1
+    assert sender_candidates.json()["items"][0]["sender"]["username"] == "linkedchannel"
+
+    sender_action = await client.post(
+        f"/api/v1/groups/{chat_id}/history-delete-preview",
+        json={
+            "mode": "sender",
+            "sender_query": "@linkedchannel",
+            "selected_message_ids": [103],
+        },
+        headers={"X-CSRF-Token": csrf},
+    )
+    assert sender_action.status_code == 201
+    assert sender_action.json()["payload"]["sender_ids"] == [777]
 
     ai_filter = await client.post(
         f"/api/v1/groups/{chat_id}/history-ai-delete-filter",

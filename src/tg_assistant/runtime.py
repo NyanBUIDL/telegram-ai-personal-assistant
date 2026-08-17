@@ -1533,6 +1533,7 @@ class Application:
                 owner_id = int(payload["owner_id"])
                 mode = str(payload["mode"])
                 keyword_terms = list(payload.get("keyword_terms", []))
+                sender_ids = {int(value) for value in payload.get("sender_ids", [])}
                 selection_type = str(payload.get("selection_type", "all_matching"))
                 selected_ids = {int(value) for value in payload.get("selected_message_ids", [])}
                 excluded_ids = {int(value) for value in payload.get("excluded_message_ids", [])}
@@ -1557,8 +1558,12 @@ class Application:
                 candidates = [
                     row
                     for row in rows
-                    if matches_history_delete_mode(
-                        row.text, mode, keyword_terms=keyword_terms
+                    if (
+                        row.sender_id in sender_ids
+                        if mode == "sender"
+                        else matches_history_delete_mode(
+                            row.text, mode, keyword_terms=keyword_terms
+                        )
                     )
                     and (
                         row.message_id in selected_ids
@@ -1675,6 +1680,10 @@ class Application:
             posts=posts,
             chat_id=chat_id,
         )
+
+    async def _resolve_history_sender_identity(self, reference: str) -> dict[str, object]:
+        """Resolve a Dashboard @handle via the signed-in Telegram account."""
+        return await self.user.resolve_sender_identity(reference)
 
     async def _process_admin_jobs(self) -> None:
         """Run bounded dashboard jobs that must not block an HTTP request."""
@@ -2515,6 +2524,7 @@ class Application:
                                         "keyword_terms": list(
                                             action.payload.get("keyword_terms", [])
                                         ),
+                                        "sender_ids": list(action.payload.get("sender_ids", [])),
                                         "selection_type": str(
                                             action.payload.get("selection_type", "all_matching")
                                         ),
@@ -3068,6 +3078,7 @@ class Application:
                     admin_secret=ensure_dashboard_secret(self.store),
                     scheduler_getter=lambda: self.scheduler,
                     history_ai_filter_handler=self._classify_history_delete_with_openai,
+                    history_sender_lookup_handler=self._resolve_history_sender_identity,
                 )
             )
             self.admin_server = uvicorn.Server(

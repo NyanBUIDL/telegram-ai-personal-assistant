@@ -665,7 +665,9 @@ function HistoryLinkDeletePreviewModal({
                 ? "Post có link"
                 : preview.mode === "promotion_links"
                   ? "Link + promotion"
-                  : "Tên / từ khóa trong post"}
+                  : preview.mode === "sender"
+                    ? "Người đăng / channel"
+                    : "Tên / từ khóa trong post"}
             </h2>
             <span className="history-delete-modal-note">
               Chọn những post cần xóa. Chưa có hành động nào được gửi lên Telegram ở bước này.
@@ -673,6 +675,45 @@ function HistoryLinkDeletePreviewModal({
           </div>
           <button className="icon-button modal-close" aria-label="Đóng" onClick={onClose}>×</button>
         </header>
+
+        {preview.mode === "sender" ? (
+          <div className="history-delete-keyword-filter">
+            <div>
+              <span className="eyebrow">TELEGRAM · SENDER LOOKUP</span>
+              <b>Lọc theo người đăng hoặc channel liên kết</b>
+              <small>
+                Nhập <code>@handle</code> để tra trực tiếp Telegram, hoặc tên channel đã có
+                trong danh sách nguồn. Chỉ post của đúng người đăng mới hiện ra.
+              </small>
+            </div>
+            <input
+              value={preview.senderQuery}
+              maxLength={255}
+              onChange={(event) =>
+                onChange((current) => ({ ...current, senderQuery: event.target.value }))
+              }
+              placeholder="Ví dụ: @Coin68News hoặc Coin68 News"
+              aria-label="Tên hoặc handle người đăng"
+            />
+            <button
+              className="button button--primary"
+              disabled={loading || preview.senderQuery.trim().length < 1}
+              onClick={() =>
+                onChange((current) => ({
+                  ...current,
+                  appliedSenderQuery: current.senderQuery,
+                  page: 1,
+                  selectAll: false,
+                  selected: [],
+                  excluded: [],
+                  aiResults: {},
+                }))
+              }
+            >
+              <MagnifyingGlass size={18} weight="bold" /> Tìm người đăng
+            </button>
+          </div>
+        ) : null}
 
         {preview.mode === "keywords" ? (
           <div className="history-delete-keyword-filter">
@@ -786,7 +827,13 @@ function HistoryLinkDeletePreviewModal({
               </label>
               <div className="telegram-post-bubble">
                 <header>
-                  <b>{item.sender_id ? `Thành viên · ${item.sender_id}` : "Channel / admin"}</b>
+                  <b>
+                    {item.sender?.display_name
+                      ? `${item.sender.display_name}${item.sender.username ? ` · @${item.sender.username.replace(/^@/, "")}` : ""}`
+                      : item.sender_id
+                        ? `Thành viên · ${item.sender_id}`
+                        : "Channel / admin"}
+                  </b>
                   <span>{formatRelative(item.sent_at)}</span>
                 </header>
                 <p>{item.text}</p>
@@ -878,6 +925,7 @@ export function GroupDetailView({
         ? api.historyLinkDeleteCandidates(chatId, {
             mode: historyDeletePreview.mode,
             keywordTerms: historyDeletePreview.appliedKeywordTerms,
+            senderQuery: historyDeletePreview.appliedSenderQuery,
             page: historyDeletePreview.page,
           })
         : Promise.resolve(null),
@@ -885,6 +933,7 @@ export function GroupDetailView({
       chatId,
       historyDeletePreview?.mode,
       historyDeletePreview?.appliedKeywordTerms,
+      historyDeletePreview?.appliedSenderQuery,
       historyDeletePreview?.page,
     ],
     refreshKey,
@@ -1075,6 +1124,8 @@ export function GroupDetailView({
       aiResults: {},
       keywordTerms: "",
       appliedKeywordTerms: "",
+      senderQuery: "",
+      appliedSenderQuery: "",
     });
   };
 
@@ -1087,6 +1138,7 @@ export function GroupDetailView({
         api.previewHistoryLinkDeletion(chatId, {
           mode,
           keyword_terms: historyDeletePreview.appliedKeywordTerms,
+          sender_query: historyDeletePreview.appliedSenderQuery,
           select_all: selectAll,
           selected_message_ids: selected,
           excluded_message_ids: excluded,
@@ -1113,6 +1165,7 @@ export function GroupDetailView({
       const response = await api.filterHistoryDeleteCandidatesWithAi(chatId, {
         mode: historyDeletePreview.mode,
         keyword_terms: historyDeletePreview.appliedKeywordTerms,
+        sender_query: historyDeletePreview.appliedSenderQuery,
         instruction,
         message_ids: messageIds,
       });
@@ -1406,6 +1459,13 @@ export function GroupDetailView({
               onClick={(event) => openHistoryLinkPreview(event, "keywords")}
             >
               Preview: xóa theo tên/từ khóa
+            </button>
+            <button
+              className="button button--danger"
+              disabled={Boolean(saving) || !policy.allowed || !permissions.delete_any_messages}
+              onClick={(event) => openHistoryLinkPreview(event, "sender")}
+            >
+              Preview: xóa theo người đăng
             </button>
           </div>
           {!permissions.delete_any_messages ? (

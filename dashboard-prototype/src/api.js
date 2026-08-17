@@ -138,12 +138,13 @@ export const api = {
   },
   historyLinkDeleteCandidates: (
     chatId,
-    { mode, keywordTerms = "", page = 1, pageSize = 50 },
+    { mode, keywordTerms = "", senderQuery = "", page = 1, pageSize = 50 },
   ) =>
     request(
       `/groups/${encodeURIComponent(chatId)}/history-delete-candidates?${new URLSearchParams({
         mode,
         keyword_terms: keywordTerms,
+        sender_query: senderQuery,
         page: String(page),
         page_size: String(pageSize),
       })}`,
