@@ -21,6 +21,8 @@ Conclusion: do not copy the OFL.txt from a similarly named repository onto the o
 
 Original metadata reports LNTH-Peter Obscure, author Peter Wiegel, and SIL Open Font License. [Peter Wiegel's official site](https://www.peter-wiegel.de/index.html) describes commercial/software bundling permission for his own fonts and conditions on modifications. The LNTH variant still needs its exact upstream package and notice before artifact packaging. Presence of an OFL name record alone does not supply the required notices.
 
+The [author's DaFont listing](https://www.dafont.com/peter-obscure.font) links the original archive. Downloaded archive SHA256 `83a8a448c5151e25085d88ebabc6a3d2ab62543003bb1da52cb4cfc3b9bf4713` contains OFL.txt (4,511 bytes), OFL-FAQ.txt and PeterObscure.ttf (51,964 bytes, 362 glyphs). Original TTF SHA256 `1c6b35c1ecd174876f18f28259755a3be99cf8000acdb31e5aaff20eb22e7c66`; its metadata matches the original 1995 Computer and Technologie copyright/Peter Wiegel authorship. OFL.txt supplies 2014 Peter Wiegel copyright and Reserved Font Name Peter Obscure. The project's LNTH binary is different (baseline hash in art-baseline.json). Preserve the upstream notices when packaging, and verify the modified variant's provenance and naming conditions. The original archive/notice is retained in ignored execution scratch for R01; no original was substituted into the product.
+
 ## Release handling
 
 R01 must reconcile font identity, upstream attribution and included license notices. P01/P02 may prepare internal build candidates; G5/public distribution remains pending while font redistribution is unresolved. No font binary, filename, styling or copyright metadata was changed during this investigation.
