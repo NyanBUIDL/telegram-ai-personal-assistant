@@ -1,4 +1,0 @@
-4. [GET] http://127.0.0.1:8765/api/v1/auth/session => [200] OK
-19. [POST] http://127.0.0.1:8765/api/v1/auth/logout => [200] OK
-
-Note: 5 static requests not shown, run with "static" option to see them.

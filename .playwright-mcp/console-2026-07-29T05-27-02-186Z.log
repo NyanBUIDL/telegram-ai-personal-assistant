@@ -1,9 +1,0 @@
-[   23313ms] [ERROR] Failed to load resource: net::ERR_INTERNET_DISCONNECTED @ http://127.0.0.1:8765/api/v1/overview:0
-[   23314ms] [ERROR] Failed to load resource: net::ERR_INTERNET_DISCONNECTED @ http://127.0.0.1:8765/api/v1/ai/config:0
-[   23314ms] [ERROR] Failed to load resource: net::ERR_INTERNET_DISCONNECTED @ http://127.0.0.1:8765/api/v1/workers:0
-[   71251ms] [ERROR] Failed to load resource: net::ERR_FAILED @ http://127.0.0.1:8765/api/v1/events:0
-[   74256ms] [ERROR] Failed to load resource: net::ERR_FAILED @ http://127.0.0.1:8765/api/v1/events:0
-[   77269ms] [ERROR] Failed to load resource: net::ERR_FAILED @ http://127.0.0.1:8765/api/v1/events:0
-[   80287ms] [ERROR] Failed to load resource: net::ERR_FAILED @ http://127.0.0.1:8765/api/v1/events:0
-[   83291ms] [ERROR] Failed to load resource: net::ERR_FAILED @ http://127.0.0.1:8765/api/v1/events:0
-[   86303ms] [ERROR] Failed to load resource: net::ERR_FAILED @ http://127.0.0.1:8765/api/v1/events:0

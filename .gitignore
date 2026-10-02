@@ -44,3 +44,9 @@ design-audit-html/evidence/
 telegram-ai-dashboard-*.png
 USER_ACCEPTANCE_TEST_REPORT*.md
 UX_UI_DESIGN_AUDIT_REPORT.md
+
+# Local implementation ledger, temporary tests and audit bootstrap tooling
+.superpowers/
+.test-temp/
+scripts/check.py
+scripts/bootstrap_hygiene.py
