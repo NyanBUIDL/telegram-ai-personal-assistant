@@ -14,15 +14,15 @@ Ngày lập: 02/10/2026. **Thiết kế đã duyệt; implementation đang thự
 
 ### M0 — Khóa baseline và contracts
 
-- [ ] **B00 — Chuẩn bị checkout thật và khóa contracts/baseline** · Coordinator · phụ thuộc: không · InReview.
+- [x] **B00 — Chuẩn bị checkout thật và khóa contracts/baseline** · Coordinator · phụ thuộc: không · Verified.
 
 ### M1 — Sửa nền tảng và giữ art
 
-- [ ] **F01 — Thu hồi quyền thắng job đang chờ/đang chạy** · Reliability · phụ thuộc: B00 · Planned.
-- [ ] **F02 — Migration immutable và đường sửa schema cũ** · Platform · phụ thuộc: B00 · Planned.
+- [ ] **F01 — Thu hồi quyền thắng job đang chờ/đang chạy** · Reliability · phụ thuộc: B00 · InProgress.
+- [ ] **F02 — Migration immutable và đường sửa schema cũ** · Platform · phụ thuộc: B00 · InProgress.
 - [ ] **S01 — Storage profile SQLite mặc định và config per-user** · Platform · phụ thuộc: F02 · Planned.
 - [ ] **S02 — Atomic claim/confirm/maintenance tương thích SQLite** · Reliability · phụ thuộc: S01, F01 · Planned.
-- [ ] **U01 — Khóa design tokens và baseline art** · Experience · phụ thuộc: B00 · Planned.
+- [ ] **U01 — Khóa design tokens và baseline art** · Experience · phụ thuộc: B00 · InProgress.
 - [ ] **Q01 — CI regressions/contracts/storage/frontend/package** · QA · phụ thuộc: B00 · Planned.
 - [ ] **R01 — Làm sạch source và quyền phân phối assets/dependencies** · Platform · phụ thuộc: B00 · Planned.
 
@@ -63,7 +63,7 @@ Ngày lập: 02/10/2026. **Thiết kế đã duyệt; implementation đang thự
 
 | Gate | Chỉ đánh Verified khi | Hiện tại |
 |---|---|---|
-| G0 | Review thiết kế xong; B00 checkout thật, baseline và contracts có evidence | Pending |
+| G0 | Review thiết kế xong; B00 checkout thật, baseline và contracts có evidence | Verified |
 | G1 | Migration SQLite/MySQL, BLOCK, atomic claims và art tokens pass; CI chạy baseline | Pending |
 | G2 | Embedding profiles, LOCAL ONLY, index/recovery, backup/restore và ticket/lifecycle pass | Pending |
 | G3 | Cloud không cần Ollama; QR/OTP/2FA, bot owner pairing, resume và dashboard entry pass | Pending |

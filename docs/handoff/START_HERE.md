@@ -1,6 +1,6 @@
 # Bắt đầu handoff — Telegram AI Personal Assistant Windows beta
 
-**Bộ kế hoạch đã chuẩn bị. Ứng dụng chưa được triển khai lại và chưa sẵn sàng publish.** Ngày 02/10/2026. Người dùng đã chọn: mỗi người tự cài Windows app, dùng API/account Telegram/bot của mình, dễ mở và quản lý dashboard; giữ art hiện tại.
+**Thiết kế đã được duyệt; implementation đang thực hiện trên branch `codex/windows-public-beta`; chưa sẵn sàng publish.** Ngày 02/10/2026. Người dùng đã chọn: mỗi người tự cài Windows app, dùng API/account Telegram/bot của mình, dễ mở và quản lý dashboard; giữ art hiện tại.
 
 ## Đọc theo thứ tự
 
@@ -28,10 +28,10 @@ Mapping tham khảo: PL01→B00/S01/R01; PL02→S01/S02; PL03→F02; PL04→D02;
 
 ## Điều kiện trước sửa code
 
-- Workspace hiện chỉ có audit-snapshot một phần và tài liệu, **không phải checkout Git đầy đủ**. B00 phải lấy repo thật, đọc AGENTS.md tại HEAD, tạo branch/worktree thích hợp, đối chiếu GitHub HEAD với audit commit 7429fcffd61860e9502f066e0b6a921df72fe176. Không patch snapshot rồi gọi đó là sản phẩm.
+- B00 đã tạo checkout Git thật tại `E:/ChatGPT Project/Telegram/repository`, đọc AGENTS.md và khóa baseline 7429fcffd61860e9502f066e0b6a921df72fe176. Contracts đã qua review độc lập và 216 tests pass; xem [evidence B00](evidence/task-B00.md). Tiếp tục từ tracker và execution ledger, không chạy lại task đã Verified hoặc sửa audit-snapshot như sản phẩm.
 - Giữ công việc/dữ liệu/credential người dùng hiện hữu; không reset/force-push/master merge. SQLite cho cài mới; MySQL cũ không tự chuyển. Native PySide6 không QtWebEngine, React trong browser loopback.
 - Handoff không chuyển credential. Unit/integration dùng fixture; account Telegram/API thật chỉ trong scope UAT đã cấp, secret do người dùng nhập native.
-- Người dùng đã chọn agent-assisted execution; không cần hỏi lại cách chia agent. Thiết kế/plan hiện chờ review trước implementation. Giải quyết routine implementation choices trong phạm vi đã duyệt; không dừng hỏi từng task.
+- Người dùng đã duyệt thiết kế/plan và agent-assisted execution ngày 02/10/2026. Giải quyết routine implementation choices trong phạm vi đã duyệt; không dừng hỏi từng task.
 
 ## Prompt chuyển cho agent tiếp quản
 

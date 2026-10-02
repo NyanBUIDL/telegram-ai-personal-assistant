@@ -1,6 +1,6 @@
 # B00 — checkout, baseline, art và contracts
 
-Status: InReview. Design approved by user 2026-10-02. Contract implementation committed at 6ac2476fab2a77921911c76102ee1f9bf06d47b9; independent review pending; baseline completed.
+Status: Verified. Design approved by user 2026-10-02. Contract implementation committed at 6ac2476fab2a77921911c76102ee1f9bf06d47b9, serialization fix at 3c9b49515888d6dd69093754f20d8e59631c5846; independent scoped review passed; baseline completed.
 
 ## Checkout and isolation
 
@@ -44,7 +44,7 @@ Read actual dashboard-prototype/AGENTS.md from baseline. Reference and fonts exi
 
 ## Contracts and review
 
-Agent B00 implemented contracts.py/generated.js/contract tests and durable AGENTS instructions; focused50 passed, generator drift/targeted Ruff/generated JS ESLint clean. Full integrated suite at commit 6ac2476f: 200 passed in 17.42s, exit0. Independent reviewer must verify public schemas exclude secrets/internal tickets/leases, decimal string Telegram IDs and native command allowlist. B00 remains InReview until that review passes.
+Agent B00 implemented contracts.py/generated.js/contract tests and durable AGENTS instructions. Initial review found mutable nested collections could bypass DTO validation during serialization. Fix 3c9b4951 revalidates every public DTO before both dump modes and suppresses input-bearing exception context. Regression red: 14 failed, 2 passed; green: 66 focused tests passed. Generator drift, targeted Ruff, generated JS ESLint and diff checks passed. Full integrated suite after fix: 216 passed in 18.87s, exit 0. Independent scoped review: finding ADDRESSED; no new breakage; spec compliance PASS and task quality PASS; exception-context probe PASS. Review artifacts are retained in the ignored execution ledger directory; the public evidence records their conclusions here. No runtime feature or later release gate is signed off by this contract review.
 
 ## Limits
 

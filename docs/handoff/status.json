@@ -17,7 +17,7 @@
       "milestone": "M0",
       "owner": "Coordinator",
       "dependencies": [],
-      "status": "InReview",
+      "status": "Verified",
       "evidence": [
         "docs/handoff/evidence/task-B00.md"
       ],
@@ -31,7 +31,7 @@
       "dependencies": [
         "B00"
       ],
-      "status": "Planned",
+      "status": "InProgress",
       "evidence": [],
       "acceptance": "Tái hiện probe cũ đổi thành allowed_after_job=False, sync_calls=[]; review race test và restart."
     },
@@ -43,7 +43,7 @@
       "dependencies": [
         "B00"
       ],
-      "status": "Planned",
+      "status": "InProgress",
       "evidence": [],
       "acceptance": "Fresh install + legacy upgrade thực đạt cả hai dialect; không dùng Base.metadata.create_all để thay migration test."
     },
@@ -206,7 +206,7 @@
       "dependencies": [
         "B00"
       ],
-      "status": "Planned",
+      "status": "InProgress",
       "evidence": [],
       "acceptance": "Có trước/sau evidence và art signoff; không coi đổi palette/font là redesign trong scope."
     },
@@ -350,8 +350,8 @@
     {
       "id": "G0",
       "milestone": "M0",
-      "status": "Pending",
-      "evidence": []
+      "status": "Verified",
+      "evidence": ["docs/handoff/evidence/task-B00.md"]
     },
     {
       "id": "G1",
