@@ -10,6 +10,7 @@ import json
 import os
 import shutil
 import subprocess
+import warnings
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -128,6 +129,71 @@ def test_validation_error_display_does_not_echo_rejected_payload(contracts):
     with pytest.raises(ValidationError) as caught:
         contracts.NativeCommand(**command(payload_nonsecret={"api_key": "synthetic-sensitive-marker"}))
     assert "synthetic-sensitive-marker" not in str(caught.value)
+
+
+@pytest.mark.parametrize("dump_mode", ["python", "json"])
+@pytest.mark.parametrize("mutation", [
+    "connections", "nested_capabilities", "disabled_capabilities", "stage_evidence_value",
+    "stage_evidence_key", "checksum_value", "checksum_key",
+])
+def test_mutated_public_collections_fail_closed_without_input_diagnostics(contracts, dump_mode, mutation):
+    marker = "synthetic-sensitive-marker"
+    injected = {"api_key": marker}
+    connection = contracts.ConnectionStatus(service="storage", state="ready", checked_at=None,
+                                            code="ok", message="Sẵn sàng", next_action=None,
+                                            capabilities=["read"])
+    status = contracts.OnboardingStatus(profile=contracts.PublicProfile(**profile()),
+                                        connections=[connection], stage_evidence_ids={"welcome": "evidence-1"},
+                                        next_action=None, disabled_capabilities=["management"])
+    manifest = contracts.BackupManifest(format_version=1, schema_revision="initial", backend="sqlite",
+                                        profile_id="local-profile", checksums={"database": "a" * 64},
+                                        vector_state="rebuild_required")
+    value = status
+    if mutation == "connections":
+        status.connections.append(injected)
+    elif mutation == "nested_capabilities":
+        status.connections[0].capabilities.append(injected)
+    elif mutation == "disabled_capabilities":
+        status.disabled_capabilities.append(injected)
+    elif mutation == "stage_evidence_value":
+        status.stage_evidence_ids[contracts.OnboardingStage.WELCOME] = injected
+    elif mutation == "stage_evidence_key":
+        status.stage_evidence_ids["api_key"] = marker
+    elif mutation == "checksum_value":
+        value = manifest
+        manifest.checksums["database"] = injected
+    elif mutation == "checksum_key":
+        value = manifest
+        manifest.checksums["api_key"] = marker
+    with warnings.catch_warnings(record=True) as captured:
+        warnings.simplefilter("always")
+        with pytest.raises(PydanticSerializationError) as caught:
+            if dump_mode == "json":
+                value.model_dump_json()
+            else:
+                value.model_dump()
+    assert marker not in str(caught.value)
+    assert marker not in repr(caught.value)
+    assert captured == [], "No input-bearing serializer warnings may escape validation"
+
+
+@pytest.mark.parametrize("dump_mode", ["python", "json"])
+def test_valid_public_collection_updates_preserve_wire_types(contracts, dump_mode):
+    value = contracts.OnboardingStatus(profile=contracts.PublicProfile(**profile(owner_id=9007199254740993)),
+                                       connections=[], stage_evidence_ids={}, next_action=None,
+                                       disabled_capabilities=[])
+    value.connections.append(contracts.ConnectionStatus(service="storage", state="ready", checked_at=None,
+                                                        code="ok", message="Sẵn sàng", next_action=None,
+                                                        capabilities=["read"]))
+    value.stage_evidence_ids[contracts.OnboardingStage.WELCOME] = "evidence-1"
+    if dump_mode == "json":
+        result = json.loads(value.model_dump_json())
+        assert result["profile"]["owner_id"] == "9007199254740993"
+    else:
+        result = value.model_dump()
+        assert result["profile"]["owner_id"] == 9007199254740993
+    assert result["connections"][0]["capabilities"] == ["read"]
+    assert result["stage_evidence_ids"] == {"welcome": "evidence-1"}
 
 
 @pytest.mark.parametrize("endpoint", ["https://user:secret@example.test", "https://example.test", "endpoint?token=hidden", "endpoint#secret", " user "])

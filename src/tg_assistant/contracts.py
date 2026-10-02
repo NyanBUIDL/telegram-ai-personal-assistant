@@ -21,14 +21,18 @@ from pydantic import (
     Field,
     JsonValue,
     PlainSerializer,
+    SerializerFunctionWrapHandler,
     StrictBool,
     StrictInt,
+    ValidationError,
     ValidationInfo,
     WithJsonSchema,
     field_serializer,
     field_validator,
+    model_serializer,
     model_validator,
 )
+from pydantic_core import PydanticSerializationError
 
 CONTRACT_VERSION = 1
 NATIVE_PAYLOAD_MAX_BYTES = 8192
@@ -145,6 +149,21 @@ class ContractModel(BaseModel):
 
 class PublicDTO(ContractModel):
     """Only subclasses explicitly registered below may cross the public boundary."""
+
+    model_config = ConfigDict(revalidate_instances="always")
+
+    @model_serializer(mode="wrap")
+    def serialize_validated_public_dto(self, handler: SerializerFunctionWrapHandler):
+        # frozen=True does not freeze lists/maps, including those in nested DTOs.
+        # Revalidation creates a checked snapshot before any serializer can warn
+        # about or return an unexpected value. Always revalidate nested instances.
+        try:
+            validated = type(self).model_validate(self)
+        except ValidationError:
+            # Validation paths and input-bearing diagnostics must not cross this
+            # boundary. Suppress the original error's traceback context as well.
+            raise PydanticSerializationError("Public DTO failed validation before serialization") from None
+        return handler(validated)
 
 
 class ConnectionStatus(PublicDTO):
