@@ -19,3 +19,7 @@ The original font/reference hashes are preserved in assets-manifest.json. THIRD_
 The interrupted worker's bootstrap full-suite run had5 CI-helper subprocess failures because scripts/check.py's in-process sys.path did not reach child Python processes; this is an environment invocation defect, not product RED. The fresh installed-environment run above resolves it. That earlier native test also overwrote the historical scale1 PNG; the coordinator restored only that known test-generated change from U01's approved commit3323cdeb and routed subsequent images to the temporary artifact directory. Font/reference binaries and the approved U01 image remain unchanged.
 
 This task does not grant public redistribution or claim beta readiness. The pending owner LICENSE preference is recorded separately; current metadata remains Private use until an explicit choice arrives.
+
+## Independent review fix — merge commits
+
+The fresh reviewer found one Important issue: `diff-tree` omitted merge changes. A real disposable Git repository test creates two parents, adds a synthetic canary only while completing their merge, then removes it before HEAD. RED: the scanner incorrectly exited0; GREEN after comparing merges against each parent with `-m`: **35 passed in2.43s**, scoped Ruff passed. Existing blob deduplication prevents duplicate reports. The regression asserts the exact merge commit and masked output. No real credentials or repository history were changed. Scoped re-review is pending.

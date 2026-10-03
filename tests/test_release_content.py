@@ -162,7 +162,9 @@ def test_placeholder_shape_cannot_approve_unknown_tracked_assignment(tmp_path):
     subprocess.run([GIT, "-C", str(tmp_path), "add", "source.py"], check=True)
     result = subprocess.run(
         [sys.executable, "-B", str(SCRIPT), "--root", str(tmp_path), "--no-assets"],
-        capture_output=True, text=True, check=False,
+        capture_output=True,
+        text=True,
+        check=False,
     )
     assert result.returncode == 1
     assert candidate not in result.stdout + result.stderr
@@ -204,4 +206,60 @@ def test_history_reports_removed_env_candidate_without_reading_runtime_credentia
         item["kind"] == "telegram_bot_token" and item["commit"] == first
         for item in payload["findings"]
     )
+    assert canary not in result.stdout + result.stderr
+
+
+def test_history_detects_merge_resolution_candidate_removed_before_head(tmp_path):
+    git = [GIT, "-C", str(tmp_path)]
+    identity = ["-c", "user.name=R01 Test", "-c", "user.email=r01@example.invalid"]
+
+    def run(*args):
+        return subprocess.run(
+            [*git, *identity, *args], check=True, capture_output=True, text=True
+        ).stdout.strip()
+
+    run("init", "-q", "--initial-branch=main")
+    source = tmp_path / "src"
+    source.mkdir()
+    (source / "base.py").write_text("BASE = True\n", encoding="utf-8")
+    run("add", "src")
+    run("commit", "-qm", "base")
+    first = run("rev-parse", "HEAD")
+    run("checkout", "-qb", "side")
+    (source / "side.py").write_text("SIDE = True\n", encoding="utf-8")
+    run("add", "src")
+    run("commit", "-qm", "side")
+    run("checkout", "-q", "main")
+    (source / "main.py").write_text("MAIN = True\n", encoding="utf-8")
+    run("add", "src")
+    run("commit", "-qm", "main")
+    run("merge", "--no-ff", "--no-commit", "side")
+    canary = "ghp_" + "L7a21Q9xNm" * 4
+    (source / "resolution.py").write_text('KEY = "' + canary + '"\n', encoding="utf-8")
+    run("add", "src")
+    run("commit", "-qm", "merge resolution introduces fixture")
+    merge = run("rev-parse", "HEAD")
+    assert len(run("rev-list", "--parents", "-n", "1", merge).split()) == 3
+    run("rm", "-q", "src/resolution.py")
+    run("commit", "-qm", "remove fixture")
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-B",
+            str(SCRIPT),
+            "--root",
+            str(tmp_path),
+            "--no-assets",
+            "--history-base",
+            first,
+            "--history-head",
+            run("rev-parse", "HEAD"),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 1
+    findings = json.loads(result.stdout)["findings"]
+    assert any(item["kind"] == "github_token" and item["commit"] == merge for item in findings)
     assert canary not in result.stdout + result.stderr

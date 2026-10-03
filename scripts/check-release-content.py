@@ -278,6 +278,7 @@ def audit_history(root: Path, base: str, head: str) -> dict:
             paths = git(
                 root,
                 "diff-tree",
+                "-m",
                 "--root",
                 "--no-commit-id",
                 "--name-only",
