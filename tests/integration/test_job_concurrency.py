@@ -6,7 +6,7 @@ import subprocess
 import sys
 import time
 from concurrent.futures import ThreadPoolExecutor
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, nullcontext
 from datetime import UTC, datetime, timedelta
 from importlib.util import find_spec
 from pathlib import Path
@@ -26,8 +26,10 @@ from tg_assistant.db.models import (
     PermissionName,
     Reminder,
     Task,
+    TelegramChat,
     TelegramChatPermission,
     TelegramChatPolicy,
+    TelegramMessage,
 )
 
 
@@ -975,6 +977,58 @@ async def test_current_core_completion_is_allowed(storage):
                 )
         with Session(storage) as session:
             assert session.get(BackgroundJob, job_id).status == "completed"
+    finally:
+        repo.close()
+        await db.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("reclaimed", [True, False])
+async def test_flushed_orm_write_retains_commit_fence(storage, reclaimed):
+    from tg_assistant.db.base import Database
+    from tg_assistant.services.jobs import LeaseLost, worker_lease
+
+    with Session(storage) as session, session.begin():
+        session.add(TelegramChat(chat_id=8134, chat_type="group"))
+    queue(storage)
+    repo = repository(storage)
+    now = datetime.now(UTC)
+    first = repo.claim("history_backfill", "old-worker", now, 30)
+    driver = "sqlite+aiosqlite" if storage.dialect.name == "sqlite" else "mysql+asyncmy"
+    db = Database(storage.url.set(drivername=driver).render_as_string(hide_password=False))
+
+    def reclaim():
+        second = repo.claim("history_backfill", "new-worker", now + timedelta(seconds=31), 900)
+        assert second and second.claim_token != first.claim_token
+
+    try:
+        # SQLite's flushed INSERT holds the writer lock, so reclaim precedes it.
+        # MySQL permits the independent job claim after the message flush: prove
+        # that exact stale-worker boundary, with no artificial ORM bookkeeping.
+        if reclaimed and storage.dialect.name == "sqlite":
+            reclaim()
+        with pytest.raises(LeaseLost) if reclaimed else nullcontext():
+            with worker_lease(first):
+                async with db.session() as session:
+                    session.add(
+                        TelegramMessage(
+                            chat_id=8134,
+                            message_id=1,
+                            text="Synthetic flush regression",
+                            sent_at=now,
+                        )
+                    )
+                    await session.flush()
+                    assert not (session.new or session.dirty or session.deleted)
+                    if reclaimed and storage.dialect.name == "mysql":
+                        reclaim()
+        with Session(storage) as session:
+            count = session.scalar(
+                sa.select(sa.func.count())
+                .select_from(TelegramMessage)
+                .where(TelegramMessage.chat_id == 8134)
+            )
+            assert count == (0 if reclaimed else 1)
     finally:
         repo.close()
         await db.close()

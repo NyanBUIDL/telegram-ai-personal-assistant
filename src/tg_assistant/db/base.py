@@ -86,6 +86,7 @@ class Database:
                     def clear_guard(sync):
                         sync.info.pop("job_lease_fenced", None)
                         sync.info.pop("job_core_write", None)
+                        sync.info.pop("job_orm_write", None)
 
                     event.listen(session.sync_session, "after_commit", clear_guard)
                     event.listen(session.sync_session, "after_rollback", clear_guard)

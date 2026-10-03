@@ -35,6 +35,14 @@ def worker_lease(lease):
 
 
 def fence_runtime_writes(session, lease, *, phase="commit"):
+    if phase == "flush" and (
+        session.new
+        or session.deleted
+        or any(session.is_modified(row, include_collections=False) for row in session.dirty)
+    ):
+        # An explicit/autoflush empties ORM pending sets before before_commit.
+        # Retain write intent without holding policy/job locks across callbacks.
+        session.info["job_orm_write"] = True
     job_dirty = any(
         isinstance(job, BackgroundJob) and session.is_modified(job, include_collections=False)
         for job in session.dirty
@@ -47,6 +55,7 @@ def fence_runtime_writes(session, lease, *, phase="commit"):
         or session.deleted
         or session.info.get("job_lease_fenced")
         or session.info.get("job_core_write")
+        or session.info.get("job_orm_write")
     ):
         return
     with session.no_autoflush:
