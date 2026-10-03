@@ -22,8 +22,8 @@ Ngày lập: 02/10/2026. **Thiết kế đã duyệt; implementation đang thự
 - [ ] **F02 — Migration immutable và đường sửa schema cũ** · Platform · phụ thuộc: B00 · InProgress.
 - [ ] **S01 — Storage profile SQLite mặc định và config per-user** · Platform · phụ thuộc: F02 · Planned.
 - [ ] **S02 — Atomic claim/confirm/maintenance tương thích SQLite** · Reliability · phụ thuộc: S01, F01 · Planned.
-- [ ] **U01 — Khóa design tokens và baseline art** · Experience · phụ thuộc: B00 · InProgress.
-- [ ] **Q01 — CI regressions/contracts/storage/frontend/package** · QA · phụ thuộc: B00 · Planned.
+- [x] **U01 — Khóa design tokens và baseline art** · Experience · phụ thuộc: B00 · Verified.
+- [ ] **Q01 — CI regressions/contracts/storage/frontend/package** · QA · phụ thuộc: B00 · InProgress.
 - [ ] **R01 — Làm sạch source và quyền phân phối assets/dependencies** · Platform · phụ thuộc: B00 · Planned.
 
 ### M2 — Tri thức, bảo mật và desktop

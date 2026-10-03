@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-10-02",
+  "updated_at": "2026-10-03",
   "scope": "Windows per-user local application",
   "baseline_commit": "7429fcffd61860e9502f066e0b6a921df72fe176",
   "documents_ready": true,
@@ -206,8 +206,11 @@
       "dependencies": [
         "B00"
       ],
-      "status": "InProgress",
-      "evidence": [],
+      "status": "Verified",
+      "evidence": [
+        "docs/handoff/evidence/task-U01.md",
+        "docs/handoff/evidence/review-U01.md"
+      ],
       "acceptance": "Có trước/sau evidence và art signoff; không coi đổi palette/font là redesign trong scope."
     },
     {
@@ -285,7 +288,7 @@
       "dependencies": [
         "B00"
       ],
-      "status": "Planned",
+      "status": "InProgress",
       "evidence": [],
       "acceptance": "MandatoryCI on featurebranch and finalcandidate; dependencygraph success không được coi CItest."
     },
@@ -351,7 +354,9 @@
       "id": "G0",
       "milestone": "M0",
       "status": "Verified",
-      "evidence": ["docs/handoff/evidence/task-B00.md"]
+      "evidence": [
+        "docs/handoff/evidence/task-B00.md"
+      ]
     },
     {
       "id": "G1",
