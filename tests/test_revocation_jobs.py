@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 from contextlib import asynccontextmanager
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 
 import pytest
@@ -70,6 +70,73 @@ def application(session):
     app.embedding_ai = SimpleNamespace(available=True)
     app.user = SimpleNamespace(owner_id=1)
     return app
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("job_type", "effect_started", "expected_status"),
+    [
+        ("history_link_delete", True, "uncertain"),
+        ("history_link_delete", False, "running"),
+        ("history_backfill", True, "running"),
+    ],
+)
+async def test_restart_never_redispatches_uncertain_destructive_job(
+    tmp_path, job_type, effect_started, expected_status
+):
+    from tg_assistant.db.base import Base
+    from tg_assistant.db.base import Database as RealDatabase
+
+    url = f"sqlite+aiosqlite:///{(tmp_path / 'interrupted.sqlite').as_posix()}"
+    original = RealDatabase(url)
+    try:
+        async with original.engine.begin() as connection:
+            await connection.run_sync(Base.metadata.create_all)
+        async with original.session() as setup:
+            job = BackgroundJob(
+                job_type=job_type,
+                status="running",
+                attempts=1,
+                locked_by="interrupted-runtime",
+                locked_at=datetime.now(UTC) - timedelta(minutes=16),
+                payload={"external_effect_started": effect_started},
+            )
+            setup.add(job)
+            await setup.flush()
+            job_id = job.id
+    finally:
+        await original.close()
+
+    # A separate engine models a process restart; only dispatch is substituted
+    # so this test cannot issue a real Telegram deletion.
+    restarted = RealDatabase(url)
+    dispatched = []
+
+    async def record_dispatch(value):
+        dispatched.append(value)
+
+    app = application(None)
+    app.database = restarted
+    app._run_history_link_delete_job = record_dispatch
+    app._run_history_backfill_job = record_dispatch
+    try:
+        await app._process_admin_jobs()
+        await app._process_admin_jobs()
+        async with restarted.session() as observed:
+            persisted = await observed.get(BackgroundJob, job_id)
+            assert persisted.status == expected_status
+            if expected_status == "uncertain":
+                assert dispatched == []
+                assert persisted.attempts == 1
+                assert persisted.locked_at is None
+                assert persisted.locked_by is None
+                assert persisted.run_after is None
+                assert persisted.payload["requires_reconciliation"] is True
+            else:
+                assert dispatched == [job_id]
+                assert persisted.attempts == 2
+    finally:
+        await restarted.close()
 
 
 async def authorize(session):

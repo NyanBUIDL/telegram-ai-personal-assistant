@@ -47,3 +47,17 @@ Task-scoped Ruff lint: **All checks passed**, exit 0. git diff --check: exit 0 (
 TG_TEST_F01_MYSQL_URL is separate from F02 TG_TEST_MYSQL_URL. Only mysql+asyncmy URLs on localhost, 127.0.0.1 or ::1, with a codex_f01_* schema or exact codex_ci_revocation schema, are accepted before Database construction or any metadata drop/create. The executed schema was codex_f01_epoch on 127.0.0.1:13307; F02 shared schema codex_migration_test is explicitly rejected. Tests leave the dedicated schema empty after metadata cleanup. Server shutdown belongs to the coordinator.
 
 No real Telegram account, model service, credentials or external delivery was used. Once destructive external I/O has already started, remote state requires reconciliation; the work is not automatically requeued. Generalized operation/restore leases remain later task scope. The full whole-branch suite must be rerun by the coordinator after concurrent F02/U01/Q01 edits settle. Independent review is still Pending.
+
+## Independent review fix round 1 — interrupted destructive work
+
+Review of commit 4952360e found that the admin dispatcher requeued expired running history_link_delete jobs even when their durable external_effect_started marker recorded that a deletion may have started. The coordinator implemented this narrow fix after new-agent and original-worker follow-up calls failed with `agent thread limit reached`; the independent reviewer remains assigned to the fix.
+
+Recovery now persists `uncertain`, clears the expired lock and retry time, retains the attempt count and records `requires_reconciliation`. Such jobs cannot be selected again by the queued dispatcher. Read-only history backfill and deletion jobs that have not begun external effects retain the existing recovery behavior.
+
+The new file-backed SQLite regression closes the original engine, creates a new engine against the same file, dispatches twice, and reads the committed job in a separate session. It substitutes only the outgoing dispatch so it cannot delete actual Telegram messages.
+
+- RED: `python scripts/check.py pytest tests/test_revocation_jobs.py -k restart_never_redispatches -q --basetemp=.test-temp/f01-fix1-red` — exit 1; the marked deletion remained running instead of uncertain. Two non-destructive/unstarted controls passed.
+- GREEN: `python scripts/check.py pytest tests/test_revocation_jobs.py -ra --basetemp=.test-temp/f01-fix1-green` with the same guarded synthetic MySQL URL — **51 passed in 20.44s**, exit 0. Includes the three new restart cases and existing actual MySQL races.
+- Scoped Ruff check on runtime.py and test_revocation_jobs.py passed; scoped diff check passed. One command incorrectly named nonexistent test_history_link_delete.py and collected no tests; it is an invocation error, not behavior evidence, and was replaced with the actual test file found by search.
+
+Scoped independent re-review and fresh-environment integrated evidence remain pending; this fix does not authorize release.

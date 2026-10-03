@@ -1784,6 +1784,23 @@ class Application:
                 ).all()
             )
             for stale_job in stale_backfills:
+                if (
+                    stale_job.job_type == "history_link_delete"
+                    and (stale_job.payload or {}).get("external_effect_started")
+                ):
+                    stale_job.status = "uncertain"
+                    stale_job.locked_by = None
+                    stale_job.locked_at = None
+                    stale_job.run_after = None
+                    stale_job.last_error = (
+                        "Thao tác xóa bị gián đoạn; cần đối soát trước khi chạy lại."
+                    )
+                    stale_job.payload = {
+                        **(stale_job.payload or {}),
+                        "phase": "uncertain",
+                        "requires_reconciliation": True,
+                    }
+                    continue
                 stale_job.status = "queued"
                 stale_job.locked_by = None
                 stale_job.locked_at = None
