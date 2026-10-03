@@ -1,3 +1,5 @@
+@import "./design-tokens.css";
+
 @font-face {
   font-family: "Peter Obscure";
   src: url("/fonts/PeterObscure.ttf") format("truetype");
@@ -15,23 +17,13 @@
 }
 
 :root {
-  color: #090909;
-  background: #d7d3c8;
-  font-family: "Darley Sans", "Arial Narrow", sans-serif;
+  color: var(--ink);
+  background: var(--outside);
+  font-family: var(--font-ui);
   font-synthesis: weight;
-  --font-display: "Peter Obscure", "Arial Black", sans-serif;
-  --font-ui: "Darley Sans", "Arial Narrow", sans-serif;
-  --ink: #090909;
-  --paper: #f3efdf;
-  --paper-2: #fffdf5;
-  --teal: #00c8c8;
   --teal-dark: #008f90;
-  --magenta: #ef00c8;
-  --yellow: #ffd51f;
   --green: #16c98d;
   --muted: #777368;
-  --line: 3px solid var(--ink);
-  --shadow: 7px 7px 0 var(--ink);
   --shadow-small: 4px 4px 0 var(--ink);
 }
 
@@ -43,7 +35,7 @@ body {
   min-width: 320px;
   min-height: 100vh;
   overflow-x: hidden;
-  background: #d7d3c8;
+  background: var(--outside);
   color: var(--ink);
   font-family: var(--font-ui);
   -webkit-font-smoothing: antialiased;
@@ -62,10 +54,8 @@ body {
   display: flex;
   flex-direction: column;
   color: var(--paper);
-  background:
-    linear-gradient(135deg, transparent 0 66%, rgba(0, 200, 200, .18) 66% 69%, transparent 69%),
-    var(--ink);
-  border-right: 4px solid var(--ink);
+  background: var(--ink);
+  border-right: var(--line);
 }
 
 .login-brand { width: max-content; padding-right: 18px; }
@@ -113,8 +103,8 @@ body {
   width: min(100%, 480px);
   padding: clamp(24px, 4vw, 42px);
   background: var(--paper-2);
-  border: 4px solid var(--ink);
-  box-shadow: 11px 11px 0 var(--magenta);
+  border: var(--line);
+  box-shadow: var(--shadow);
 }
 .login-icon {
   width: 68px;
@@ -368,18 +358,18 @@ button:disabled { cursor: wait; opacity: .72; }
 .button--primary { background: var(--teal); box-shadow: var(--shadow-small); }
 .button--primary:hover { background: #15d9d7; box-shadow: 6px 6px 0 var(--ink); }
 .button--outline { background: var(--paper-2); box-shadow: 3px 3px 0 var(--ink); }
-.button--small { min-height: 34px; padding: 0 11px; font-size: 12px; white-space: nowrap; }
+.button--small { min-height: var(--target); padding: 0 11px; font-size: 12px; white-space: nowrap; }
 
 .icon-button {
   position: relative;
-  width: 42px;
-  height: 42px;
+  width: var(--target);
+  height: var(--target);
   padding: 0;
   display: grid;
   place-items: center;
   color: var(--ink);
   background: transparent;
-  border: 2px solid var(--ink);
+  border: var(--line);
 }
 
 .icon-button:hover { background: var(--yellow); }
@@ -864,7 +854,7 @@ tbody tr:hover td { background: #f7eec5; }
   animation: slide-in 180ms ease-out;
 }
 
-.toast .icon-button { width: 34px; height: 34px; }
+.toast .icon-button { width: var(--target); height: var(--target); }
 .toast--error { color: var(--paper); background: #b80042; }
 .spin { animation: spin 700ms linear infinite; }
 .nav-scrim { display: none; }
@@ -1000,7 +990,7 @@ tbody tr:hover td { background: #f7eec5; }
 
 .ops-toggle {
   width: 76px;
-  height: 36px;
+  height: var(--target);
   padding: 3px;
   display: grid;
   grid-template-columns: 27px 1fr;
@@ -1723,7 +1713,7 @@ tbody tr:hover td { background: #f7eec5; }
   .login-copy > p:last-child { font-size: 14px; }
   .login-security-strip span:nth-child(3) { display: none; }
   .login-panel { padding: 28px 18px 42px; }
-  .login-form { padding: 24px 20px; box-shadow: 7px 7px 0 var(--magenta); }
+  .login-form { padding: 24px 20px; box-shadow: var(--shadow); }
   .login-form h2 { font-size: 30px; }
   .overview-context-strip { grid-template-columns: 1fr; }
   .overview-context-strip > div { border-right: 0; border-bottom: 2px solid var(--ink); }
@@ -1731,7 +1721,7 @@ tbody tr:hover td { background: #f7eec5; }
   .stats-grid { grid-template-columns: 1fr; gap: 14px; }
   .stat-block { min-height: 126px; }
   .dashboard-grid { margin-top: 16px; gap: 16px; }
-  .panel { box-shadow: 5px 5px 0 var(--ink); }
+  .panel { box-shadow: var(--shadow); }
   .panel-heading { align-items: flex-start; }
   .legend { display: none; }
   .chart-wrap { height: 240px; padding-inline: 10px; }
@@ -2387,6 +2377,33 @@ tbody tr:hover td { background: #f7eec5; }
 .table-scroll {
   overflow-x: auto;
 }
+
+/* Dense controls keep the same visual vocabulary with a usable hit area. */
+button,
+.icon-button,
+.button--small,
+.ops-toggle,
+.ops-pagination button,
+.ops-system-rows button,
+.column-chooser label,
+summary,
+select,
+input:not([type="checkbox"]):not([type="radio"]) {
+  min-width: var(--target);
+  min-height: var(--target);
+}
+
+a:focus-visible,
+summary:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 3px solid var(--ink);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 4px var(--yellow);
+}
+
 
 @media (max-width: 480px) {
   .knowledge-filter-bar .search-field,

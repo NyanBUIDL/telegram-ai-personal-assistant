@@ -1,0 +1,18 @@
+{
+  "colors": {
+    "ink": "#090909",
+    "paper": "#f3efdf",
+    "panel": "#fffdf5",
+    "outside": "#d7d3c8",
+    "teal": "#00c8c8",
+    "magenta": "#ef00c8",
+    "yellow": "#ffd51f"
+  },
+  "fonts": {
+    "display": "PeterObscure.ttf",
+    "ui": "DarleySans-Regular.otf",
+    "display_css": "\"Peter Obscure\", \"Arial Black\", sans-serif",
+    "ui_css": "\"Darley Sans\", \"Arial Narrow\", sans-serif"
+  },
+  "geometry": { "border": 3, "shadow": 7, "radius": 0, "target": 44 }
+}

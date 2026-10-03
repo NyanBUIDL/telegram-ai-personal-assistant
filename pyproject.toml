@@ -32,6 +32,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+desktop = [
+  "PySide6-Essentials==6.11.2",
+]
 dev = [
   "aiosqlite>=0.20,<1",
   "pytest>=8.3,<10",

@@ -17,6 +17,7 @@ export function Badge({ children, tone = "ink", icon: Icon }) {
 export function IconButton({ label, children, className = "", ...props }) {
   return (
     <button
+      type="button"
       className={`icon-button ${className}`}
       aria-label={label}
       title={label}
