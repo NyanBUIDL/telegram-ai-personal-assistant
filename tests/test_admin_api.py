@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import httpx
 import pytest
@@ -531,3 +531,53 @@ async def test_admin_api_returns_sanitized_maintenance_state(admin_client, tmp_p
         assert response.headers["Cache-Control"] == "no-store"
     finally:
         restorer.release(lease)
+
+
+async def test_preferences_large_chat_ids_roundtrip_and_exclude_recommendations(admin_client):
+    from tg_assistant.db.models import AppSetting
+
+    client, secret = admin_client
+    login = await client.post("/api/v1/auth/login", json={"code": dashboard_login_code(secret)})
+    assert login.status_code == 200
+    headers = {"X-CSRF-Token": login.json()["csrf_token"]}
+    ids = ["9007199254740993", "-9007199254740993"]
+    database = client._transport.app.state.admin_context.database
+    async with database.session() as session:
+        for chat_id in map(int, ids):
+            session.add(
+                TelegramChat(chat_id=chat_id, title="Synthetic old source", chat_type="supergroup")
+            )
+            session.add(
+                TelegramMessage(
+                    chat_id=chat_id,
+                    message_id=1,
+                    text="Synthetic old message",
+                    sent_at=datetime.now(UTC) - timedelta(days=180),
+                )
+            )
+    before = await client.get("/api/v1/groups/recommendations?inactive_days=60")
+    assert set(ids).issubset({item["chat_id"] for item in before.json()["items"]})
+    written = await client.put(
+        "/api/v1/preferences",
+        headers=headers,
+        json={"always_keep_chat_ids": ids[:1], "ignored_recommendation_chat_ids": ids[1:]},
+    )
+    assert written.status_code == 200
+    assert written.json()["always_keep_chat_ids"] == ids[:1]
+    assert written.json()["ignored_recommendation_chat_ids"] == ids[1:]
+    read = await client.get("/api/v1/preferences")
+    assert read.json()["always_keep_chat_ids"] == ids[:1]
+    assert read.json()["ignored_recommendation_chat_ids"] == ids[1:]
+    after = await client.get("/api/v1/groups/recommendations?inactive_days=60")
+    assert set(ids).isdisjoint({item["chat_id"] for item in after.json()["items"]})
+    # Preserve exact legacy Python integers already stored in JSON. The public
+    # boundary serializes them before JavaScript can round either sign.
+    async with database.session() as session:
+        row = await session.get(AppSetting, "dashboard_preferences:123456")
+        row.value = {
+            "always_keep_chat_ids": [int(ids[0])],
+            "ignored_recommendation_chat_ids": [int(ids[1])],
+        }
+    legacy = await client.get("/api/v1/preferences")
+    assert legacy.json()["always_keep_chat_ids"] == ids[:1]
+    assert legacy.json()["ignored_recommendation_chat_ids"] == ids[1:]

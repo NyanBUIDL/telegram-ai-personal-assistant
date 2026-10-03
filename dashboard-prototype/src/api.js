@@ -1,3 +1,5 @@
+import { canonicalChatId, canonicalChatIds, normalizePreferenceChatIds } from "./chatIds.js";
+
 const API_ROOT = "/api/v1";
 
 export class ApiError extends Error {
@@ -109,7 +111,14 @@ export const api = {
     return request(`/groups?${params}`);
   },
   preferences: () => request("/preferences"),
-  updatePreferences: (body) => request("/preferences", { method: "PUT", body }),
+  updatePreferences: (body) =>
+    request("/preferences", { method: "PUT", body: normalizePreferenceChatIds(body) }),
+  keepRecommendedGroup: (preferences, chatId) => {
+    const current = normalizePreferenceChatIds(preferences);
+    const keepIds = new Set(current.always_keep_chat_ids || []);
+    keepIds.add(canonicalChatId(chatId));
+    return api.updatePreferences({ ...current, always_keep_chat_ids: [...keepIds] });
+  },
   groupRecommendations: (inactiveDays = 60) =>
     request(`/groups/recommendations?inactive_days=${inactiveDays}`),
   group: (chatId) => request(`/groups/${encodeURIComponent(chatId)}`),
@@ -223,7 +232,7 @@ export const api = {
   createEnableSelectionAction: (chatIds, limit = 1000) =>
     request("/knowledge/enable-selection-action", {
       method: "POST",
-      body: { chat_ids: chatIds.map(Number), limit },
+      body: { chat_ids: canonicalChatIds(chatIds), limit },
     }),
   setKnowledgeNote: (chatId, note) =>
     request(`/knowledge/sources/${encodeURIComponent(chatId)}/note`, {

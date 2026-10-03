@@ -302,10 +302,19 @@ def _preferences_key(owner_id: int) -> str:
     return f"dashboard_preferences:{owner_id}"
 
 
+def _public_preferences(value: dict) -> dict:
+    # Keep legacy JSON integers exact in Python; serialize before JavaScript can
+    # round large Telegram IDs. Other preference fields retain their types.
+    public = dict(value)
+    for field in ("always_keep_chat_ids", "ignored_recommendation_chat_ids"):
+        public[field] = [str(chat_id) for chat_id in public[field]]
+    return public
+
+
 async def _preferences(session: AsyncSession, owner_id: int) -> dict:
     row = await session.get(AppSetting, _preferences_key(owner_id))
     stored = row.value if row and isinstance(row.value, dict) else {}
-    return {**PREFERENCES_DEFAULTS, **stored}
+    return _public_preferences({**PREFERENCES_DEFAULTS, **stored})
 
 
 async def _knowledge_inventory_snapshot(
@@ -790,7 +799,7 @@ def create_admin_app(context: AdminContext) -> FastAPI:
                     details={"saved_views": len(value["saved_views"])},
                 )
             )
-        return value
+        return _public_preferences(value)
 
     @app.get("/api/v1/groups/recommendations")
     async def inactive_group_recommendations(
@@ -809,9 +818,11 @@ def create_admin_app(context: AdminContext) -> FastAPI:
             )
             items = await _group_rows(db, chats)
             preferences = await _preferences(db, context.owner_id)
-        excluded = set(preferences["always_keep_chat_ids"]) | set(
-            preferences["ignored_recommendation_chat_ids"]
-        )
+        excluded = {
+            int(chat_id)
+            for field in ("always_keep_chat_ids", "ignored_recommendation_chat_ids")
+            for chat_id in preferences[field]
+        }
         recommendations = []
         for item in items:
             rights = item.get("account_rights") or {}

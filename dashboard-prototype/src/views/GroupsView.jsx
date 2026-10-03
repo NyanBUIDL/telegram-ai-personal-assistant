@@ -256,12 +256,7 @@ export function GroupsView({ refreshKey, onOpenGroup }) {
     setSavingView(true);
     try {
       const current = preferences.data || {};
-      const keepIds = new Set(current.always_keep_chat_ids || []);
-      keepIds.add(Number(chatId));
-      await api.updatePreferences({
-        ...current,
-        always_keep_chat_ids: [...keepIds],
-      });
+      await api.keepRecommendedGroup(current, chatId);
       await Promise.all([preferences.reload(), resource.reload()]);
     } finally {
       setSavingView(false);
