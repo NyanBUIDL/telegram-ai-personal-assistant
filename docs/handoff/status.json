@@ -61,8 +61,11 @@
       "dependencies": [
         "F02"
       ],
-      "status": "InProgress",
-      "evidence": [],
+      "status": "Verified",
+      "evidence": [
+        "docs/handoff/evidence/task-S01.md",
+        "docs/handoff/evidence/review-S01.md"
+      ],
       "acceptance": "Ứng dụng mở được storage từ bất kỳ cwd và chuẩn bị empty/new/legacy profile có bằng chứng."
     },
     {
@@ -74,7 +77,7 @@
         "S01",
         "F01"
       ],
-      "status": "Planned",
+      "status": "InProgress",
       "evidence": [],
       "acceptance": "Nhiều connection thật cùng DB file SQLite/MySQL đạt, không chỉ test session memory đơn."
     },
@@ -100,7 +103,7 @@
         "S01",
         "F01"
       ],
-      "status": "Planned",
+      "status": "InProgress",
       "evidence": [],
       "acceptance": "Cloud/local capability matrix thực/mock riêng; không hidden provider fallback và corpus mixing."
     },

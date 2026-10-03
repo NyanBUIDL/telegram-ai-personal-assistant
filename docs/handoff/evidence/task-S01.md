@@ -1,6 +1,6 @@
 # S01 — SQLite default and per-user storage
 
-Code-ready evidence; independent coordinator review/integration remains required. The worker did not stage, commit, push or sign off its own task.
+Verified by independent coordinator review at e378b9215ae1a674e2f6ae369445987b407a7ff4; see [review-S01.md](review-S01.md). The worker did not stage, commit, push or sign off its own task. This is storage task acceptance, not installer/public-beta readiness.
 
 Fresh profiles open SQLite at the selected LocalAppData app root's `db/assistant.sqlite3` without asking for a MySQL password. `aiosqlite` is now a runtime dependency. Every SQLite connection enforces foreign keys, WAL and a5000ms busy timeout. Explicit existing/advanced MySQL remains on asyncmy/pymysql and retains its database and stored password; an actual disposable MySQL profile preserved Vietnamese data through migration/reopen with no SQLite conversion.
 

@@ -1,6 +1,6 @@
 {
-  "tracked_paths": 229,
-  "scanned_source_files": 188,
+  "tracked_paths": 235,
+  "scanned_source_files": 194,
   "findings": [
     {
       "path": ".env.example",
@@ -102,6 +102,13 @@
       "commit": "index",
       "kind": "telegram_bot_token",
       "sha256": "14dce256a2d15778e073c0155363a40dabc05c4d9f0e138724518da142a9b524",
+      "classification": "synthetic_test_fixture"
+    },
+    {
+      "path": "tests/test_storage_profile.py",
+      "commit": "index",
+      "kind": "credential_url",
+      "sha256": "55b1aca4b0e31aad45cf65385401ad0d96ed51a75d28fc37637dac0e9cf0bad9",
       "classification": "synthetic_test_fixture"
     },
     {
@@ -209,13 +216,41 @@
       "kind": "credential_url",
       "sha256": "74da31f9ff3b363b00b203956ecc7ca7fe25e0472eafb6109ae16b3c7e1ad3e4",
       "classification": "synthetic_test_fixture"
+    },
+    {
+      "path": "tests/test_release_content.py",
+      "commit": "831024631994d2092e594f8823031b32cced96bd",
+      "kind": "credential_url",
+      "sha256": "1ad09ab3aa057304176d5e1edd0032972ff261d5fc2a204f31c9af321ab3fdce",
+      "classification": "synthetic_test_fixture"
+    },
+    {
+      "path": "tests/test_release_content.py",
+      "commit": "f7c2f139c5e2213622997806e3102fd9ce1b24f8",
+      "kind": "credential_url",
+      "sha256": "1ad09ab3aa057304176d5e1edd0032972ff261d5fc2a204f31c9af321ab3fdce",
+      "classification": "synthetic_test_fixture"
+    },
+    {
+      "path": "tests/test_release_content.py",
+      "commit": "828815b995316f6ce27f27cac4e03b55a44bd4f0",
+      "kind": "credential_url",
+      "sha256": "1ad09ab3aa057304176d5e1edd0032972ff261d5fc2a204f31c9af321ab3fdce",
+      "classification": "synthetic_test_fixture"
+    },
+    {
+      "path": "tests/test_storage_profile.py",
+      "commit": "d63d3a12a572ff5c02f0b2c7a8b25a96cca1b275",
+      "kind": "credential_url",
+      "sha256": "55b1aca4b0e31aad45cf65385401ad0d96ed51a75d28fc37637dac0e9cf0bad9",
+      "classification": "synthetic_test_fixture"
     }
   ],
   "coverage": "tracked index text only; pattern candidates require classification",
   "history": {
     "base": "26827cfb231373ce0f326553067f8f1ad849649d",
-    "head": "46494fc4fa2eebd26f852837bd16c03dd5c1abba",
-    "commits": 29,
+    "head": "d63d3a12a572ff5c02f0b2c7a8b25a96cca1b275",
+    "commits": 35,
     "roots": [
       "src",
       "scripts",
@@ -231,7 +266,7 @@
       "dashboard-prototype/package-lock.json"
     ],
     "excluded": "generated/runtime paths, binary assets, paths outside named roots",
-    "unique_source_blobs": 241
+    "unique_source_blobs": 280
   },
   "public_release_approved": false
 }
