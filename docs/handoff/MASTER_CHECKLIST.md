@@ -21,7 +21,7 @@ Ngày lập: 02/10/2026. **Thiết kế đã duyệt; implementation đang thự
 - [x] **F01 — Thu hồi quyền thắng job đang chờ/đang chạy** · Reliability · phụ thuộc: B00 · Verified.
 - [x] **F02 — Migration immutable và đường sửa schema cũ** · Platform · phụ thuộc: B00 · Verified.
 - [x] **S01 — Storage profile SQLite mặc định và config per-user** · Platform · phụ thuộc: F02 · Verified.
-- [ ] **S02 — Atomic claim/confirm/maintenance tương thích SQLite** · Reliability · phụ thuộc: S01, F01 · InProgress.
+- [ ] **S02 — Atomic claim/confirm/maintenance tương thích SQLite** · Reliability · phụ thuộc: S01, F01 · InReview.
 - [x] **U01 — Khóa design tokens và baseline art** · Experience · phụ thuộc: B00 · Verified.
 - [x] **Q01 — CI regressions/contracts/storage/frontend/package** · QA · phụ thuộc: B00 · Verified.
 - [x] **R01 — Làm sạch source và quyền phân phối assets/dependencies** · Platform · phụ thuộc: B00 · Verified.

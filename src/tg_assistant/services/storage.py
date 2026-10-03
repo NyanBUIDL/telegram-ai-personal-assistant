@@ -10,6 +10,7 @@ from ..db.base import Database, configure_sqlite
 from ..db.migrations import upgrade_database
 from ..paths import ensure_runtime_dirs, resource_path
 from ..security import SecretStore
+from .maintenance import MaintenanceService
 
 
 class StorageService:
@@ -17,6 +18,7 @@ class StorageService:
         self.settings = validate_settings(settings)
         self.store = store
         self._opened = False
+        self.fence = None
 
     def open(self, profile: PublicProfile) -> Database:
         """Open the selected backend; a profile DTO never proves authorization."""
@@ -25,10 +27,15 @@ class StorageService:
             raise ValueError("Storage profile does not match the active profile")
         if profile.storage_backend != self.settings.storage_backend:
             raise ValueError("Storage backend does not match the active profile")
-        url = self._url(async_driver=True)
         ensure_runtime_dirs(self.settings.data_dir, profile_id=self.settings.profile_id)
-        save_settings(self.settings)
-        database = Database(url, pool_size=self.settings.database_pool_size)
+        self.fence = MaintenanceService(
+            self.settings.data_dir / "config", profile_id=self.settings.profile_id
+        )
+        with self.fence.operation():
+            url = self._url(async_driver=True)
+            save_settings(self.settings)
+            database = Database(url, pool_size=self.settings.database_pool_size)
+            database.fence = self.fence
         self._opened = True
         return database
 
@@ -49,11 +56,15 @@ class StorageService:
         if engine.dialect.name == "sqlite":
             event.listen(engine, "connect", configure_sqlite)
         try:
+            lease = self.fence.acquire("schema-migration", lease_seconds=1800, timeout=0)
             with engine.connect() as connection:
-                return upgrade_database(
+                report = upgrade_database(
                     connection,
                     script_location=resource_path("alembic"),
                     backup_dir=self.settings.data_dir / "backups",
                 )
+            self.fence.release(lease)
+            return report
         finally:
+            self.fence.close()
             engine.dispose()

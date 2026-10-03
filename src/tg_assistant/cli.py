@@ -40,6 +40,7 @@ from .runtime import (
     run_application,
 )
 from .security import SecretStore, contains_secret
+from .services.maintenance import profile_maintenance, profile_writer
 from .services.storage import StorageService
 from .setup.mysql import detect_mysql, find_mysql_tool
 from .setup.wizard import run_setup
@@ -142,8 +143,8 @@ def _ensure_ready() -> None:
     if settings.storage_backend == "mysql":
         if not store.get("database_password"):
             run_setup()
-    else:
-        _prepare_sqlite_storage(settings, store)
+        settings = get_settings()
+    _prepare_sqlite_storage(settings, store)
     required = ("telegram_api_id", "telegram_api_hash", "telegram_phone", "telegram_bot_token")
     if any(not store.get(key) for key in required):
         prompt_secrets(store)
@@ -188,8 +189,7 @@ def _prepare_sqlite_storage(settings, store) -> None:
 @app.command()
 def start() -> None:
     """Thiết lập nếu cần rồi chạy nền, không cần Administrator."""
-    _ensure_ready()
-    pid_file, _, stop_file = _runtime_files()
+    pid_file, lock_file, stop_file = _runtime_files()
     if pid_file.exists():
         try:
             pid = int(pid_file.read_text().strip())
@@ -206,6 +206,8 @@ def start() -> None:
                 )
             return
         pid_file.unlink(missing_ok=True)
+    with InstanceLock(lock_file):
+        _ensure_ready()
     stop_file.unlink(missing_ok=True)
     log_path = ensure_runtime_dirs()["logs"] / "background.log"
     flags = 0
@@ -271,10 +273,10 @@ def worker() -> None:
 @app.command()
 def run() -> None:
     """Chạy foreground và hiển thị log."""
-    _ensure_ready()
     pid_file, lock_file, stop_file = _runtime_files()
-    stop_file.unlink(missing_ok=True)
     with InstanceLock(lock_file):
+        _ensure_ready()
+        stop_file.unlink(missing_ok=True)
         pid_file.write_text(str(os.getpid()), encoding="ascii")
         _started_file().write_text(datetime.now(UTC).isoformat(), encoding="ascii")
         try:
@@ -493,6 +495,7 @@ def ai_provider(
 
 
 @app.command()
+@profile_writer(lambda: get_settings())
 def sync(limit: int = typer.Option(1000, min=1, max=100000)) -> None:
     async def execute() -> None:
         settings, store, paths, policy = (
@@ -533,6 +536,7 @@ def sync(limit: int = typer.Option(1000, min=1, max=100000)) -> None:
 
 
 @app.command()
+@profile_writer(lambda: get_settings())
 def reindex() -> None:
     async def execute() -> None:
         from .ai.vector import LocalVectorStore
@@ -689,6 +693,7 @@ def backup(output: Path | None = None) -> None:
 
 
 @app.command()
+@profile_maintenance(lambda: get_settings())
 def restore(archive: Path) -> None:
     if not archive.is_file() or not zipfile.is_zipfile(archive):
         raise typer.BadParameter("Backup không hợp lệ")

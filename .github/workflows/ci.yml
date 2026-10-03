@@ -110,6 +110,7 @@ jobs:
         run: >-
           python scripts/ci_checks.py --mysql-required --report .ci-work/summary.json
           tests/integration/test_migrations.py tests/test_revocation_jobs.py
+          tests/integration/test_job_concurrency.py tests/test_embedding_profiles.py
       - name: Stage sanitized evidence
         if: always()
         run: python scripts/ci_artifacts.py .ci-work ci-artifacts

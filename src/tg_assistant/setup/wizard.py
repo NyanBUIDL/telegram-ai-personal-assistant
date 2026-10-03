@@ -12,6 +12,7 @@ from ..config import get_settings, save_settings_env
 from ..db.migrations import upgrade_database
 from ..paths import project_root
 from ..security import SecretStore
+from ..services.maintenance import profile_maintenance
 from .mysql import (
     detect_mysql,
     inspect_provisioning,
@@ -40,6 +41,7 @@ def _save_database_config(
     save_settings_env(updates)
 
 
+@profile_maintenance(lambda: get_settings())
 def run_setup() -> None:
     settings, store = get_settings(), SecretStore()
     typer.echo("Telegram AI Personal Assistant\n")

@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from sqlalchemy import select
+from sqlalchemy import exists, select
 
 from ..contracts import RevocationReport
 from ..db.models import (
@@ -76,6 +76,47 @@ async def require_authorization(
         or not row.allowed
         or not enabled
         or (epoch is not None and row.authorization_epoch != epoch)
+    ):
+        raise AuthorizationRevoked("source_authorization_revoked")
+    return int(row.authorization_epoch)
+
+
+async def require_fresh_authorization(session, chat_id, permission, epoch=None, lease=None):
+    """One statement in a fresh transaction: current committed state, no self-lock.
+
+    This helper must only be used with a newly opened session before any read.
+    Write transactions still lock/recheck epochs at their commit boundary.
+    """
+    query = (
+        select(
+            TelegramChatPolicy.authorization_epoch,
+            TelegramChatPolicy.allowed,
+            TelegramChatPermission.enabled,
+        )
+        .outerjoin(
+            TelegramChatPermission,
+            (TelegramChatPermission.chat_id == TelegramChatPolicy.chat_id)
+            & (TelegramChatPermission.permission == permission.value),
+        )
+        .where(TelegramChatPolicy.chat_id == chat_id)
+    )
+    if lease:
+        query = query.where(
+            exists(
+                select(BackgroundJob.id).where(
+                    BackgroundJob.id == lease.id,
+                    BackgroundJob.claim_token == lease.claim_token,
+                    BackgroundJob.status == "running",
+                    BackgroundJob.lease_expires_at > datetime.now(UTC),
+                )
+            )
+        )
+    row = (await session.execute(query)).first()
+    if (
+        not row
+        or not row.allowed
+        or not row.enabled
+        or (epoch is not None and epoch != row.authorization_epoch)
     ):
         raise AuthorizationRevoked("source_authorization_revoked")
     return int(row.authorization_epoch)

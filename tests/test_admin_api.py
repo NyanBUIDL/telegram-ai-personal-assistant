@@ -229,9 +229,7 @@ async def test_admin_api_lists_and_previews_selected_history_link_posts(admin_cl
                 ),
             ]
         )
-    login = await client.post(
-        "/api/v1/auth/login", json={"code": dashboard_login_code(secret)}
-    )
+    login = await client.post("/api/v1/auth/login", json={"code": dashboard_login_code(secret)})
     csrf = login.json()["csrf_token"]
 
     candidates = await client.get(
@@ -512,3 +510,24 @@ def test_learning_job_json_preserves_reconciliation_warning_contract() -> None:
     assert payload["evaluated"] == 10
     assert payload["vectors_before"] == 257
     assert payload["vectors_after"] == 41
+
+
+async def test_admin_api_returns_sanitized_maintenance_state(admin_client, tmp_path):
+    from tg_assistant.services.maintenance import MaintenanceService
+
+    client, secret = admin_client
+    login = await client.post("/api/v1/auth/login", json={"code": dashboard_login_code(secret)})
+    assert login.status_code == 200
+    application = client._transport.app
+    database = application.state.admin_context.database
+    database.fence = MaintenanceService(tmp_path / "maintenance", profile_id="default")
+    restorer = MaintenanceService(tmp_path / "maintenance", profile_id="default")
+    lease = restorer.acquire("restore-test", lease_seconds=30)
+    client._transport.raise_app_exceptions = False
+    try:
+        response = await client.get("/api/v1/groups")
+        assert response.status_code == 503
+        assert response.json()["code"] == "maintenance_in_progress"
+        assert response.headers["Cache-Control"] == "no-store"
+    finally:
+        restorer.release(lease)

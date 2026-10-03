@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+import time
 from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, nullcontext
 from datetime import datetime
 
 from sqlalchemy import DateTime, MetaData, event, func
@@ -49,34 +50,83 @@ class Database:
         if self.engine.dialect.name == "sqlite":
             event.listen(self.engine.sync_engine, "connect", configure_sqlite)
         self.sessions = async_sessionmaker(self.engine, expire_on_commit=False)
+        self.fence = None
+
+    def operation(self):
+        return self.fence.operation() if self.fence else nullcontext()
 
     @asynccontextmanager
     async def session(self) -> AsyncIterator[AsyncSession]:
-        async with self.sessions() as session:
-            try:
-                yield session
-                await session.commit()
-            except Exception:
-                await session.rollback()
-                raise
+        with self.operation():
+            async with self.sessions() as session:
+                from ..services.jobs import (
+                    active_job_lease,
+                    fence_runtime_writes,
+                    track_runtime_statement,
+                )
+
+                lease = active_job_lease.get()
+                if lease:
+                    event.listen(
+                        session.sync_session,
+                        "before_flush",
+                        lambda sync, *_: fence_runtime_writes(sync, lease, phase="flush"),
+                    )
+                    event.listen(
+                        session.sync_session,
+                        "before_commit",
+                        lambda sync: fence_runtime_writes(sync, lease),
+                    )
+                    event.listen(
+                        session.sync_session,
+                        "do_orm_execute",
+                        lambda state: track_runtime_statement(state, lease),
+                    )
+
+                    def clear_guard(sync):
+                        sync.info.pop("job_lease_fenced", None)
+                        sync.info.pop("job_core_write", None)
+
+                    event.listen(session.sync_session, "after_commit", clear_guard)
+                    event.listen(session.sync_session, "after_rollback", clear_guard)
+                try:
+                    yield session
+                    await session.commit()
+                except BaseException:
+                    await session.rollback()
+                    raise
 
     async def ping(self) -> bool:
         from sqlalchemy import text
 
-        async with self.engine.connect() as connection:
-            await connection.execute(text("SELECT 1"))
+        with self.operation():
+            async with self.engine.connect() as connection:
+                await connection.execute(text("SELECT 1"))
         return True
 
     async def close(self) -> None:
         await self.engine.dispose()
 
 
-def configure_sqlite(connection, _record) -> None:
+def configure_sqlite(connection, _record, *, busy_timeout: int = 5000) -> None:
     """Enforce each SQLite connection's concurrency and referential settings."""
     cursor = connection.cursor()
     try:
         cursor.execute("PRAGMA foreign_keys=ON")
-        cursor.execute("PRAGMA busy_timeout=5000")
-        cursor.execute("PRAGMA journal_mode=WAL")
+        cursor.execute(f"PRAGMA busy_timeout={busy_timeout}")
+        # SQLite journal-mode changes can return BUSY immediately even with a
+        # busy handler. Two first connections must not fail a startup race.
+        deadline = time.monotonic() + min(busy_timeout / 1000, 0.5)
+        while True:
+            try:
+                cursor.execute("PRAGMA journal_mode=WAL")
+                break
+            except Exception as exc:
+                if (
+                    getattr(exc, "sqlite_errorcode", None) not in {5, 6}
+                    or time.monotonic() >= deadline
+                ):
+                    raise
+                time.sleep(0.01)
     finally:
         cursor.close()

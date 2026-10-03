@@ -77,8 +77,10 @@
         "S01",
         "F01"
       ],
-      "status": "InProgress",
-      "evidence": [],
+      "status": "InReview",
+      "evidence": [
+        "docs/handoff/evidence/task-S02.md"
+      ],
       "acceptance": "Nhiều connection thật cùng DB file SQLite/MySQL đạt, không chỉ test session memory đơn."
     },
     {

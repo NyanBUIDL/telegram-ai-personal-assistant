@@ -11,10 +11,19 @@ import pytest
 from sqlalchemy.engine import make_url
 from sqlalchemy.exc import ArgumentError
 
-REQUIRED_MYSQL_MODULES = {"test_migrations.py", "test_revocation_jobs.py"}
+REQUIRED_MYSQL_MODULES = {
+    "test_migrations.py",
+    "test_revocation_jobs.py",
+    "test_job_concurrency.py",
+    "test_embedding_profiles.py",
+}
 # F02 parametrizes the SQLite rowid semantic check over both fixture backends;
 # its MySQL variant is intentionally inapplicable, not required dialect coverage.
-SQLITE_ONLY_CASES = {("test_migrations.py", "test_sqlite_integer_pk_alias_refused")}
+SQLITE_ONLY_CASES = {
+    ("test_migrations.py", "test_sqlite_integer_pk_alias_refused"),
+    ("test_job_concurrency.py", "test_sqlite_busy_is_bounded"),
+    ("test_job_concurrency.py", "test_cancel_does_not_overwrite_confirmed_action"),
+}
 
 
 def disposable_mysql_configured() -> bool:
@@ -52,10 +61,18 @@ class Evidence:
         selected, deselected = [], []
         for item in items:
             params = getattr(getattr(item, "callspec", None), "params", {})
-            backend = params.get("connection", params.get("backend"))
-            is_mysql = backend == "mysql" if backend is not None else "mysql" in item.originalname
+            backend = params.get("connection", params.get("backend", params.get("storage")))
+            is_mysql = (
+                backend == "mysql"
+                if backend is not None
+                else item.originalname.startswith("test_mysql_")
+            )
             module = Path(item.path).name
-            if module in REQUIRED_MYSQL_MODULES and is_mysql and (module, item.originalname) not in SQLITE_ONLY_CASES:
+            if (
+                module in REQUIRED_MYSQL_MODULES
+                and is_mysql
+                and (module, item.originalname) not in SQLITE_ONLY_CASES
+            ):
                 selected.append(item)
                 self.required.add(item.nodeid)
             else:

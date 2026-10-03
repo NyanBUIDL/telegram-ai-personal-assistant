@@ -126,7 +126,10 @@ class PendingActionService:
                 raise ValueError("Memory rỗng hoặc chứa nội dung giống secret.")
         if action_type == "delete_message" and not preview:
             raise ValueError("Xóa tin nhắn bắt buộc phải có preview.")
-        snapshots = {str(source): await source_epoch(session, source) for source in source_ids(payload, chat_id)}
+        snapshots = {
+            str(source): await source_epoch(session, source)
+            for source in source_ids(payload, chat_id)
+        }
         action = PendingAction(
             action_type=action_type,
             requested_by=requested_by,
@@ -163,7 +166,17 @@ class PendingActionService:
             action.status = "expired"
             raise TimeoutError("Action đã hết hạn")
         await validate_action_epoch(session, action)
-        consumed = await session.execute(update(PendingAction).where(PendingAction.action_id == action_id, PendingAction.status == "pending").values(status="confirmed", confirmed_at=now))
+        consumed = await session.execute(
+            update(PendingAction)
+            .where(
+                PendingAction.action_id == action_id,
+                PendingAction.status == "pending",
+                PendingAction.requested_by == actor_id,
+                PendingAction.expires_at > now,
+            )
+            .values(status="confirmed", confirmed_at=now)
+            .execution_options(synchronize_session=False)
+        )
         if consumed.rowcount != 1:
             raise ValueError("Action đã được sử dụng")
         action.status = "confirmed"
@@ -176,5 +189,74 @@ class PendingActionService:
         )
         if not action or action.requested_by != actor_id or action.status != "pending":
             raise ValueError("Action không thể hủy")
+        changed = await session.execute(
+            update(PendingAction)
+            .where(
+                PendingAction.action_id == action_id,
+                PendingAction.status == "pending",
+                PendingAction.requested_by == actor_id,
+            )
+            .values(status="cancelled")
+        )
+        if changed.rowcount != 1:
+            raise ValueError("Action không thể hủy")
         action.status = "cancelled"
         return action
+
+    async def claim_execution(self, session: AsyncSession, action_id: str, actor_id: int) -> bool:
+        action = await session.scalar(
+            select(PendingAction).where(PendingAction.action_id == action_id).with_for_update()
+        )
+        if not action or action.requested_by != actor_id or action.status != "confirmed":
+            return False
+        await validate_action_epoch(session, action)
+        now = datetime.now(UTC)
+        claimed = await session.execute(
+            update(PendingAction)
+            .where(
+                PendingAction.action_id == action_id,
+                PendingAction.status == "confirmed",
+                PendingAction.requested_by == actor_id,
+                PendingAction.expires_at > now,
+            )
+            .values(status="executing", execution_started_at=now)
+            .execution_options(synchronize_session=False)
+        )
+        return claimed.rowcount == 1
+
+    async def recover_interrupted(self, session: AsyncSession) -> int:
+        cutoff = datetime.now(UTC) - timedelta(minutes=15)
+        actions = list(
+            (
+                await session.scalars(
+                    select(PendingAction)
+                    .where(
+                        PendingAction.status == "executing",
+                        (PendingAction.execution_started_at.is_(None))
+                        | (PendingAction.execution_started_at <= cutoff),
+                    )
+                    .with_for_update()
+                )
+            ).all()
+        )
+        recovered = 0
+        for action in actions:
+            external = bool((action.payload or {}).get("external_effect_started"))
+            changed = await session.execute(
+                update(PendingAction)
+                .where(
+                    PendingAction.action_id == action.action_id,
+                    PendingAction.status == "executing",
+                    (PendingAction.execution_started_at.is_(None))
+                    | (PendingAction.execution_started_at <= cutoff),
+                )
+                .values(
+                    status="uncertain" if external else "cancelled",
+                    error="requires_reconciliation"
+                    if external
+                    else "interrupted_requires_new_confirmation",
+                )
+                .execution_options(synchronize_session=False)
+            )
+            recovered += changed.rowcount
+        return recovered

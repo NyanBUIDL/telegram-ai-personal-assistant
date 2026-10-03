@@ -14,6 +14,7 @@ from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.security import APIKeyCookie
 from sqlalchemy import String, cast, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm.exc import StaleDataError
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from .. import __version__
@@ -51,12 +52,14 @@ from ..services.history_export import (
     promotion_reasons,
     telegram_post_url,
 )
+from ..services.jobs import StorageBusy
 from ..services.knowledge_inventory import (
     LEARNING_CHAT_TYPES,
     LearningInventoryRow,
     build_learning_inventory_csv,
     knowledge_status_reason,
 )
+from ..services.maintenance import MaintenanceBusy
 from ..services.ollama import OllamaError, OllamaService, format_model_size
 from ..services.operations import cleanup_storage
 from ..services.vector_reliability import inspect_source_coverage
@@ -361,6 +364,34 @@ def create_admin_app(context: AdminContext) -> FastAPI:
     )
     app.state.admin_context = context
     app.state.admin_auth = auth
+
+    @app.exception_handler(MaintenanceBusy)
+    async def maintenance_busy(_request, _error):
+        return JSONResponse(
+            status_code=503,
+            content={
+                "code": "maintenance_in_progress",
+                "detail": "Ứng dụng đang bảo trì. Hãy thử lại sau.",
+            },
+        )
+
+    @app.exception_handler(StorageBusy)
+    async def storage_busy(_request, _error):
+        return JSONResponse(
+            status_code=503,
+            content={"code": "storage_busy", "detail": "Dữ liệu đang bận. Hãy thử lại sau."},
+        )
+
+    @app.exception_handler(StaleDataError)
+    async def stale_edit(_request, _error):
+        return JSONResponse(
+            status_code=409,
+            content={
+                "code": "stale_edit",
+                "detail": "Nội dung đã được cập nhật. Hãy tải lại trước khi lưu.",
+            },
+        )
+
     app.add_middleware(
         TrustedHostMiddleware,
         allowed_hosts=["127.0.0.1", "localhost", "[::1]", "testserver"],

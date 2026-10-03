@@ -495,14 +495,21 @@ def test_doctor_default_does_not_require_mysql(monkeypatch, capsys):
 
 
 def test_prepare_sqlite_cli_uses_real_migrations():
+    from alembic.config import Config
+    from alembic.script import ScriptDirectory
+
     from tg_assistant.cli import _prepare_sqlite_storage
 
     settings = Settings(_env_file=None)
     _prepare_sqlite_storage(settings, NoCredentials())
     import sqlite3
 
+    root = Path(__file__).resolve().parents[1]
+    alembic = Config(str(root / "alembic.ini"))
+    alembic.set_main_option("script_location", str(root / "alembic"))
+    head = ScriptDirectory.from_config(alembic).get_current_head()
     with sqlite3.connect(settings.data_dir / "db" / "assistant.sqlite3") as connection:
-        assert connection.execute("SELECT version_num FROM alembic_version").fetchone() == ("0006",)
+        assert connection.execute("SELECT version_num FROM alembic_version").fetchone() == (head,)
 
 
 @pytest.mark.parametrize(
