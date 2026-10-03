@@ -186,6 +186,9 @@ class TelegramChatPolicy(Base, TimestampMixin):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     chat_id: Mapped[int] = mapped_column(BigInteger, unique=True, nullable=False)
     allowed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, index=True)
+    authorization_epoch: Mapped[int] = mapped_column(
+        Integer, default=0, server_default="0", nullable=False
+    )
     template: Mapped[str | None] = mapped_column(String(64))
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     revocation_memory_action: Mapped[str | None] = mapped_column(String(16))

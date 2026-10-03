@@ -200,6 +200,7 @@ class FakeSenderHistoryClient:
 @pytest.mark.asyncio
 async def test_sender_history_resolves_username_and_syncs_only_that_user_in_chat(session) -> None:
     session.add(TelegramChat(chat_id=100, title="Test", chat_type="supergroup"))
+    await PolicyEngine().apply_template(session, 100, "knowledge")
     await session.flush()
     now = datetime.now(UTC)
     target_one = fake_message(1, "target one", now - timedelta(minutes=2))

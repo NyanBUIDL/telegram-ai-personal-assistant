@@ -83,6 +83,7 @@ from ..services.ollama import (
     validate_model_name,
 )
 from ..services.operations import cleanup_storage, collect_runtime_metric
+from ..services.revocation import AuthorizationRevoked, validate_answer
 from ..services.search import SearchService
 from ..services.tasks import TaskService
 from ..services.timeparse import parse_vietnamese_datetime
@@ -1170,6 +1171,8 @@ class ControlBot:
             pairing,
         )
         self.ai, self.rag, self.budget, self.coingecko = ai, rag, budget, coingecko
+        if self.rag:
+            self.rag.database = self.database
         self.ollama = ollama
         self.ollama_activate_handler = ollama_activate_handler
         self.ai_provider_switch_handler = ai_provider_switch_handler
@@ -1526,10 +1529,22 @@ class ControlBot:
                     owner_id=self.owner_id,
                     chat_ids=chat_ids,
                 )
+            except AuthorizationRevoked:
+                return ""
             except RuntimeError as exc:
                 return str(exc)
             except Exception:
                 return "AI tạm thời không khả dụng; tìm kiếm local vẫn hoạt động."
+
+    async def _answer_still_authorized(self, answer: str) -> bool:
+        if not answer:
+            return False
+        try:
+            async with self.database.session() as session:
+                await validate_answer(session, answer)
+            return True
+        except AuthorizationRevoked:
+            return False
 
     async def _coin_price_answer(self, query: str) -> str:
         if not self.coingecko or not self.coingecko.available:
@@ -1787,6 +1802,8 @@ class ControlBot:
             answer = await self._ask_ai(question)
             chunks = telegram_html_chunks(answer)
             for index, chunk in enumerate(chunks):
+                if not await self._answer_still_authorized(answer):
+                    return
                 await message.answer(
                     chunk,
                     parse_mode="HTML",
@@ -4544,6 +4561,8 @@ class ControlBot:
             answer = await self._ask_ai(question)
             chunks = telegram_html_chunks(answer)
             for index, chunk in enumerate(chunks):
+                if not await self._answer_still_authorized(answer):
+                    return
                 await message.answer(
                     chunk,
                     parse_mode="HTML",
@@ -5095,6 +5114,8 @@ class ControlBot:
                             owner_id=self.owner_id,
                             chat_ids=chat_ids,
                         )
+                    except AuthorizationRevoked:
+                        return
                     except RuntimeError as exc:
                         answer = str(exc)
                     except Exception:
@@ -5117,6 +5138,8 @@ class ControlBot:
                     )
             chunks = telegram_html_chunks(answer)
             for index, chunk in enumerate(chunks):
+                if not await self._answer_still_authorized(answer):
+                    return
                 await message.answer(
                     chunk,
                     parse_mode="HTML",

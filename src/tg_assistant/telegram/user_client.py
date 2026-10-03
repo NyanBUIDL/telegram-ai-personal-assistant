@@ -29,6 +29,7 @@ from ..db.models import (
 )
 from ..policy import PolicyContext, PolicyEngine
 from ..security import EncryptedSession, SecretStore, redact
+from ..services.revocation import AuthorizationRevoked, require_authorization
 
 log = structlog.get_logger()
 
@@ -343,6 +344,10 @@ class UserClientAdapter:
         if not automatic.allowed:
             return False
         try:
+            epoch = await self._authorization_fence(session, chat_id, PermissionName.AUTO_MODERATION)
+        except AuthorizationRevoked:
+            return False
+        try:
             if await self._sender_is_trusted_admin(chat_id, message):
                 return False
         except Exception as exc:
@@ -415,6 +420,11 @@ class UserClientAdapter:
             )
             return False
         try:
+            await self._authorization_fence(session, chat_id, PermissionName.AUTO_MODERATION, epoch)
+            await self._authorization_fence(session, chat_id, PermissionName.DELETE_ANY_MESSAGES, epoch)
+        except AuthorizationRevoked:
+            return False
+        try:
             await self.client.delete_messages(chat_id, [int(message.id)])
         except Exception as exc:
             session.add(
@@ -424,11 +434,12 @@ class UserClientAdapter:
                     action="auto_delete_non_admin_link",
                     target_type="telegram_message",
                     target_id=f"{chat_id}/{message.id}",
-                    outcome="failed_kept",
+                    outcome="uncertain",
                     reason=str(redact(str(exc)))[:1000],
                     details_redacted={
                         "sender_id": getattr(message, "sender_id", None),
                         "rule": rule.name,
+                        "requires_reconciliation": True,
                     },
                 )
             )
@@ -467,6 +478,7 @@ class UserClientAdapter:
         *,
         group_ask_handler: GroupAskHandler | None = None,
     ) -> None:
+        self.database = database
         @self.client.on(events.NewMessage)
         async def new_message(event: Any) -> None:
             if self.owner_id is None:
@@ -666,6 +678,7 @@ class UserClientAdapter:
         )
         if not decision.allowed:
             raise PermissionError(decision.reason.value)
+        epoch = await self._authorization_fence(session, chat_id, PermissionName.SYNC_HISTORY)
         state = await session.scalar(select(SyncState).where(SyncState.chat_id == chat_id))
         min_id = state.last_message_id or 0 if state else 0
         count, highest = 0, min_id
@@ -673,12 +686,17 @@ class UserClientAdapter:
         if latest_date is not None and latest_date.tzinfo is None:
             latest_date = latest_date.replace(tzinfo=UTC)
         try:
+            messages = []
             async for message in self.client.iter_messages(
                 chat_id,
                 min_id=min_id,
                 reverse=False,
                 limit=limit,
             ):
+                await self._authorization_fence(session, chat_id, PermissionName.SYNC_HISTORY, epoch)
+                messages.append(message)
+            for message in messages:
+                await self._authorization_fence(session, chat_id, PermissionName.SYNC_HISTORY, epoch)
                 await self._upsert_message(session, message)
                 highest = max(highest, int(message.id))
                 message_date = message.date
@@ -690,6 +708,7 @@ class UserClientAdapter:
         except FloodWaitError as exc:
             await asyncio.sleep(min(exc.seconds, 60))
             raise RuntimeError(f"Telegram FloodWait {exc.seconds}s") from exc
+        await self._authorization_fence(session, chat_id, PermissionName.SYNC_HISTORY, epoch)
         if not state:
             state = SyncState(chat_id=chat_id)
             session.add(state)
@@ -721,16 +740,22 @@ class UserClientAdapter:
         )
         if not decision.allowed:
             raise PermissionError(decision.reason.value)
+        epoch = await self._authorization_fence(session, chat_id, PermissionName.SYNC_HISTORY)
         page_size = min(max(int(limit), 1), 1000)
         cursor = max(int(before_message_id or 0), 0)
         count = 0
         oldest_id: int | None = None
         try:
+            messages = []
             async for message in self.client.iter_messages(
                 chat_id,
                 max_id=cursor,
                 limit=page_size,
             ):
+                await self._authorization_fence(session, chat_id, PermissionName.SYNC_HISTORY, epoch)
+                messages.append(message)
+            for message in messages:
+                await self._authorization_fence(session, chat_id, PermissionName.SYNC_HISTORY, epoch)
                 await self._upsert_message(session, message)
                 message_id = int(message.id)
                 oldest_id = message_id if oldest_id is None else min(oldest_id, message_id)
@@ -738,6 +763,7 @@ class UserClientAdapter:
         except FloodWaitError as exc:
             await asyncio.sleep(min(exc.seconds, 60))
             raise RuntimeError(f"Telegram FloodWait {exc.seconds}s") from exc
+        await self._authorization_fence(session, chat_id, PermissionName.SYNC_HISTORY, epoch)
         return HistoryBackfillPage(
             synced_count=count,
             next_before_message_id=oldest_id,
@@ -756,26 +782,41 @@ class UserClientAdapter:
         clean_username = username.strip().lstrip("@")
         if not re.fullmatch(r"[A-Za-z0-9_]{5,32}", clean_username):
             raise ValueError("Username Telegram không hợp lệ.")
+        epoch = await self._authorization_fence(session, chat_id, PermissionName.SYNC_HISTORY)
         entity = await self.client.get_entity(f"@{clean_username}")
+        await self._authorization_fence(session, chat_id, PermissionName.SYNC_HISTORY, epoch)
         if not isinstance(entity, types.User):
             raise ValueError("Username không phải tài khoản Telegram.")
         sender_id = int(entity.id)
         count = 0
         try:
+            messages = []
             async for message in self.client.iter_messages(
                 chat_id,
                 from_user=entity,
                 reverse=False,
                 limit=min(max(limit, 1), 100),
             ):
+                await self._authorization_fence(session, chat_id, PermissionName.SYNC_HISTORY, epoch)
                 if int(message.sender_id or 0) != sender_id:
                     continue
+                messages.append(message)
+            for message in messages:
+                await self._authorization_fence(session, chat_id, PermissionName.SYNC_HISTORY, epoch)
                 await self._upsert_message(session, message)
                 count += 1
         except FloodWaitError as exc:
             await asyncio.sleep(min(exc.seconds, 60))
             raise RuntimeError(f"Telegram FloodWait {exc.seconds}s") from exc
+        await self._authorization_fence(session, chat_id, PermissionName.SYNC_HISTORY, epoch)
         return sender_id, count
+
+    async def _authorization_fence(self, session, chat_id, permission, epoch=None):
+        database = getattr(self, "database", None)
+        if database:
+            async with database.session() as current:
+                return await require_authorization(current, chat_id, permission, epoch)
+        return await require_authorization(session, chat_id, permission, epoch)
 
     async def send_message(
         self,
@@ -795,7 +836,9 @@ class UserClientAdapter:
         )
         if not decision.allowed:
             raise PermissionError(decision.reason.value)
+        epoch = await self._authorization_fence(session, chat_id, PermissionName.SEND_MESSAGES)
         message = await self.client.send_message(chat_id, text)
+        await self._authorization_fence(session, chat_id, PermissionName.SEND_MESSAGES, epoch)
         return int(message.id)
 
     async def delete_message(
@@ -819,7 +862,9 @@ class UserClientAdapter:
         )
         if not decision.allowed:
             raise PermissionError(decision.reason.value)
+        epoch = await self._authorization_fence(session, chat_id, permission)
         await self.client.delete_messages(chat_id, [message_id])
+        await self._authorization_fence(session, chat_id, permission, epoch)
 
     async def delete_messages_bulk(
         self,
@@ -846,7 +891,9 @@ class UserClientAdapter:
         )
         if not decision.allowed:
             raise PermissionError(decision.reason.value)
+        epoch = await self._authorization_fence(session, chat_id, PermissionName.DELETE_ANY_MESSAGES)
         await self.client.delete_messages(chat_id, message_ids)
+        await self._authorization_fence(session, chat_id, PermissionName.DELETE_ANY_MESSAGES, epoch)
 
     async def edit_message(
         self,
@@ -871,6 +918,7 @@ class UserClientAdapter:
         )
         if not decision.allowed:
             raise PermissionError(decision.reason.value)
+        epoch = await self._authorization_fence(session, chat_id, PermissionName.EDIT_OWN_MESSAGES)
         stored = await session.scalar(
             select(TelegramMessage).where(
                 TelegramMessage.chat_id == chat_id,
@@ -880,7 +928,9 @@ class UserClientAdapter:
         )
         if not stored:
             raise PermissionError("Chỉ được sửa tin nhắn do tài khoản này gửi.")
+        await self._authorization_fence(session, chat_id, PermissionName.EDIT_OWN_MESSAGES, epoch)
         await self.client.edit_message(chat_id, message_id, text)
+        await self._authorization_fence(session, chat_id, PermissionName.EDIT_OWN_MESSAGES, epoch)
 
     async def pin_message(
         self,
@@ -904,4 +954,6 @@ class UserClientAdapter:
         )
         if not decision.allowed:
             raise PermissionError(decision.reason.value)
+        epoch = await self._authorization_fence(session, chat_id, PermissionName.PIN_MESSAGES)
         await self.client.pin_message(chat_id, message_id, notify=False)
+        await self._authorization_fence(session, chat_id, PermissionName.PIN_MESSAGES, epoch)

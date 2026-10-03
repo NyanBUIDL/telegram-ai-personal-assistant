@@ -18,6 +18,7 @@ from ..db.models import (
 )
 from ..policy import PolicyEngine
 from ..security import redact
+from ..services.revocation import AuthorizedAnswer, require_authorization, validate_answer
 from ..services.search import SearchService, parse_search_query
 from .engine import AiEngine
 from .local_first import (
@@ -210,6 +211,14 @@ class RagService:
                 "Không tìm thấy đủ thông tin trong 7 ngày gần nhất "
                 "từ dữ liệu Telegram đã được cấp quyền."
             )
+        epochs = {chat_id: await require_authorization(session, chat_id, PermissionName.SEARCH_MESSAGES) for chat_id in allowed}
+        async def fence():
+            database = getattr(self, "database", None)
+            if database:
+                async with database.session() as current:
+                    await validate_answer(current, AuthorizedAnswer("", epochs))
+            else:
+                await validate_answer(session, AuthorizedAnswer("", epochs))
         policies = list(
             (
                 await session.scalars(
@@ -262,6 +271,7 @@ class RagService:
             model=planned_engine.model,
             knowledge_version=knowledge_version,
             rag_config_version=(
+                f"epochs:{sorted(epochs.items())}:"
                 f"{preset.name}:{effective_top_k}:{preset.max_chunks_per_source}:"
                 f"{preset.max_sources}:{preset.max_context_tokens}:{preset.max_chunk_tokens}"
             ),
@@ -274,6 +284,7 @@ class RagService:
             )
         )
         if cached:
+            await fence()
             cached.hit_count += 1
             cached.last_hit_at = now
             session.add(
@@ -296,7 +307,7 @@ class RagService:
                     fallback_used=False,
                 )
             )
-            return cached.response
+            return AuthorizedAnswer(cached.response, epochs)
         recent_since, asked_at = rag_time_window()
         effective_after = (
             parsed.after
@@ -366,10 +377,12 @@ class RagService:
                 ).all()
             )
             try:
+                await fence()
                 query_vector = await self.embedding_ai.embed(session, effective_question)
             except Exception:
                 query_vector = None
             if query_vector:
+                await fence()
                 for _, score, payload in self.vectors.search(
                     query_vector,
                     allowed_chat_ids=allowed,
@@ -455,6 +468,7 @@ class RagService:
             bounded_evidence.append(evidence)
             context_tokens += tokens
         evidence_rows = bounded_evidence
+        await fence()
         if self.router:
             answer = await self.router.answer(
                 session,
@@ -475,6 +489,7 @@ class RagService:
                 contexts,
                 include_source_refs=False,
             )
+        await fence()
         if include_citations:
             indexes = referenced_evidence_indexes(answer, item_count=len(evidence_rows))
             cited_rows = [evidence_rows[index] for index in indexes]
@@ -511,4 +526,5 @@ class RagService:
                 expires_at=now + query_cache_ttl(query_route),
             )
         )
-        return answer
+        await fence()
+        return AuthorizedAnswer(answer, epochs)

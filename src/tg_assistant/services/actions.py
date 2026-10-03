@@ -2,11 +2,12 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..db.models import PendingAction
 from ..security import contains_secret, redact
+from .revocation import source_epoch, source_ids, validate_action_epoch
 
 SUPPORTED_ACTIONS = {
     "send_message",
@@ -125,10 +126,11 @@ class PendingActionService:
                 raise ValueError("Memory rỗng hoặc chứa nội dung giống secret.")
         if action_type == "delete_message" and not preview:
             raise ValueError("Xóa tin nhắn bắt buộc phải có preview.")
+        snapshots = {str(source): await source_epoch(session, source) for source in source_ids(payload, chat_id)}
         action = PendingAction(
             action_type=action_type,
             requested_by=requested_by,
-            payload=payload,
+            payload={**payload, "authorization_epochs": snapshots},
             chat_id=chat_id,
             message_id=message_id,
             preview=str(redact(preview)) if preview is not None else None,
@@ -160,6 +162,10 @@ class PendingActionService:
         if expiry <= now:
             action.status = "expired"
             raise TimeoutError("Action đã hết hạn")
+        await validate_action_epoch(session, action)
+        consumed = await session.execute(update(PendingAction).where(PendingAction.action_id == action_id, PendingAction.status == "pending").values(status="confirmed", confirmed_at=now))
+        if consumed.rowcount != 1:
+            raise ValueError("Action đã được sử dụng")
         action.status = "confirmed"
         action.confirmed_at = now
         return action
