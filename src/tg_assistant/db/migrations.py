@@ -131,9 +131,66 @@ def _sqlite_semantics(connection: Connection, table: str) -> dict:
     return result
 
 
+def _mysql_defaults(connection: Connection) -> tuple[str, str]:
+    return tuple(
+        connection.exec_driver_sql(
+            "SELECT DEFAULT_CHARACTER_SET_NAME, DEFAULT_COLLATION_NAME "
+            "FROM information_schema.SCHEMATA WHERE SCHEMA_NAME=DATABASE()"
+        ).one()
+    )
+
+
+def _mysql_semantics(connection: Connection, table: str, defaults: tuple[str, str]) -> dict:
+    """Historical tables inherit the database defaults and use complete visible keys.
+
+    Compare effective metadata against this database, not a hard-coded server
+    collation. Inspect every index, including PK/UNIQUE/FK-supporting indexes
+    that reflection normalization otherwise omits.
+    """
+    result = {}
+    parameters = {"table": table}
+    collation = connection.execute(
+        sa.text(
+            "SELECT TABLE_COLLATION FROM information_schema.TABLES "
+            "WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=:table"
+        ),
+        parameters,
+    ).scalar_one()
+    if collation != defaults[1]:
+        result["table_collation"] = collation
+    columns = {
+        row[0]: tuple(row[1:3])
+        for row in connection.execute(
+            sa.text(
+                "SELECT COLUMN_NAME, CHARACTER_SET_NAME, COLLATION_NAME "
+                "FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=:table"
+            ),
+            parameters,
+        )
+        if row[1] is not None and tuple(row[1:3]) != defaults
+    }
+    if columns:
+        result["column_character_semantics"] = columns
+    indexes = {}
+    for row in connection.execute(
+        sa.text(
+            "SELECT INDEX_NAME, COLUMN_NAME, SUB_PART, COLLATION, EXPRESSION, IS_VISIBLE "
+            "FROM information_schema.STATISTICS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=:table "
+            "ORDER BY INDEX_NAME, SEQ_IN_INDEX"
+        ),
+        parameters,
+    ):
+        if row[2] is not None or row[3] not in ("A", None) or row[4] is not None or row[5] != "YES":
+            indexes.setdefault(row[0], []).append(tuple(row[1:6]))
+    if indexes:
+        result["key_indexes"] = indexes
+    return result
+
+
 def fingerprint(connection: Connection) -> dict:
     inspector = sa.inspect(connection)
     result = {}
+    mysql_defaults = _mysql_defaults(connection) if connection.dialect.name == "mysql" else None
     for table in inspector.get_table_names():
         if table == "alembic_version":
             continue
@@ -197,6 +254,10 @@ def fingerprint(connection: Connection) -> dict:
             semantics := _sqlite_semantics(connection, table)
         ):
             result[table]["unsupported_sqlite_semantics"] = semantics
+        elif connection.dialect.name == "mysql" and (
+            semantics := _mysql_semantics(connection, table, mysql_defaults)
+        ):
+            result[table]["unsupported_mysql_semantics"] = semantics
     views = inspector.get_view_names()
     if connection.dialect.name == "sqlite":
         triggers = (
@@ -290,6 +351,10 @@ def actual_revision(connection: Connection) -> str | None:
     if "alembic_version" not in inspector.get_table_names():
         return None
     if connection.dialect.name == "sqlite" and _sqlite_semantics(connection, "alembic_version"):
+        raise RuntimeError("unknown_schema")
+    if connection.dialect.name == "mysql" and _mysql_semantics(
+        connection, "alembic_version", _mysql_defaults(connection)
+    ):
         raise RuntimeError("unknown_schema")
     columns = inspector.get_columns("alembic_version")
     if (

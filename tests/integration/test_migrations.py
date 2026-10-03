@@ -329,6 +329,121 @@ def test_sqlite_revision_table_semantics_refused_untouched(tmp_path, alteration)
         engine.dispose()
 
 
+def mysql_schema_definition(connection):
+    quote = connection.dialect.identifier_preparer.quote
+    return {
+        table: connection.exec_driver_sql(f"SHOW CREATE TABLE {quote(table)}").one()[1]
+        for table in sa.inspect(connection).get_table_names()
+    }
+
+
+@pytest.mark.parametrize("connection", ["mysql"], indirect=True)
+@pytest.mark.parametrize(
+    "alteration",
+    [
+        "key_collation",
+        "column_charset",
+        "table_collation",
+        "prefix",
+        "descending",
+        "invisible",
+        "expression",
+        "unique_prefix",
+    ],
+)
+def test_mysql_effective_collation_and_index_semantics_refused_untouched(
+    connection, tmp_path, alteration
+):
+    original_create_all(connection)
+    if alteration == "key_collation":
+        fk = "fk_ai_conversation_messages_conversation_id_ai_conversations"
+        connection.exec_driver_sql(f"ALTER TABLE ai_conversation_messages DROP FOREIGN KEY {fk}")
+        for table, column in (
+            ("ai_conversations", "id"),
+            ("ai_conversation_messages", "conversation_id"),
+        ):
+            connection.exec_driver_sql(
+                f"ALTER TABLE {table} MODIFY {column} VARCHAR(36) CHARACTER SET utf8mb4 "
+                "COLLATE utf8mb4_bin NOT NULL"
+            )
+        connection.exec_driver_sql(
+            f"ALTER TABLE ai_conversation_messages ADD CONSTRAINT {fk} FOREIGN KEY "
+            "(conversation_id) REFERENCES ai_conversations(id) ON DELETE CASCADE"
+        )
+    elif alteration == "column_charset":
+        connection.exec_driver_sql(
+            "ALTER TABLE ai_memories MODIFY scope_id VARCHAR(64) CHARACTER SET ascii COLLATE ascii_bin"
+        )
+    elif alteration == "table_collation":
+        connection.exec_driver_sql(
+            "ALTER TABLE ai_memories DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_bin"
+        )
+    elif alteration == "invisible":
+        connection.exec_driver_sql(
+            "ALTER TABLE ai_memories ALTER INDEX ix_ai_memories_scope_id INVISIBLE"
+        )
+    elif alteration == "unique_prefix":
+        connection.exec_driver_sql(
+            "ALTER TABLE tags DROP INDEX uq_tags_name, ADD UNIQUE INDEX uq_tags_name (name(1))"
+        )
+    else:
+        connection.exec_driver_sql("DROP INDEX ix_ai_memories_scope_id ON ai_memories")
+        key = {
+            "prefix": "scope_id(1)",
+            "descending": "scope_id DESC",
+            "expression": "(lower(scope_id))",
+        }[alteration]
+        connection.exec_driver_sql(f"CREATE INDEX ix_ai_memories_scope_id ON ai_memories ({key})")
+    connection.exec_driver_sql("INSERT INTO ai_conversations (id, owner_id) VALUES ('ABC', 1)")
+    connection.commit()
+    before = mysql_schema_definition(connection)
+    with pytest.raises(RuntimeError, match="unknown_schema"):
+        command.upgrade(config(connection, backups=tmp_path / "backups"), "head")
+    assert mysql_schema_definition(connection) == before
+    assert connection.exec_driver_sql("SELECT id, owner_id FROM ai_conversations").all() == [
+        ("ABC", 1)
+    ]
+    assert "alembic_version" not in sa.inspect(connection).get_table_names()
+    assert not (tmp_path / "backups").exists()
+
+
+@pytest.mark.parametrize("connection", ["mysql"], indirect=True)
+def test_mysql_version_collation_refused_untouched(connection, tmp_path):
+    original_create_all(connection, stamped=True)
+    connection.exec_driver_sql(
+        "ALTER TABLE alembic_version MODIFY version_num VARCHAR(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL"
+    )
+    connection.commit()
+    before = mysql_schema_definition(connection)
+    with pytest.raises(RuntimeError, match="unknown_schema"):
+        command.upgrade(config(connection, backups=tmp_path / "backups"), "head")
+    assert mysql_schema_definition(connection) == before
+    assert revision(connection) == "0001"
+    assert not (tmp_path / "backups").exists()
+
+
+@pytest.mark.parametrize("connection", ["mysql"], indirect=True)
+def test_mysql_legitimate_alternate_database_default_preserved(connection, tmp_path):
+    quote = connection.dialect.identifier_preparer.quote
+    database = connection.exec_driver_sql("SELECT DATABASE()").scalar_one()
+    connection.exec_driver_sql(
+        f"ALTER DATABASE {quote(database)} CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
+    )
+    original_create_all(connection)
+    insert_chat(connection)
+    command.upgrade(config(connection, backups=tmp_path / "backups"), "head")
+    assert revision(connection) == head(connection)
+    assert (
+        connection.exec_driver_sql("SELECT title FROM telegram_chats").scalar_one() == "Tiếng Việt"
+    )
+    assert (
+        connection.exec_driver_sql(
+            "SELECT TABLE_COLLATION FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='ai_conversations'"
+        ).scalar_one()
+        == "utf8mb4_unicode_ci"
+    )
+
+
 def test_unverified_snapshot_aborts_before_repair(connection, tmp_path):
     from tg_assistant.db.migrations import fingerprint
 
