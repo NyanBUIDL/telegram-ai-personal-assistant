@@ -1,4 +1,7 @@
 .venv/
+.venv-q01/
+.ci-work/
+.ci-artifacts/
 node_modules/
 __pycache__/
 *.py[cod]

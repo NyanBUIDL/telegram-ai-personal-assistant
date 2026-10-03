@@ -75,7 +75,11 @@ def test_native_dialog_readable_targets_focus_escape_and_art(app):
     dialog.activateWindow()
     field.setFocus()
     QTest.qWait(100)
-    evidence = ROOT / "docs/handoff/evidence/u01" / os.environ.get("ART_PHASE", "after")
+    evidence = (
+        Path(os.environ["ART_EVIDENCE_DIR"])
+        if os.environ.get("ART_EVIDENCE_DIR")
+        else ROOT / "docs/handoff/evidence/u01" / os.environ.get("ART_PHASE", "after")
+    )
     evidence.mkdir(parents=True, exist_ok=True)
     scale = os.environ.get("QT_SCALE_FACTOR", "1")
     image = dialog.grab()

@@ -1,0 +1,188 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHONUTF8: '1'
+  QT_QPA_PLATFORM: offscreen
+  ART_EVIDENCE_DIR: .ci-work
+
+jobs:
+  windows-python:
+    name: Windows Python ${{ matrix.python }} / SQLite
+    runs-on: windows-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ['3.12', '3.13']
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Install declared dev and native dependencies
+        run: python -m pip install -e ".[dev,desktop]"
+      - name: Lint Python including migrations
+        run: python -m ruff check src tests scripts alembic
+      - name: Check generated public contracts
+        run: python scripts/generate_contracts.py --check
+      - name: Check generated art tokens
+        run: python scripts/generate_design_tokens.py --check
+      # Full suite includes contracts, SQLite migration zero/upgrade, concurrency,
+      # permissions and native offscreen art/focus regressions; no coverage bypass.
+      - name: Run full Python regressions
+        run: python scripts/ci_checks.py --report .ci-work/summary.json
+      - name: Native logical scale 125 percent
+        env:
+          QT_SCALE_FACTOR: '1.25'
+        run: python -m pytest tests/test_desktop_theme.py
+      - name: Native logical scale 150 percent
+        env:
+          QT_SCALE_FACTOR: '1.5'
+        run: python -m pytest tests/test_desktop_theme.py
+      - name: Native logical scale 200 percent
+        env:
+          QT_SCALE_FACTOR: '2'
+        run: python -m pytest tests/test_desktop_theme.py
+      - name: Stage sanitized evidence
+        if: always()
+        run: python scripts/ci_artifacts.py .ci-work .ci-artifacts
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: windows-python-${{ matrix.python }}-counts
+          path: .ci-artifacts/
+          if-no-files-found: error
+          retention-days: 7
+          include-hidden-files: false
+
+  mysql:
+    name: Disposable MySQL 8.4 / migrations and concurrency
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      mysql:
+        image: mysql:8.4.11
+        env:
+          MYSQL_ROOT_PASSWORD: ci-disposable-fixture-only
+          MYSQL_DATABASE: codex_ci_migrations
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping --silent"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=12
+    env:
+      # Public synthetic credentials for this job's temporary service only.
+      TG_TEST_MYSQL_URL: mysql+pymysql://root:ci-disposable-fixture-only@127.0.0.1:3306/codex_ci_migrations
+      TG_TEST_F01_MYSQL_URL: mysql+asyncmy://root:ci-disposable-fixture-only@127.0.0.1:3306/codex_ci_revocation
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+      - name: Install declared dev dependencies
+        run: python -m pip install -e ".[dev]"
+      - name: Create separate disposable revocation schema
+        run: >-
+          python -c "import os, sqlalchemy as sa;
+          engine = sa.create_engine(os.environ['TG_TEST_MYSQL_URL']);
+          connection = engine.connect();
+          connection.exec_driver_sql('CREATE DATABASE codex_ci_revocation CHARACTER SET utf8mb4');
+          connection.close(); engine.dispose()"
+      - name: Run required real MySQL cases (missing or skipped fails)
+        run: >-
+          python scripts/ci_checks.py --mysql-required --report .ci-work/summary.json
+          tests/integration/test_migrations.py tests/test_revocation_jobs.py
+      - name: Stage sanitized evidence
+        if: always()
+        run: python scripts/ci_artifacts.py .ci-work .ci-artifacts
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: mysql-counts
+          path: .ci-artifacts/
+          if-no-files-found: error
+          retention-days: 7
+          include-hidden-files: false
+
+  frontend:
+    name: Node 24 / build, lint, Sites and browser art accessibility
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: dashboard-prototype
+    env:
+      CI: 'true'
+      ART_BASE_URL: http://127.0.0.1:5174
+      ART_EVIDENCE_DIR: ../.ci-work
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: dashboard-prototype/package-lock.json
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+      - run: npm ci
+      - run: npm run build
+      - run: npm run lint
+      - run: npm run test:sites
+      - name: Install portable Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Run browser geometry, fonts, keyboard and error regressions
+        run: npx playwright test --config playwright.ci.config.js
+      - name: Stage synthetic art screenshots only
+        if: always()
+        working-directory: .
+        run: python scripts/ci_artifacts.py .ci-work .ci-artifacts
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: synthetic-browser-art
+          path: .ci-artifacts/
+          if-no-files-found: error
+          retention-days: 7
+          include-hidden-files: false
+
+  required:
+    name: Required CI
+    runs-on: ubuntu-latest
+    if: always()
+    needs: [windows-python, mysql, frontend]
+    timeout-minutes: 2
+    steps:
+      - name: Require every gate to succeed
+        env:
+          WINDOWS: ${{ needs.windows-python.result }}
+          MYSQL: ${{ needs.mysql.result }}
+          FRONTEND: ${{ needs.frontend.result }}
+        run: |
+          test "$WINDOWS" = success
+          test "$MYSQL" = success
+          test "$FRONTEND" = success
+
+# Add package asset/install gates when P01/P02 artifacts exist and are reviewed.
+# This workflow never reads production secrets, runs live Telegram, builds a
+# public release, signs, deploys or grants a PR write permission.

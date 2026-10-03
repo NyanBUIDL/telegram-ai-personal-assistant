@@ -1,17 +1,20 @@
-import { expect, test } from "@playwright/test";
+import { expect } from "@playwright/test";
+import { test } from './browser-errors.js';
 import { mkdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 
 const base = process.env.ART_BASE_URL || "http://127.0.0.1:5174";
 const phase = process.env.ART_PHASE || "after";
-const evidence = path.resolve("../docs/handoff/evidence/u01", phase);
+const evidence = process.env.ART_EVIDENCE_DIR
+  ? path.resolve(process.env.ART_EVIDENCE_DIR)
+  : path.resolve("../docs/handoff/evidence/u01", phase);
 mkdirSync(evidence, { recursive: true });
-test.use({ channel: "chrome" });
+// CI uses Playwright's installed Chromium; local evidence keeps actual Chrome.
+if (!process.env.CI) test.use({ channel: process.env.ART_BROWSER_CHANNEL || 'chrome' });
 
 // An isolated rendering of production primitives, never an operational dashboard.
 const fixture = `<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/src/styles.css"></head><body><div id="fixture"></div><script type="module">
-import RefreshRuntime from '/@react-refresh';
-RefreshRuntime.injectIntoGlobalHook(window);window.$RefreshReg$=()=>{};window.$RefreshSig$=()=>type=>type;window.__vite_plugin_react_preamble_installed__=true;
+window.$RefreshReg$=()=>{};window.$RefreshSig$=()=>type=>type;window.__vite_plugin_react_preamble_installed__=true;
 const {default:React}=await import('/node_modules/.vite/deps/react.js');
 import ReactDOM from '/node_modules/.vite/deps/react-dom_client.js';
 const {IconButton,Toggle,Badge,PanelHeader}=await import('/src/ui.jsx');
@@ -24,8 +27,6 @@ open&&React.createElement('div',{className:'modal-backdrop'},React.createElement
 ReactDOM.createRoot(document.getElementById('fixture')).render(React.createElement(Art));</script></body></html>`;
 
 async function render(page) {
-  page.on('pageerror', error => console.error(error.message));
-  page.on('console', message => { if(message.type()==='error') console.error(message.text()); });
   if (process.env.ART_STYLE_OVERRIDE) {
     await page.route(`${base}/src/styles.css`, route => route.fulfill({
       contentType: 'text/css', body: readFileSync(process.env.ART_STYLE_OVERRIDE, 'utf8'),
@@ -73,6 +74,17 @@ for (const width of [360, 390, 1280, 1440]) {
   test(`login reference at ${width}px`, async ({page}) => {
     await page.setViewportSize({ width, height: 900 });
     // Exercise the real unauthenticated screen without credentials or backend data.
+    // Reject the isolated fixture's API fetch in memory. Unlike route.abort(),
+    // this does not create browser resource errors that could mask a real error.
+    await page.addInitScript(() => {
+      const fetch = window.fetch.bind(window);
+      window.fetch = (input, options) => {
+        const url = typeof input === 'string' ? input : input.url;
+        return new URL(url, location.href).pathname.startsWith('/api/v1/')
+          ? Promise.reject(new TypeError('Isolated unauthenticated art fixture'))
+          : fetch(input, options);
+      };
+    });
     await page.route('**/api/v1/**', route => route.abort());
     await page.goto(base);
     await expect(page.getByLabel('Mã đăng nhập')).toBeVisible();
@@ -129,4 +141,14 @@ test('keyboard focus, modal trap, Escape and restoration', async ({page}) => {
   await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(opener).toBeFocused();
+});
+
+test('unexpected JavaScript exception fails the fixture', async ({page}) => {
+  test.fail(true, 'The browser error gate must reject an injected page exception.');
+  await page.setContent('<script>throw new Error("Q01 injected page exception")</script>');
+});
+
+test('unexpected console error fails the fixture', async ({page}) => {
+  test.fail(true, 'The browser error gate must reject an injected console error.');
+  await page.setContent('<script>console.error("Q01 injected console error")</script>');
 });
