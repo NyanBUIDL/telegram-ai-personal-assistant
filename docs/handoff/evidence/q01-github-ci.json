@@ -1,0 +1,102 @@
+{
+  "verified_at": "2026-10-03",
+  "source_head": "aa1659235d4a9cb3541829001353bf3878b0368a",
+  "run_id": 37116604961,
+  "run_url": "https://github.com/NyanBUIDL/telegram-ai-personal-assistant/actions/runs/37116604961",
+  "conclusion": "success",
+  "jobs": [
+    {
+      "id": 111184529606,
+      "name": "Windows Python 3.12 / SQLite",
+      "passed": 341,
+      "skipped": 44,
+      "failed": 0,
+      "seconds": 117.51,
+      "native_extra_scales": [
+        1.25,
+        1.5,
+        2
+      ]
+    },
+    {
+      "id": 111184529430,
+      "name": "Windows Python 3.13 / SQLite",
+      "passed": 341,
+      "skipped": 44,
+      "failed": 0,
+      "seconds": 118.37,
+      "native_extra_scales": [
+        1.25,
+        1.5,
+        2
+      ]
+    },
+    {
+      "id": 111184529590,
+      "name": "Disposable MySQL 8.4 / migrations and concurrency",
+      "passed": 43,
+      "skipped": 0,
+      "deselected": 83,
+      "failed": 0,
+      "seconds": 63.06
+    },
+    {
+      "id": 111184529615,
+      "name": "Node 24 / build, lint, Sites and browser art accessibility",
+      "browser_passed": 11,
+      "browser_seconds": 16.2,
+      "build": "success",
+      "lint": "success",
+      "sites": "success"
+    },
+    {
+      "id": 111185102417,
+      "name": "Required CI",
+      "conclusion": "success"
+    }
+  ],
+  "skip_explanation": "Windows jobs lack the disposable MySQL service; the separate required MySQL job executes 43 selected cases with zero skips. SQLite-only dialect exclusions remain intentional.",
+  "artifacts": [
+    {
+      "id": 11271856744,
+      "name": "windows-python-3.12-counts",
+      "size_in_bytes": 110735,
+      "digest": "sha256:ddb60ca419c5aa2410ad3f73b8660a7ea339e5787db0f678d7cf92f3381eb8d8",
+      "expired": false,
+      "created_at": "2026-10-03T10:33:14Z",
+      "expires_at": "2026-10-10T10:33:13Z",
+      "head_sha": "aa1659235d4a9cb3541829001353bf3878b0368a"
+    },
+    {
+      "id": 11271602185,
+      "name": "windows-python-3.13-counts",
+      "size_in_bytes": 110735,
+      "digest": "sha256:2d3dd76e85de1de388d8ad39a3e1ae158d4f1540b77980467c487ea4df5e6235",
+      "expired": false,
+      "created_at": "2026-10-03T10:33:33Z",
+      "expires_at": "2026-10-10T10:33:32Z",
+      "head_sha": "aa1659235d4a9cb3541829001353bf3878b0368a"
+    },
+    {
+      "id": 11271567092,
+      "name": "mysql-counts",
+      "size_in_bytes": 192,
+      "digest": "sha256:bcf0da0d38a15e07468e579669eaaf5d87add4755860a75296b370cfe7d9b430",
+      "expired": false,
+      "created_at": "2026-10-03T10:32:05Z",
+      "expires_at": "2026-10-10T10:32:04Z",
+      "head_sha": "aa1659235d4a9cb3541829001353bf3878b0368a"
+    },
+    {
+      "id": 11271412492,
+      "name": "synthetic-browser-art",
+      "size_in_bytes": 341356,
+      "digest": "sha256:6421424f75da1a960e9d693cff5582a7f1034766d609b31aa3e3be63074f8780",
+      "expired": false,
+      "created_at": "2026-10-03T10:30:45Z",
+      "expires_at": "2026-10-10T10:30:44Z",
+      "head_sha": "aa1659235d4a9cb3541829001353bf3878b0368a"
+    }
+  ],
+  "scope": "Foundation CI only; not a packaged installer, human UAT, soak, physical DPI or license approval."
+}

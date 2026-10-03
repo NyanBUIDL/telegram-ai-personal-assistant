@@ -61,7 +61,7 @@
       "dependencies": [
         "F02"
       ],
-      "status": "Planned",
+      "status": "InProgress",
       "evidence": [],
       "acceptance": "Ứng dụng mở được storage từ bất kỳ cwd và chuẩn bị empty/new/legacy profile có bằng chứng."
     },
@@ -294,10 +294,11 @@
       "dependencies": [
         "B00"
       ],
-      "status": "InReview",
+      "status": "Verified",
       "evidence": [
         "docs/handoff/evidence/task-Q01.md",
-        "docs/handoff/evidence/review-Q01.md"
+        "docs/handoff/evidence/review-Q01.md",
+        "docs/handoff/evidence/q01-github-ci.json"
       ],
       "acceptance": "MandatoryCI on featurebranch and finalcandidate; dependencygraph success không được coi CItest."
     },
@@ -340,8 +341,10 @@
       "dependencies": [
         "B00"
       ],
-      "status": "InProgress",
-      "evidence": [],
+      "status": "InReview",
+      "evidence": [
+        "docs/handoff/evidence/task-R01.md"
+      ],
       "acceptance": "Cleanrelease tree; licensing unresolved blockedpublicrelease; no forcepush/publicvisibilitychange."
     },
     {
