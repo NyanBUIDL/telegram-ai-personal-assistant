@@ -23,5 +23,5 @@
 "Q01","M1","QA","B00","Verified","MandatoryCI on featurebranch and finalcandidate; dependencygraph success không được coi CItest.","docs/handoff/evidence/task-Q01.md|docs/handoff/evidence/review-Q01.md|docs/handoff/evidence/q01-github-ci.json"
 "Q02","M6","QA","F01|F02|S03|V03|O04|U04|P02|Q01","Planned","Không có P0/P1; unresolved medium risks documented and beta scope explicit.",""
 "Q03","M6","QA","Q02","Planned","Human UAT thực đạt; agents không tự coi mình là 5 người dùng độc lập.",""
-"R01","M1","Platform","B00","InReview","Cleanrelease tree; licensing unresolved blockedpublicrelease; no forcepush/publicvisibilitychange.","docs/handoff/evidence/task-R01.md"
+"R01","M1","Platform","B00","Verified","Cleanrelease tree; licensing unresolved blockedpublicrelease; no forcepush/publicvisibilitychange.","docs/handoff/evidence/task-R01.md|docs/handoff/evidence/review-R01.md"
 "R02","M6","Coordinator","Q03|R01","Planned","Notify user beta-ready only when allgates satisfied; otherwise code-ready/blocked accurately with specificinputneeded.",""

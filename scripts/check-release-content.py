@@ -26,6 +26,7 @@ GENERATED = {
     ".superpowers",
     ".ci-work",
     ".ci-artifacts",
+    "ci-artifacts",
     "htmlcov",
     "testdata",
     "data",

@@ -341,9 +341,10 @@
       "dependencies": [
         "B00"
       ],
-      "status": "InReview",
+      "status": "Verified",
       "evidence": [
-        "docs/handoff/evidence/task-R01.md"
+        "docs/handoff/evidence/task-R01.md",
+        "docs/handoff/evidence/review-R01.md"
       ],
       "acceptance": "Cleanrelease tree; licensing unresolved blockedpublicrelease; no forcepush/publicvisibilitychange."
     },

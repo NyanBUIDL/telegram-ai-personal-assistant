@@ -36,6 +36,7 @@ spec.loader.exec_module(audit)
         "secret.pem",
         "backup.sql",
         ".ci-artifacts/run.json",
+        "ci-artifacts/run.json",
     ],
 )
 def test_prohibited_runtime_or_generated_paths_fail(path):

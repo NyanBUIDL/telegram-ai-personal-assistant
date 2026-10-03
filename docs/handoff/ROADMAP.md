@@ -1,6 +1,6 @@
 # Roadmap — từ MVP đến Windows public beta
 
-Ngày 02/10/2026. **Mọi task code hiện Planned; roadmap chưa bắt đầu.** ID/dependency/status canonical nằm trong [status.json](status.json), [CSV](roadmap.csv), [checklist](MASTER_CHECKLIST.md) và [plan chi tiết](../superpowers/plans/2026-10-02-windows-public-beta-plan.md). Milestone diễn tả cổng bàn giao, không phải lịch ngày cố định. Chỉ ước lượng lịch sau B00 khi có checkout đầy đủ và baseline build thật; 72h soak là thời lượng nghiệm thu bắt buộc.
+Cập nhật 03/10/2026. **M0 đã Verified; M1 đang triển khai. B00/F01/F02/U01/Q01 đã Verified; R01 InReview, S01 InProgress.** ID/dependency/status canonical nằm trong [status.json](status.json), [CSV](roadmap.csv), [checklist](MASTER_CHECKLIST.md) và [plan chi tiết](../superpowers/plans/2026-10-02-windows-public-beta-plan.md). Milestone diễn tả cổng bàn giao, không phải lịch ngày cố định; 72h soak là thời lượng nghiệm thu bắt buộc. CI thật đã xanh trên commit được ghi trong evidence Q01; chưa có installer đã nghiệm thu hoặc beta-ready.
 
 | Mốc | Kết quả bàn giao | Task bắt buộc tại mốc | Chủ trì / song song |
 |---|---|---|---|

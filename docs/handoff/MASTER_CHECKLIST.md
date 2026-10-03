@@ -24,7 +24,7 @@ Ngày lập: 02/10/2026. **Thiết kế đã duyệt; implementation đang thự
 - [ ] **S02 — Atomic claim/confirm/maintenance tương thích SQLite** · Reliability · phụ thuộc: S01, F01 · Planned.
 - [x] **U01 — Khóa design tokens và baseline art** · Experience · phụ thuộc: B00 · Verified.
 - [x] **Q01 — CI regressions/contracts/storage/frontend/package** · QA · phụ thuộc: B00 · Verified.
-- [ ] **R01 — Làm sạch source và quyền phân phối assets/dependencies** · Platform · phụ thuộc: B00 · InReview.
+- [x] **R01 — Làm sạch source và quyền phân phối assets/dependencies** · Platform · phụ thuộc: B00 · Verified.
 
 ### M2 — Tri thức, bảo mật và desktop
 
