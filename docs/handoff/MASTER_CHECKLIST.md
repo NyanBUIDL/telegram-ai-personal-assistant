@@ -19,7 +19,7 @@ Ngày lập: 02/10/2026. **Thiết kế đã duyệt; implementation đang thự
 ### M1 — Sửa nền tảng và giữ art
 
 - [x] **F01 — Thu hồi quyền thắng job đang chờ/đang chạy** · Reliability · phụ thuộc: B00 · Verified.
-- [ ] **F02 — Migration immutable và đường sửa schema cũ** · Platform · phụ thuộc: B00 · InReview.
+- [x] **F02 — Migration immutable và đường sửa schema cũ** · Platform · phụ thuộc: B00 · Verified.
 - [ ] **S01 — Storage profile SQLite mặc định và config per-user** · Platform · phụ thuộc: F02 · Planned.
 - [ ] **S02 — Atomic claim/confirm/maintenance tương thích SQLite** · Reliability · phụ thuộc: S01, F01 · Planned.
 - [x] **U01 — Khóa design tokens và baseline art** · Experience · phụ thuộc: B00 · Verified.

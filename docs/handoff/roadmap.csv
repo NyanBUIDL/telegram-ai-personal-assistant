@@ -1,7 +1,7 @@
 "id","milestone","owner","dependencies","status","acceptance","evidence"
 "B00","M0","Coordinator","","Verified","Có Git checkout/branch rõ, baseline evidence và contracts versioned; không có product task tự đổi schema.","docs/handoff/evidence/task-B00.md"
 "F01","M1","Reliability","B00","Verified","Tái hiện probe cũ đổi thành allowed_after_job=False, sync_calls=[]; review race test và restart.","docs/handoff/evidence/task-F01.md|docs/handoff/evidence/review-F01.md"
-"F02","M1","Platform","B00","InReview","Fresh install + legacy upgrade thực đạt cả hai dialect; không dùng Base.metadata.create_all để thay migration test.","docs/handoff/evidence/task-F02.md"
+"F02","M1","Platform","B00","Verified","Fresh install + legacy upgrade thực đạt cả hai dialect; không dùng Base.metadata.create_all để thay migration test.","docs/handoff/evidence/task-F02.md|docs/handoff/evidence/review-F02.md"
 "S01","M1","Platform","F02","Planned","Ứng dụng mở được storage từ bất kỳ cwd và chuẩn bị empty/new/legacy profile có bằng chứng.",""
 "S02","M1","Reliability","S01|F01","Planned","Nhiều connection thật cùng DB file SQLite/MySQL đạt, không chỉ test session memory đơn.",""
 "S03","M2","Reliability","S02|V01","Planned","Có restore drill evidence, retrieval sau restore hoặc degraded+recovery thực, không success chỉ vì import SQL.",""

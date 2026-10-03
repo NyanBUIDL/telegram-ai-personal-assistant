@@ -46,9 +46,10 @@
       "dependencies": [
         "B00"
       ],
-      "status": "InReview",
+      "status": "Verified",
       "evidence": [
-        "docs/handoff/evidence/task-F02.md"
+        "docs/handoff/evidence/task-F02.md",
+        "docs/handoff/evidence/review-F02.md"
       ],
       "acceptance": "Fresh install + legacy upgrade thực đạt cả hai dialect; không dùng Base.metadata.create_all để thay migration test."
     },
