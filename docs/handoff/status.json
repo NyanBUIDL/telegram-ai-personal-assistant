@@ -31,9 +31,10 @@
       "dependencies": [
         "B00"
       ],
-      "status": "InReview",
+      "status": "Verified",
       "evidence": [
-        "docs/handoff/evidence/task-F01.md"
+        "docs/handoff/evidence/task-F01.md",
+        "docs/handoff/evidence/review-F01.md"
       ],
       "acceptance": "Tái hiện probe cũ đổi thành allowed_after_job=False, sync_calls=[]; review race test và restart."
     },
