@@ -77,9 +77,10 @@
         "S01",
         "F01"
       ],
-      "status": "InReview",
+      "status": "Verified",
       "evidence": [
-        "docs/handoff/evidence/task-S02.md"
+        "docs/handoff/evidence/task-S02.md",
+        "docs/handoff/evidence/review-S02.md"
       ],
       "acceptance": "Nhiều connection thật cùng DB file SQLite/MySQL đạt, không chỉ test session memory đơn."
     },
@@ -144,7 +145,7 @@
         "S01",
         "S02"
       ],
-      "status": "Planned",
+      "status": "InProgress",
       "evidence": [],
       "acceptance": "Desktop launcher dùng được với profile chưa setup và legacy, không secret in subprocess args."
     },

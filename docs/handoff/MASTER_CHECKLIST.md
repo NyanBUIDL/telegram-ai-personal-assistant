@@ -21,7 +21,7 @@ Ngày lập: 02/10/2026. **Thiết kế đã duyệt; implementation đang thự
 - [x] **F01 — Thu hồi quyền thắng job đang chờ/đang chạy** · Reliability · phụ thuộc: B00 · Verified.
 - [x] **F02 — Migration immutable và đường sửa schema cũ** · Platform · phụ thuộc: B00 · Verified.
 - [x] **S01 — Storage profile SQLite mặc định và config per-user** · Platform · phụ thuộc: F02 · Verified.
-- [ ] **S02 — Atomic claim/confirm/maintenance tương thích SQLite** · Reliability · phụ thuộc: S01, F01 · InReview.
+- [x] **S02 — Atomic claim/confirm/maintenance tương thích SQLite** · Reliability · phụ thuộc: S01, F01 · Verified.
 - [x] **U01 — Khóa design tokens và baseline art** · Experience · phụ thuộc: B00 · Verified.
 - [x] **Q01 — CI regressions/contracts/storage/frontend/package** · QA · phụ thuộc: B00 · Verified.
 - [x] **R01 — Làm sạch source và quyền phân phối assets/dependencies** · Platform · phụ thuộc: B00 · Verified.
@@ -32,7 +32,7 @@ Ngày lập: 02/10/2026. **Thiết kế đã duyệt; implementation đang thự
 - [ ] **V01 — Profile embedding cloud/local và data boundary theo nguồn** · Reliability · phụ thuộc: S01, F01 · InProgress.
 - [ ] **V02 — Incremental index, chỉnh sửa/xóa/dedup và coverage cùng contract** · Reliability · phụ thuộc: S02, V01 · Planned.
 - [ ] **V03 — Recovery từng nguồn thực thi được và có rollback** · Reliability · phụ thuộc: V02, S02 · Planned.
-- [ ] **D01 — Native launcher/tray và service lifecycle** · Platform · phụ thuộc: S01, S02 · Planned.
+- [ ] **D01 — Native launcher/tray và service lifecycle** · Platform · phụ thuộc: S01, S02 · InProgress.
 - [ ] **D02 — Một nút đăng nhập dashboard qua IPC ticket** · Platform · phụ thuộc: D01 · Planned.
 
 ### M3 — Kết nối và onboarding

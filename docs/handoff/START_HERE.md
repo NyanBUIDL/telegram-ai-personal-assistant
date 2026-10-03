@@ -12,7 +12,7 @@
 
 [status.json](status.json) và [roadmap.csv](roadmap.csv) là tracker máy đọc được. [Báo cáo audit](../../RELEASE_READINESS_REVIEW_VI.md) giải thích các blocker gốc. 150 tests audit pass chỉ là baseline; không chứng minh clean install/public readiness.
 
-Cập nhật 03/10/2026: **7/26 task đã Verified:** B00, F01, F02, U01, Q01, R01 và S01. S02 đang hoàn thiện claim nguyên tử/maintenance; V01 đang hoàn thiện AI, embedding và ngân sách đồng thời. [PR draft #1](https://github.com/NyanBUIDL/telegram-ai-personal-assistant/pull/1) chứa các thay đổi đã commit. Xem [review S01](evidence/review-S01.md), [review R01](evidence/review-R01.md) và [CI thực tế đã xanh ở commit ghi trong evidence Q01](evidence/review-Q01.md). CI Q01 không được coi là kiểm chứng cho những commit code mới hơn. G0 Verified; các gate phát hành khác còn Pending, chưa có installer đã nghiệm thu.
+Cập nhật 03/10/2026: **8/26 task đã Verified:** B00, F01, F02, U01, Q01, R01, S01 và S02. S02 đã qua review và kiểm thử toàn bộ515pass; V01 đang nối AI/embedding vào runtime, D01 đang làm launcher Windows. Các nhãn trạng thái không có bằng chứng và phụ thuộc thừa đang được gỡ theo yêu cầu người dùng. [PR draft #1](https://github.com/NyanBUIDL/telegram-ai-personal-assistant/pull/1) chứa các thay đổi đã commit. Xem [review S01](evidence/review-S01.md), [review R01](evidence/review-R01.md) và [CI thực tế đã xanh ở commit ghi trong evidence Q01](evidence/review-Q01.md). CI Q01 không được coi là kiểm chứng cho những commit code mới hơn. G0 Verified; các gate phát hành khác còn Pending, chưa có installer đã nghiệm thu.
 
 ## Phân công và phụ lục
 

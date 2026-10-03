@@ -1,6 +1,6 @@
 # S02 — atomic work and real maintenance admission
 
-InReview preparation; independent final review and final whole-suite pass are pending. Schema increment `02eec25aaad7c09c179bc9e9b44ae12380fa5440` is only part of this task, not task acceptance. Base: `e378b9215ae1a674e2f6ae369445987b407a7ff4`. No installer, release or human UAT claim.
+Verified for S02 scope at source `7dc133d5f39c4b0a31fa8ba56222479c009e7e52`, after the independent scoped review and final integrated whole-suite pass below. Initial implementation `be50633f` needed the explicit-flush repair. Schema increment `02eec25aaad7c09c179bc9e9b44ae12380fa5440` is only part of this task. Base: `e378b9215ae1a674e2f6ae369445987b407a7ff4`. See [review-S02.md](review-S02.md). No installer, release or human UAT claim.
 
 `JobRepository` uses short real transactions, SQLite BEGIN IMMEDIATE and MySQL locking reads/CAS. Private random claim tokens, expiry and captured authorization epochs fence reclaimed workers. FIFO is preserved across the runtime's supported job types. Known read/idempotent history/learning/model-download jobs can be reclaimed; unknown/destructive external submissions become uncertain and require reconciliation. Runtime ORM and actual Core INSERT/UPDATE/DELETE writes must pass the lease and current policy at commit. A fresh source callback observes permission, epoch and lease in one statement without reacquiring its own worker locks.
 
@@ -29,3 +29,20 @@ Final S02 required invocation used the isolation wrapper above with tests/integr
 The unrelated worker's real MySQL probe found one more Important failure in initial S02 commit `be50633f`: an ordinary TelegramMessage ORM INSERT could flush, empty every pending ORM set, then commit after an independent connection reclaimed its lease. Before-flush now records actual ORM write intent without taking early job/policy locks; before-commit validates that retained intent, and after-commit/rollback clears it. The fresh callback does not become a writer. This preserves the earlier MySQL self-lock fix.
 
 RED: `test_flushed_orm_write_retains_commit_fence`, both backends, **2 failed,2 positive controls passed in8.84s** (`orm-red.log`). SQLite reclaims before its INSERT takes the single-writer lock; MySQL independently reclaims after flush. Both must roll back stale content, while a current worker must retain its content. GREEN: the new tests plus flushed-callback, Core write/completion and cancellation controls **12 passed in28.96s**, exit0 (`orm-green.log`). Scoped independent re-review and the new complete-suite run remain pending. This finding is reported alongside the original preflight findings, not suppressed by a previous green count.
+
+## Final integrated verification
+
+Final complete installed pytest suite: **515 passed,10 intentional dialect skips in275.29s**, exit0, `.test-temp/s02/full-validated.log`. This includes the S02 repair and frozen V01 schema/modules with the exact Numeric/DECIMAL migration compatibility repair. All8 earlier failures are resolved. These numbers do not establish V01 runtime integration, which remains incomplete.
+
+Command from repository root, after setting disposable MySQL URLs, QT_QPA_PLATFORM=offscreen and absolute TG_ASSISTANT_DATA_DIR/ART_EVIDENCE_DIR under `.test-temp/s02`:
+
+```powershell
+.venv-q01/Scripts/python.exe -c "from pathlib import Path; from tg_assistant import config; config.project_root=lambda:Path('.test-temp/s02/empty-legacy-root').resolve(); import pytest; raise SystemExit(pytest.main(['--basetemp=.test-temp/s02/full-validated']))" *> .test-temp/s02/full-validated.log
+$s02Code=$LASTEXITCODE
+Get-Content .test-temp/s02/full-validated.log -Tail 85
+exit $s02Code
+```
+
+Independent scoped review approved fix1 with no unresolved Critical/Important/Minor. The reviewer checked immutable committed diff/source and ran its own frozen-source synthetic probe: stale flushed content rejected/persisted0; current content persisted1; a child retained its own handle past parent exit, blocked maintenance and permitted recovery after exit. Actual MySQL results are explicitly attributed to the author's inspected logs. Limited-context/task-only review and prior Q01/F02 authorship exclusions are recorded in review-S02.md. Latest exact-head remote CI, whole-branch review and downstream gates remain required.
+
+The expanded strict MySQL CI runner was then executed serially against all5 required modules: migrations, revocation jobs, job concurrency, embedding profiles and budget migrations. **73 passed,0 skipped,148 deselected in208.74s**, exit0; `.test-temp/s02/mysql-required.log` and count-only `mysql-required-summary.json`. It rejects missing modules/skips and excludes only documented SQLite-only nodes. New budget module omission initially produced2 meaningful RED failures; helper suite GREEN9passed3.77s. Independent collection-only review selected the valid MySQL cost upgrade plus all4 physical Decimal negatives and excluded an unrelated synthetic desktop case. Linux's3306 and the local13307 fixture remain guarded loopback/UUID-owned schemas. This is actual local runner evidence, not a remote GitHub run.
