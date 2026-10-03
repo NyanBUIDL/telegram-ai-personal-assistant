@@ -126,3 +126,25 @@ coordinator owns ledger status changes and the integrated wave regression run.
 No live profile upgrade, clean Windows VM, native onboarding, automated writer
 fencing/restore orchestration, packaging or release is signed off by F02. The
 coordinator owns graceful shutdown of the disposable shared MySQL fixture.
+
+## Review fix round 1 — SQLite table and key semantics
+
+The independent review found altered SQLite layouts classified as the known expanded legacy schema: `WITHOUT ROWID` changed generated-ID behavior, `COLLATE NOCASE` changed primary-key equality, and a same-named partial index changed index eligibility. The fix inspects actual SQLite `table_list`, `index_list` and `index_xinfo` metadata, including automatically created PK/UNIQUE indexes. Ordinary rowid tables and ascending BINARY keys keep the existing normalized fingerprint. Unsupported WITHOUT ROWID/STRICT flags, effective key collations, descending/expression keys and partial indexes add distinguishing metadata so classification refuses them before snapshot, repair or stamping. The same guard covers `alembic_version`, which the ordinary schema fingerprint deliberately excludes.
+
+No frozen revision, current model, 0006, legacy descriptor or MySQL implementation changed. Nine additional standalone SQLite cases assert `unknown_schema`, unchanged complete SQLite schema definitions, preserved fixture data/revision and no backup directory. These standalone cases introduce no new MySQL skips. SQLite remains conservative: a deviation is refused rather than silently repaired.
+
+RED evidence used the fresh installed QA Python environment and the existing F02 classifier:
+
+- The corrected application-table negative run produced **five failures / two passes**, exit 1: WITHOUT ROWID, PK NOCASE, index NOCASE, index DESC and partial-index cases reached upgrade instead of raising. The UNIQUE-NOCASE and valid STRICT layouts already failed closed through existing reflected/type differences; they are retained as safety coverage, not claimed as new RED.
+- Two revision-table negatives produced **two failures**, exit 1: altered WITHOUT ROWID and PK NOCASE version tables were accepted. Both now fail closed.
+- The initial STRICT test fixture used JSON as a declared STRICT type and was invalid SQLite DDL. It was corrected to canonical TEXT before accepting RED evidence. This setup error is separate from classifier failures.
+
+| Command / scope | Result |
+|---|---|
+| `.venv-q01/Scripts/python.exe -m pytest tests/integration/test_migrations.py -k 'table_key_and_index_semantics or revision_table_semantics' --basetemp=.test-temp/f02-fix1-green` | Nine passed, 56 deselected, exit 0, 1.06s |
+| `.venv-q01/Scripts/python.exe -m pytest tests/integration/test_migrations.py --basetemp=.test-temp/f02-fix1-matrix/pytest`, approved disposable `TG_TEST_MYSQL_URL` set | **61 passed, four intentional dialect-only skips**, exit 0, 61.66s; actual SQLite and MySQL migrations/snapshots/restore checks |
+| `.venv-q01/Scripts/python.exe -m ruff check src/tg_assistant/db/migrations.py tests/integration/test_migrations.py` | All checks passed, exit 0 |
+| `.venv-q01/Scripts/python.exe -m ruff format --check src/tg_assistant/db/migrations.py tests/integration/test_migrations.py` | Two files already formatted, exit 0; initial formatting-only findings corrected |
+| `git diff --check -- src/tg_assistant/db/migrations.py tests/integration/test_migrations.py` | Exit 0 |
+
+This run covers the F02 fix worktree after the Q01 freeze (`067bf85d`), including the coordinator's F01 fix; it does not replace or relabel Q01's historical integrated full-suite result. Only `src/tg_assistant/db/migrations.py`, `tests/integration/test_migrations.py` and this evidence append belong to F02 fix round 1. Its recovery report is `.superpowers/sdd/windows-public-beta-2026-10-02/task-F02-fix1-report.md`. Coordinator commit and independent scoped re-review remain pending; no stage, commit or external action was performed by the fix worker.

@@ -99,6 +99,38 @@ def _default(column: dict) -> str | None:
     return value
 
 
+def _sqlite_semantics(connection: Connection, table: str) -> dict:
+    """Find SQLite storage/key semantics absent from SQLAlchemy reflection.
+
+    Frozen schemas use ordinary rowid tables and ascending BINARY keys. Only
+    deviations are recorded, keeping supported cross-dialect normalization.
+    Inspect autoindexes too: PK/UNIQUE collations are effective key semantics.
+    """
+    quote = connection.dialect.identifier_preparer.quote
+    result = {}
+    flags = [
+        tuple(row[4:6])
+        for row in connection.exec_driver_sql("PRAGMA table_list")
+        if row[0] == "main" and row[1] == table
+    ]
+    if flags != [(0, 0)]:
+        result["table_flags"] = flags
+    indexes = {}
+    for index in connection.exec_driver_sql(f"PRAGMA index_list({quote(table)})"):
+        keys = [
+            tuple(row[1:5])
+            for row in connection.exec_driver_sql(f"PRAGMA index_xinfo({quote(index[1])})")
+            if row[5]
+        ]
+        if index[4] or any(
+            cid < 0 or descending or collation != "BINARY" for cid, _, descending, collation in keys
+        ):
+            indexes[index[1]] = {"partial": bool(index[4]), "keys": keys}
+    if indexes:
+        result["key_indexes"] = indexes
+    return result
+
+
 def fingerprint(connection: Connection) -> dict:
     inspector = sa.inspect(connection)
     result = {}
@@ -161,6 +193,10 @@ def fingerprint(connection: Connection) -> dict:
             "transactional": connection.dialect.name == "sqlite"
             or (inspector.get_table_options(table).get("mysql_engine", "").lower() == "innodb"),
         }
+        if connection.dialect.name == "sqlite" and (
+            semantics := _sqlite_semantics(connection, table)
+        ):
+            result[table]["unsupported_sqlite_semantics"] = semantics
     views = inspector.get_view_names()
     if connection.dialect.name == "sqlite":
         triggers = (
@@ -253,6 +289,8 @@ def actual_revision(connection: Connection) -> str | None:
     inspector = sa.inspect(connection)
     if "alembic_version" not in inspector.get_table_names():
         return None
+    if connection.dialect.name == "sqlite" and _sqlite_semantics(connection, "alembic_version"):
+        raise RuntimeError("unknown_schema")
     columns = inspector.get_columns("alembic_version")
     if (
         len(columns) != 1

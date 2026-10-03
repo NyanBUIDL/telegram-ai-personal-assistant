@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import re
 from pathlib import Path
 from uuid import uuid4
 
@@ -237,6 +238,95 @@ def test_sqlite_integer_pk_alias_refused(connection, tmp_path):
         command.upgrade(config(connection, backups=tmp_path / "backups"), "head")
     assert "alembic_version" not in sa.inspect(connection).get_table_names()
     assert not (tmp_path / "backups").exists()
+
+
+@pytest.mark.parametrize(
+    "alteration",
+    [
+        "without_rowid",
+        "pk_nocase",
+        "unique_nocase",
+        "index_nocase",
+        "index_desc",
+        "partial_index",
+        "strict",
+    ],
+)
+def test_sqlite_table_key_and_index_semantics_refused_untouched(tmp_path, alteration):
+    """Unknown SQLite key/storage semantics must be rejected before snapshot/DDL."""
+    sql = (ROOT / "tests/fixtures/legacy_26827cfb_sqlite.ddl").read_text(encoding="utf-8")
+    statements = [statement.strip() for statement in sql.split(";") if statement.strip()]
+    for number, statement in enumerate(statements):
+        if alteration in {"without_rowid", "strict"} and statement.startswith(
+            "CREATE TABLE runtime_metrics"
+        ):
+            if alteration == "strict":
+                # STRICT accepts only SQLite's canonical scalar type names.
+                statement = re.sub(r"VARCHAR\(\d+\)|DATETIME|JSON", "TEXT", statement)
+                statement = statement.replace("FLOAT", "REAL").replace("BIGINT", "INTEGER")
+            statement += " WITHOUT ROWID" if alteration == "without_rowid" else " STRICT"
+        elif alteration == "pk_nocase" and statement.startswith("CREATE TABLE ai_conversations"):
+            statement = statement.replace(
+                "id VARCHAR(36) NOT NULL", "id VARCHAR(36) COLLATE NOCASE NOT NULL", 1
+            )
+        elif alteration == "unique_nocase" and statement.startswith("CREATE TABLE tags"):
+            statement = statement.replace("UNIQUE (name)", "UNIQUE (name COLLATE NOCASE)")
+        elif statement.startswith("CREATE INDEX ix_ai_memories_scope_id"):
+            if alteration == "index_nocase":
+                statement = statement.replace("(scope_id)", "(scope_id COLLATE NOCASE)")
+            elif alteration == "index_desc":
+                statement = statement.replace("(scope_id)", "(scope_id DESC)")
+            elif alteration == "partial_index":
+                statement += " WHERE status='active'"
+        statements[number] = statement
+    engine = sa.create_engine("sqlite://")
+    try:
+        with engine.connect() as database:
+            for statement in statements:
+                database.exec_driver_sql(statement)
+            database.exec_driver_sql(
+                "INSERT INTO ai_conversations (id, owner_id) VALUES ('ABC', 1)"
+            )
+            database.commit()
+            schema_query = "SELECT type, name, tbl_name, sql FROM sqlite_master ORDER BY type, name"
+            before = database.exec_driver_sql(schema_query).all()
+            with pytest.raises(RuntimeError, match="unknown_schema"):
+                command.upgrade(config(database, backups=tmp_path / "backups"), "head")
+            assert database.exec_driver_sql(schema_query).all() == before
+            assert database.exec_driver_sql("SELECT id, owner_id FROM ai_conversations").all() == [
+                ("ABC", 1)
+            ]
+            assert "alembic_version" not in sa.inspect(database).get_table_names()
+            assert not (tmp_path / "backups").exists()
+    finally:
+        engine.dispose()
+
+
+@pytest.mark.parametrize("alteration", ["without_rowid", "pk_nocase"])
+def test_sqlite_revision_table_semantics_refused_untouched(tmp_path, alteration):
+    engine = sa.create_engine("sqlite://")
+    try:
+        with engine.connect() as database:
+            original_create_all(database)
+            collation = " COLLATE NOCASE" if alteration == "pk_nocase" else ""
+            flags = " WITHOUT ROWID" if alteration == "without_rowid" else ""
+            database.exec_driver_sql(
+                f"CREATE TABLE alembic_version (version_num VARCHAR(32){collation} "
+                f"NOT NULL PRIMARY KEY){flags}"
+            )
+            database.exec_driver_sql("INSERT INTO alembic_version VALUES ('0001')")
+            database.commit()
+            schema_query = "SELECT type, name, sql FROM sqlite_master ORDER BY type, name"
+            before = database.exec_driver_sql(schema_query).all()
+            with pytest.raises(RuntimeError, match="unknown_schema"):
+                command.upgrade(config(database, backups=tmp_path / "backups"), "head")
+            assert database.exec_driver_sql(schema_query).all() == before
+            assert database.exec_driver_sql("SELECT version_num FROM alembic_version").all() == [
+                ("0001",)
+            ]
+            assert not (tmp_path / "backups").exists()
+    finally:
+        engine.dispose()
 
 
 def test_unverified_snapshot_aborts_before_repair(connection, tmp_path):
