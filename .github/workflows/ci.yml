@@ -59,12 +59,12 @@ jobs:
         run: python -m pytest tests/test_desktop_theme.py
       - name: Stage sanitized evidence
         if: always()
-        run: python scripts/ci_artifacts.py .ci-work .ci-artifacts
+        run: python scripts/ci_artifacts.py .ci-work ci-artifacts
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
           name: windows-python-${{ matrix.python }}-counts
-          path: .ci-artifacts/
+          path: ci-artifacts/
           if-no-files-found: error
           retention-days: 7
           include-hidden-files: false
@@ -112,12 +112,12 @@ jobs:
           tests/integration/test_migrations.py tests/test_revocation_jobs.py
       - name: Stage sanitized evidence
         if: always()
-        run: python scripts/ci_artifacts.py .ci-work .ci-artifacts
+        run: python scripts/ci_artifacts.py .ci-work ci-artifacts
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
           name: mysql-counts
-          path: .ci-artifacts/
+          path: ci-artifacts/
           if-no-files-found: error
           retention-days: 7
           include-hidden-files: false
@@ -156,12 +156,12 @@ jobs:
       - name: Stage synthetic art screenshots only
         if: always()
         working-directory: .
-        run: python scripts/ci_artifacts.py .ci-work .ci-artifacts
+        run: python scripts/ci_artifacts.py .ci-work ci-artifacts
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
           name: synthetic-browser-art
-          path: .ci-artifacts/
+          path: ci-artifacts/
           if-no-files-found: error
           retention-days: 7
           include-hidden-files: false

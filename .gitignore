@@ -53,3 +53,4 @@ UX_UI_DESIGN_AUDIT_REPORT.md
 .test-temp/
 scripts/check.py
 scripts/bootstrap_hygiene.py
+ci-artifacts/
