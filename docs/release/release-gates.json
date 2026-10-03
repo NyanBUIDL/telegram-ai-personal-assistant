@@ -1,0 +1,8 @@
+[
+  {"id": "project-redistribution-rights", "status": "unresolved", "required": "Owner-approved redistribution terms; existing project metadata remains Private use."},
+  {"id": "exact-font-provenance", "status": "unresolved", "required": "Exact DarleySans OTF rights and LNTH-Peter modification/name/notice provenance, or separately approved licensed replacements."},
+  {"id": "qt-pyside-artifact-compliance", "status": "pending", "required": "Exact Windows wheel/DLL inventory, applicable notices/license texts and corresponding source offer, replacement/relink procedure and tested installation information."},
+  {"id": "artifact-sbom-notices", "status": "pending", "required": "Refresh source inventory from final package; resolve NOASSERTION entries and include each required license/copyright notice."},
+  {"id": "exact-head-ci-and-g0-g6", "status": "pending", "required": "Actual CI run IDs and Windows clean install, upgrade, restore, UI/art and UAT evidence; local code checks are not release authorization."},
+  {"id": "final-release-authorization", "status": "pending", "required": "Explicit owner authorization after independent review; no automatic public push/sign/publish."}
+]
