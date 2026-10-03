@@ -55,6 +55,8 @@ def _legacy_config(path: Path | str | None) -> dict[str, str]:
     """Read known non-secret legacy fields only, without dotenv interpolation."""
     if path is None or not Path(path).is_file():
         return {}
+    legacy_parent = Path(path).resolve().parent
+    path_fields = {"data_dir", "qdrant_path", "ollama_qdrant_path", "dashboard_dist_path"}
     values = {}
     keys = {f"TG_ASSISTANT_{name.upper()}": name for name in Settings.model_fields}
     for line in Path(path).read_text(encoding="utf-8-sig").splitlines():
@@ -64,6 +66,10 @@ def _legacy_config(path: Path | str | None) -> dict[str, str]:
             value = value.strip()
             if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
                 value = value[1:-1]
+            if field in path_fields and not Path(value).is_absolute():
+                # Legacy files were launched from their installation directory.
+                # Preserve that location without rebasing modern init/env overrides.
+                value = str((legacy_parent / value).resolve())
             values[field] = value
     return values
 

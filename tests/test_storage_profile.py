@@ -341,6 +341,75 @@ def test_runtime_dirs_follow_legacy_selected_data_root(tmp_path):
     assert ensure_runtime_dirs()["data"] == selected
 
 
+def test_relative_legacy_paths_preserved_across_launch_cwd(tmp_path, monkeypatch):
+    installed = config.project_root()
+    legacy = installed / ".env"
+    legacy.write_text(
+        "TG_ASSISTANT_DATABASE_NAME=codex_s01_legacy\n"
+        "TG_ASSISTANT_DATA_DIR=legacy-data\n"
+        "TG_ASSISTANT_QDRANT_PATH=legacy-vectors\n"
+        "TG_ASSISTANT_OLLAMA_QDRANT_PATH=legacy-local-vectors\n"
+        "TG_ASSISTANT_DASHBOARD_DIST_PATH=legacy-dashboard\n",
+        encoding="utf-8",
+    )
+    data = installed / "legacy-data"
+    data.mkdir()
+    marker = data / ".tg-assistant-data"
+    marker.touch()
+    payload = data / "historical-session-placeholder"
+    payload.write_bytes(b"synthetic-existing-content")
+    vectors = installed / "legacy-vectors"
+    vectors.mkdir()
+    vector_payload = vectors / "synthetic-index"
+    vector_payload.write_bytes(b"retained-vector-data")
+    before = legacy.read_bytes(), payload.read_bytes(), vector_payload.read_bytes()
+    elsewhere = tmp_path / "other-launch-directory"
+    elsewhere.mkdir()
+
+    for cwd in (installed, elsewhere):
+        monkeypatch.chdir(cwd)
+        settings = Settings()
+        assert settings.storage_backend == "mysql"
+        assert settings.data_dir == data
+        assert settings.resolved_qdrant_path == vectors
+        assert settings.ollama_qdrant_path == installed / "legacy-local-vectors"
+        assert settings.resolved_dashboard_dist_path == installed / "legacy-dashboard"
+        get_settings.cache_clear()
+        with pytest.raises(ValueError, match="ownership"):
+            ensure_runtime_dirs()
+        assert (legacy.read_bytes(), payload.read_bytes(), vector_payload.read_bytes()) == before
+        assert marker.read_bytes() == b""
+        assert not (data / "config").exists()
+        assert not (app_paths.default_user_data_root() / "legacy-data").exists()
+
+
+@pytest.mark.parametrize("source", ["init", "environment"])
+def test_modern_relative_data_override_not_rebased_to_legacy_install(tmp_path, monkeypatch, source):
+    legacy = config.project_root() / ".env"
+    legacy.write_text("TG_ASSISTANT_DATA_DIR=legacy-data\n", encoding="utf-8")
+    selected_vectors = tmp_path / "Modern vectors"
+    if source == "init":
+        settings = Settings(data_dir="modern-data", qdrant_path=selected_vectors)
+    else:
+        monkeypatch.setenv("TG_ASSISTANT_DATA_DIR", "modern-data")
+        monkeypatch.setenv("TG_ASSISTANT_QDRANT_PATH", str(selected_vectors))
+        settings = Settings()
+    assert settings.data_dir == app_paths.default_user_data_root() / "modern-data"
+    assert settings.resolved_qdrant_path == selected_vectors
+    assert not settings.data_dir.exists()
+
+
+def test_absolute_legacy_paths_not_rebased(tmp_path):
+    selected = tmp_path / "Existing data có dấu"
+    (config.project_root() / ".env").write_text(
+        f"TG_ASSISTANT_DATA_DIR={selected}\nTG_ASSISTANT_QDRANT_PATH={selected / 'vectors'}\n",
+        encoding="utf-8",
+    )
+    settings = Settings()
+    assert settings.data_dir == selected
+    assert settings.resolved_qdrant_path == selected / "vectors"
+
+
 def test_runtime_dirs_follow_selected_profile_identifier(monkeypatch):
     monkeypatch.setenv("TG_ASSISTANT_PROFILE_ID", "active-profile")
     settings = get_settings()
