@@ -8,7 +8,7 @@ from pathlib import Path
 import typer
 from sqlalchemy import create_engine
 
-from ..config import get_settings
+from ..config import get_settings, save_settings_env
 from ..db.migrations import upgrade_database
 from ..paths import project_root
 from ..security import SecretStore
@@ -30,15 +30,14 @@ def _save_database_config(
     path: Path, *, host: str, port: int, database: str, app_user: str
 ) -> None:
     updates = {
+        "TG_ASSISTANT_STORAGE_BACKEND": "mysql",
         "TG_ASSISTANT_DATABASE_HOST": host,
         "TG_ASSISTANT_DATABASE_PORT": str(port),
         "TG_ASSISTANT_DATABASE_NAME": database,
         "TG_ASSISTANT_DATABASE_USER": app_user,
     }
-    existing = path.read_text(encoding="utf-8").splitlines() if path.exists() else []
-    kept = [line for line in existing if not any(line.startswith(f"{key}=") for key in updates)]
-    content = "\n".join([*kept, *(f"{key}={value}" for key, value in updates.items())])
-    path.write_text(content.strip() + "\n", encoding="utf-8")
+    # Retain the adapter signature for existing callers; mutable config is per-user.
+    save_settings_env(updates)
 
 
 def run_setup() -> None:

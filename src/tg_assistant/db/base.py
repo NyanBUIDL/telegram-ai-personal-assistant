@@ -4,7 +4,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from datetime import datetime
 
-from sqlalchemy import DateTime, MetaData, func
+from sqlalchemy import DateTime, MetaData, event, func
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -46,6 +46,8 @@ class Database:
                 connect_args={"init_command": "SET time_zone = '+00:00'"},
             )
         self.engine: AsyncEngine = create_async_engine(url, **kwargs)
+        if self.engine.dialect.name == "sqlite":
+            event.listen(self.engine.sync_engine, "connect", configure_sqlite)
         self.sessions = async_sessionmaker(self.engine, expire_on_commit=False)
 
     @asynccontextmanager
@@ -67,3 +69,14 @@ class Database:
 
     async def close(self) -> None:
         await self.engine.dispose()
+
+
+def configure_sqlite(connection, _record) -> None:
+    """Enforce each SQLite connection's concurrency and referential settings."""
+    cursor = connection.cursor()
+    try:
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.execute("PRAGMA busy_timeout=5000")
+        cursor.execute("PRAGMA journal_mode=WAL")
+    finally:
+        cursor.close()

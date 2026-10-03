@@ -498,10 +498,18 @@ async def verify_bot_token(token: str) -> str:
 
 
 def make_database(settings: Settings, store: SecretStore) -> Database:
-    password = store.get("database_password")
-    if not password:
-        raise RuntimeError("Chưa cấu hình MySQL. Chạy tg-assistant reconfigure hoặc start.bat.")
-    return Database(settings.database_url(password), pool_size=settings.database_pool_size)
+    from .contracts import PublicProfile
+    from .services.storage import StorageService
+
+    return StorageService(settings, store).open(
+        PublicProfile(
+            profile_id=settings.profile_id,
+            owner_id=None,
+            storage_backend=settings.storage_backend,
+            setup_stage="welcome",
+            version=1,
+        )
+    )
 
 
 def make_user_client(

@@ -40,6 +40,7 @@ from .runtime import (
     run_application,
 )
 from .security import SecretStore, contains_secret
+from .services.storage import StorageService
 from .setup.mysql import detect_mysql, find_mysql_tool
 from .setup.wizard import run_setup
 
@@ -137,8 +138,12 @@ async def _is_paired() -> bool:
 def _ensure_ready() -> None:
     store, paths = SecretStore(), ensure_runtime_dirs()
     prompted_secrets = False
-    if not store.get("database_password"):
-        run_setup()
+    settings = get_settings()
+    if settings.storage_backend == "mysql":
+        if not store.get("database_password"):
+            run_setup()
+    else:
+        _prepare_sqlite_storage(settings, store)
     required = ("telegram_api_id", "telegram_api_hash", "telegram_phone", "telegram_bot_token")
     if any(not store.get(key) for key in required):
         prompt_secrets(store)
@@ -159,6 +164,25 @@ def _ensure_ready() -> None:
     if not encrypted.exists() or not paired:
         typer.echo("Thiết lập Telegram lần đầu (OTP/2FA chỉ nhập tại terminal)...")
         asyncio.run(bootstrap())
+
+
+def _prepare_sqlite_storage(settings, store) -> None:
+    from .contracts import PublicProfile
+
+    service = StorageService(settings, store)
+    database = service.open(
+        PublicProfile(
+            profile_id=settings.profile_id,
+            owner_id=None,
+            storage_backend=settings.storage_backend,
+            setup_stage="welcome",
+            version=1,
+        )
+    )
+    try:
+        service.migrate()
+    finally:
+        asyncio.run(database.close())
 
 
 @app.command()
@@ -337,33 +361,36 @@ def doctor() -> None:
     typer.echo(
         f"Python: {sys.version.split()[0]} {'OK' if sys.version_info >= (3, 12) else 'FAIL'}"
     )
-    detection = detect_mysql(settings.database_host, settings.database_port)
-    typer.echo(f"MySQL version: {detection.version or 'không xác định'}")
-    typer.echo(
-        "MySQL services: "
-        + (
-            ", ".join(f"{name}={state}" for name, state in detection.services)
-            if detection.services
-            else "không phát hiện"
+    if settings.storage_backend == "mysql":
+        detection = detect_mysql(settings.database_host, settings.database_port)
+        typer.echo(f"MySQL version: {detection.version or 'không xác định'}")
+        typer.echo(
+            "MySQL services: "
+            + (
+                ", ".join(f"{name}={state}" for name, state in detection.services)
+                if detection.services
+                else "không phát hiện"
+            )
         )
-    )
-    typer.echo(
-        f"MySQL port: {'OK' if detection.port_open else 'FAIL'}; "
-        f"process: {'OK' if detection.process_found else 'MISSING'}; "
-        f"CLI: {'OK' if detection.cli_found else 'không có'}"
-    )
-    for key in (
-        "database_password",
+        typer.echo(
+            f"MySQL port: {'OK' if detection.port_open else 'FAIL'}; "
+            f"process: {'OK' if detection.process_found else 'MISSING'}; "
+            f"CLI: {'OK' if detection.cli_found else 'không có'}"
+        )
+    required = (
         "telegram_api_id",
         "telegram_api_hash",
         "telegram_phone",
         "telegram_bot_token",
-    ):
+    )
+    if settings.storage_backend == "mysql":
+        required = ("database_password", *required)
+    for key in required:
         typer.echo(f"Credential {key}: {'OK' if store.get(key) else 'MISSING'}")
     typer.echo(
         f"Encrypted session: {'OK' if (paths['sessions'] / 'account.session.enc').exists() else 'MISSING'}"
     )
-    if store.get("database_password"):
+    if settings.storage_backend == "sqlite" or store.get("database_password"):
 
         async def ping() -> bool:
             db = make_database(settings, store)
@@ -373,9 +400,11 @@ def doctor() -> None:
                 await db.close()
 
         try:
-            typer.echo(f"Database: {'OK' if asyncio.run(ping()) else 'FAIL'}")
-        except Exception as exc:
-            typer.echo(f"Database: FAIL ({exc})")
+            typer.echo(
+                f"Database ({settings.storage_backend}): {'OK' if asyncio.run(ping()) else 'FAIL'}"
+            )
+        except Exception:
+            typer.echo(f"Database ({settings.storage_backend}): FAIL (storage_unavailable)")
     selected_secret = settings.ai_secret_name
     ai_ready = settings.ai_provider == "ollama" or bool(
         selected_secret and store.get(selected_secret)
@@ -389,9 +418,7 @@ def doctor() -> None:
         f"OpenAI key: {'configured' if store.get('openai_api_key') else 'missing'}; "
         f"OpenRouter key: {'configured' if store.get('openrouter_api_key') else 'missing'}"
     )
-    typer.echo(
-        f"CoinGecko key: {'configured' if store.get('coingecko_api_key') else 'missing'}"
-    )
+    typer.echo(f"CoinGecko key: {'configured' if store.get('coingecko_api_key') else 'missing'}")
     if settings.ai_provider == "ollama":
         try:
             tags_url = f"{settings.ollama_base_url.removesuffix('/v1')}/api/tags"
@@ -412,8 +439,7 @@ def doctor() -> None:
             typer.echo(f"Ollama API: FAIL ({exc})")
     active_qdrant = settings.resolved_semantic_vector_path
     typer.echo(
-        f"Qdrant active: {active_qdrant} "
-        f"({'OK' if active_qdrant.exists() else 'chưa khởi tạo'})"
+        f"Qdrant active: {active_qdrant} ({'OK' if active_qdrant.exists() else 'chưa khởi tạo'})"
     )
     if settings.admin_api_enabled:
         health_url = f"http://{settings.admin_api_host}:{settings.admin_api_port}/healthz"
@@ -457,9 +483,7 @@ def ai_provider(
         prompt_key=True,
     )
     secret_name = settings.ai_secret_name
-    ready = settings.ai_provider == "ollama" or bool(
-        secret_name and SecretStore().get(secret_name)
-    )
+    ready = settings.ai_provider == "ollama" or bool(secret_name and SecretStore().get(secret_name))
     typer.echo(
         f"Đã chọn {settings.ai_provider}; "
         f"credential: {'không cần (local)' if settings.ai_provider == 'ollama' else ('đã có' if ready else 'chưa có/tắt')}. "

@@ -11,6 +11,7 @@ requires-python = ">=3.12"
 license = {text = "Private use"}
 dependencies = [
   "aiogram>=3.15,<4",
+  "aiosqlite>=0.20,<1",
   "alembic>=1.14,<2",
   "apscheduler>=3.10,<4",
   "asyncmy>=0.2.10,<1",
@@ -36,7 +37,6 @@ desktop = [
   "PySide6-Essentials==6.11.2",
 ]
 dev = [
-  "aiosqlite>=0.20,<1",
   "pytest>=8.3,<10",
   "pytest-asyncio>=0.25,<2",
   "pytest-cov>=6,<8",
