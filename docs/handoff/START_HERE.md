@@ -12,6 +12,8 @@
 
 [status.json](status.json) và [roadmap.csv](roadmap.csv) là tracker máy đọc được. [Báo cáo audit](../../RELEASE_READINESS_REVIEW_VI.md) giải thích các blocker gốc. 150 tests audit pass chỉ là baseline; không chứng minh clean install/public readiness.
 
+Cập nhật 03/10/2026: B00 và U01 đã Verified qua review độc lập. F01 và F02 đã có commit riêng và đang InReview; Q01 đang kiểm tra CI và môi trường cài mới. Xem [review U01](evidence/review-U01.md), [evidence F01](evidence/task-F01.md) và [evidence F02](evidence/task-F02.md). Các gate phát hành còn Pending; chưa có installer đã nghiệm thu.
+
 ## Phân công và phụ lục
 
 | Vai trò | Task canonical | Phụ lục chuyên môn |
