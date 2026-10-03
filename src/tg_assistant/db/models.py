@@ -293,6 +293,7 @@ class PendingAction(Base, TimestampMixin):
     )
     confirmed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     executed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    execution_started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     error: Mapped[str | None] = mapped_column(Text)
 
 
@@ -317,6 +318,8 @@ class Project(Base, TimestampMixin):
 class Task(Base, TimestampMixin):
     __tablename__ = "tasks"
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uuid4)
+    revision: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+    __mapper_args__ = {"version_id_col": revision}
     title: Mapped[str] = mapped_column(String(512), nullable=False)
     description: Mapped[str | None] = mapped_column(Text)
     status: Mapped[str] = mapped_column(
@@ -368,6 +371,7 @@ class Reminder(Base, TimestampMixin):
     message: Mapped[str] = mapped_column(Text, nullable=False)
     status: Mapped[str] = mapped_column(String(32), default="scheduled", nullable=False)
     sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    delivery_started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class Tag(Base, TimestampMixin):
@@ -585,6 +589,8 @@ class BackgroundJob(Base, TimestampMixin):
     run_after: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
     locked_by: Mapped[str | None] = mapped_column(String(128))
     locked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    claim_token: Mapped[str | None] = mapped_column(String(64))
+    lease_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     paused_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     last_error: Mapped[str | None] = mapped_column(Text)
 
