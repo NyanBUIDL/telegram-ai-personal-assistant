@@ -1,0 +1,4019 @@
+[
+  {
+    "name": "ai_conversations",
+    "columns": [
+      {
+        "name": "id",
+        "type": "String",
+        "length": 36,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "owner_id",
+        "type": "BigInteger",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "summary",
+        "type": "Text",
+        "length": null,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "expires_at",
+        "type": "DateTime",
+        "length": null,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "created_at",
+        "type": "DateTime",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": "now()"
+      },
+      {
+        "name": "updated_at",
+        "type": "DateTime",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": "now()"
+      }
+    ],
+    "pk": [
+      "id"
+    ],
+    "unique": [],
+    "foreign_keys": [],
+    "indexes": []
+  },
+  {
+    "name": "ai_memories",
+    "columns": [
+      {
+        "name": "id",
+        "type": "String",
+        "length": 36,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "memory_type",
+        "type": "String",
+        "length": 32,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "content",
+        "type": "Text",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "scope_type",
+        "type": "String",
+        "length": 16,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "scope_id",
+        "type": "String",
+        "length": 64,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "source_chat_id",
+        "type": "BigInteger",
+        "length": null,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "source_message_id",
+        "type": "BigInteger",
+        "length": null,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "confidence",
+        "type": "Float",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "valid_from",
+        "type": "DateTime",
+        "length": null,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "valid_until",
+        "type": "DateTime",
+        "length": null,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "superseded_by",
+        "type": "String",
+        "length": 36,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "status",
+        "type": "String",
+        "length": 32,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "created_at",
+        "type": "DateTime",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": "now()"
+      },
+      {
+        "name": "updated_at",
+        "type": "DateTime",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": "now()"
+      }
+    ],
+    "pk": [
+      "id"
+    ],
+    "unique": [],
+    "foreign_keys": [
+      {
+        "columns": [
+          "superseded_by"
+        ],
+        "target": [
+          "ai_memories.id"
+        ],
+        "ondelete": null
+      }
+    ],
+    "indexes": [
+      {
+        "name": "ix_ai_memories_memory_type",
+        "columns": [
+          "memory_type"
+        ],
+        "unique": false
+      },
+      {
+        "name": "ix_ai_memories_scope_id",
+        "columns": [
+          "scope_id"
+        ],
+        "unique": false
+      },
+      {
+        "name": "ix_ai_memories_status",
+        "columns": [
+          "status"
+        ],
+        "unique": false
+      }
+    ]
+  },
+  {
+    "name": "ai_memory_candidates",
+    "columns": [
+      {
+        "name": "id",
+        "type": "String",
+        "length": 36,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "content",
+        "type": "Text",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "proposed_scope",
+        "type": "String",
+        "length": 64,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "source_chat_id",
+        "type": "BigInteger",
+        "length": null,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "source_message_id",
+        "type": "BigInteger",
+        "length": null,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "confidence",
+        "type": "Float",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "status",
+        "type": "String",
+        "length": 32,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "created_at",
+        "type": "DateTime",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": "now()"
+      },
+      {
+        "name": "updated_at",
+        "type": "DateTime",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": "now()"
+      }
+    ],
+    "pk": [
+      "id"
+    ],
+    "unique": [],
+    "foreign_keys": [],
+    "indexes": []
+  },
+  {
+    "name": "ai_query_cache",
+    "columns": [
+      {
+        "name": "cache_key",
+        "type": "String",
+        "length": 64,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "normalized_query_hash",
+        "type": "String",
+        "length": 64,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "scope_chat_id",
+        "type": "BigInteger",
+        "length": null,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "knowledge_version",
+        "type": "String",
+        "length": 128,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "route",
+        "type": "String",
+        "length": 64,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "feature",
+        "type": "String",
+        "length": 64,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "provider",
+        "type": "String",
+        "length": 32,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "model",
+        "type": "String",
+        "length": 160,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "response",
+        "type": "Text",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "citations",
+        "type": "JSON",
+        "length": null,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "expires_at",
+        "type": "DateTime",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "hit_count",
+        "type": "Integer",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "last_hit_at",
+        "type": "DateTime",
+        "length": null,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "created_at",
+        "type": "DateTime",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": "now()"
+      },
+      {
+        "name": "updated_at",
+        "type": "DateTime",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": "now()"
+      }
+    ],
+    "pk": [
+      "cache_key"
+    ],
+    "unique": [],
+    "foreign_keys": [],
+    "indexes": [
+      {
+        "name": "ix_ai_query_cache_expires_at",
+        "columns": [
+          "expires_at"
+        ],
+        "unique": false
+      },
+      {
+        "name": "ix_ai_query_cache_feature",
+        "columns": [
+          "feature"
+        ],
+        "unique": false
+      },
+      {
+        "name": "ix_ai_query_cache_normalized_query_hash",
+        "columns": [
+          "normalized_query_hash"
+        ],
+        "unique": false
+      },
+      {
+        "name": "ix_ai_query_cache_route",
+        "columns": [
+          "route"
+        ],
+        "unique": false
+      },
+      {
+        "name": "ix_ai_query_cache_scope_chat_id",
+        "columns": [
+          "scope_chat_id"
+        ],
+        "unique": false
+      }
+    ]
+  },
+  {
+    "name": "ai_usage",
+    "columns": [
+      {
+        "name": "id",
+        "type": "BigInteger",
+        "length": null,
+        "nullable": false,
+        "autoincrement": true,
+        "default": null
+      },
+      {
+        "name": "occurred_at",
+        "type": "DateTime",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "model",
+        "type": "String",
+        "length": 128,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "operation",
+        "type": "String",
+        "length": 64,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "input_tokens",
+        "type": "Integer",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "output_tokens",
+        "type": "Integer",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "estimated_cost_usd",
+        "type": "Float",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "success",
+        "type": "Boolean",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "provider",
+        "type": "String",
+        "length": 32,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "feature",
+        "type": "String",
+        "length": 64,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "route",
+        "type": "String",
+        "length": 64,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "chat_id",
+        "type": "BigInteger",
+        "length": null,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "cached_tokens",
+        "type": "Integer",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "embedding_tokens",
+        "type": "Integer",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "latency_ms",
+        "type": "Float",
+        "length": null,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "cache_hit",
+        "type": "Boolean",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "is_local",
+        "type": "Boolean",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "fallback_used",
+        "type": "Boolean",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "error_code",
+        "type": "String",
+        "length": 64,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      }
+    ],
+    "pk": [
+      "id"
+    ],
+    "unique": [],
+    "foreign_keys": [],
+    "indexes": [
+      {
+        "name": "ix_ai_usage_chat_id",
+        "columns": [
+          "chat_id"
+        ],
+        "unique": false
+      },
+      {
+        "name": "ix_ai_usage_feature",
+        "columns": [
+          "feature"
+        ],
+        "unique": false
+      },
+      {
+        "name": "ix_ai_usage_occurred_at",
+        "columns": [
+          "occurred_at"
+        ],
+        "unique": false
+      },
+      {
+        "name": "ix_ai_usage_provider",
+        "columns": [
+          "provider"
+        ],
+        "unique": false
+      },
+      {
+        "name": "ix_ai_usage_route",
+        "columns": [
+          "route"
+        ],
+        "unique": false
+      }
+    ]
+  },
+  {
+    "name": "app_settings",
+    "columns": [
+      {
+        "name": "key",
+        "type": "String",
+        "length": 128,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "value",
+        "type": "JSON",
+        "length": null,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "description",
+        "type": "String",
+        "length": 512,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "created_at",
+        "type": "DateTime",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": "now()"
+      },
+      {
+        "name": "updated_at",
+        "type": "DateTime",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": "now()"
+      }
+    ],
+    "pk": [
+      "key"
+    ],
+    "unique": [],
+    "foreign_keys": [],
+    "indexes": []
+  },
+  {
+    "name": "audit_logs",
+    "columns": [
+      {
+        "name": "id",
+        "type": "BigInteger",
+        "length": null,
+        "nullable": false,
+        "autoincrement": true,
+        "default": null
+      },
+      {
+        "name": "occurred_at",
+        "type": "DateTime",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "actor_id",
+        "type": "BigInteger",
+        "length": null,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "action",
+        "type": "String",
+        "length": 128,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "target_type",
+        "type": "String",
+        "length": 64,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "target_id",
+        "type": "String",
+        "length": 128,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "outcome",
+        "type": "String",
+        "length": 32,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "reason",
+        "type": "Text",
+        "length": null,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "details_redacted",
+        "type": "JSON",
+        "length": null,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "correlation_id",
+        "type": "String",
+        "length": 36,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      }
+    ],
+    "pk": [
+      "id"
+    ],
+    "unique": [],
+    "foreign_keys": [],
+    "indexes": [
+      {
+        "name": "ix_audit_logs_action",
+        "columns": [
+          "action"
+        ],
+        "unique": false
+      },
+      {
+        "name": "ix_audit_logs_correlation_id",
+        "columns": [
+          "correlation_id"
+        ],
+        "unique": false
+      },
+      {
+        "name": "ix_audit_logs_occurred_at",
+        "columns": [
+          "occurred_at"
+        ],
+        "unique": false
+      }
+    ]
+  },
+  {
+    "name": "background_jobs",
+    "columns": [
+      {
+        "name": "id",
+        "type": "String",
+        "length": 36,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "job_type",
+        "type": "String",
+        "length": 64,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "payload",
+        "type": "JSON",
+        "length": null,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "status",
+        "type": "String",
+        "length": 32,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "attempts",
+        "type": "Integer",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "max_attempts",
+        "type": "Integer",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "run_after",
+        "type": "DateTime",
+        "length": null,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "locked_by",
+        "type": "String",
+        "length": 128,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "locked_at",
+        "type": "DateTime",
+        "length": null,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "paused_at",
+        "type": "DateTime",
+        "length": null,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "last_error",
+        "type": "Text",
+        "length": null,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "created_at",
+        "type": "DateTime",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": "now()"
+      },
+      {
+        "name": "updated_at",
+        "type": "DateTime",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": "now()"
+      }
+    ],
+    "pk": [
+      "id"
+    ],
+    "unique": [],
+    "foreign_keys": [],
+    "indexes": [
+      {
+        "name": "ix_background_jobs_job_type",
+        "columns": [
+          "job_type"
+        ],
+        "unique": false
+      },
+      {
+        "name": "ix_background_jobs_run_after",
+        "columns": [
+          "run_after"
+        ],
+        "unique": false
+      },
+      {
+        "name": "ix_background_jobs_status",
+        "columns": [
+          "status"
+        ],
+        "unique": false
+      }
+    ]
+  },
+  {
+    "name": "bot_queries",
+    "columns": [
+      {
+        "name": "id",
+        "type": "String",
+        "length": 36,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "owner_id",
+        "type": "BigInteger",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "query_redacted",
+        "type": "Text",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "response_redacted",
+        "type": "Text",
+        "length": null,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "status",
+        "type": "String",
+        "length": 32,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "created_at",
+        "type": "DateTime",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": "now()"
+      },
+      {
+        "name": "updated_at",
+        "type": "DateTime",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": "now()"
+      }
+    ],
+    "pk": [
+      "id"
+    ],
+    "unique": [],
+    "foreign_keys": [],
+    "indexes": []
+  },
+  {
+    "name": "health_checks",
+    "columns": [
+      {
+        "name": "id",
+        "type": "BigInteger",
+        "length": null,
+        "nullable": false,
+        "autoincrement": true,
+        "default": null
+      },
+      {
+        "name": "checked_at",
+        "type": "DateTime",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "component",
+        "type": "String",
+        "length": 64,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "status",
+        "type": "String",
+        "length": 32,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "latency_ms",
+        "type": "Float",
+        "length": null,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "details",
+        "type": "JSON",
+        "length": null,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      }
+    ],
+    "pk": [
+      "id"
+    ],
+    "unique": [],
+    "foreign_keys": [],
+    "indexes": [
+      {
+        "name": "ix_health_checks_checked_at",
+        "columns": [
+          "checked_at"
+        ],
+        "unique": false
+      }
+    ]
+  },
+  {
+    "name": "knowledge_cards",
+    "columns": [
+      {
+        "name": "id",
+        "type": "String",
+        "length": 36,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "topic",
+        "type": "String",
+        "length": 512,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "summary",
+        "type": "Text",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "facts",
+        "type": "JSON",
+        "length": null,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "version",
+        "type": "Integer",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "verification_status",
+        "type": "String",
+        "length": 32,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "created_at",
+        "type": "DateTime",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": "now()"
+      },
+      {
+        "name": "updated_at",
+        "type": "DateTime",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": "now()"
+      }
+    ],
+    "pk": [
+      "id"
+    ],
+    "unique": [],
+    "foreign_keys": [],
+    "indexes": [
+      {
+        "name": "ix_knowledge_cards_topic",
+        "columns": [
+          "topic"
+        ],
+        "unique": false
+      }
+    ]
+  },
+  {
+    "name": "moderation_rules",
+    "columns": [
+      {
+        "name": "id",
+        "type": "Integer",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "chat_id",
+        "type": "BigInteger",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "name",
+        "type": "String",
+        "length": 255,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "rule_json",
+        "type": "JSON",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "mode",
+        "type": "String",
+        "length": 32,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "enabled",
+        "type": "Boolean",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "created_at",
+        "type": "DateTime",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": "now()"
+      },
+      {
+        "name": "updated_at",
+        "type": "DateTime",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": "now()"
+      }
+    ],
+    "pk": [
+      "id"
+    ],
+    "unique": [],
+    "foreign_keys": [],
+    "indexes": [
+      {
+        "name": "ix_moderation_rules_chat_id",
+        "columns": [
+          "chat_id"
+        ],
+        "unique": false
+      }
+    ]
+  },
+  {
+    "name": "pending_actions",
+    "columns": [
+      {
+        "name": "action_id",
+        "type": "String",
+        "length": 36,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "action_type",
+        "type": "String",
+        "length": 64,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "chat_id",
+        "type": "BigInteger",
+        "length": null,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "message_id",
+        "type": "BigInteger",
+        "length": null,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "requested_by",
+        "type": "BigInteger",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "payload",
+        "type": "JSON",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "preview",
+        "type": "Text",
+        "length": null,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "reason",
+        "type": "Text",
+        "length": null,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "status",
+        "type": "String",
+        "length": 32,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "expires_at",
+        "type": "DateTime",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "confirmed_at",
+        "type": "DateTime",
+        "length": null,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "executed_at",
+        "type": "DateTime",
+        "length": null,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "error",
+        "type": "Text",
+        "length": null,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "created_at",
+        "type": "DateTime",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": "now()"
+      },
+      {
+        "name": "updated_at",
+        "type": "DateTime",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": "now()"
+      }
+    ],
+    "pk": [
+      "action_id"
+    ],
+    "unique": [],
+    "foreign_keys": [],
+    "indexes": [
+      {
+        "name": "ix_pending_actions_action_type",
+        "columns": [
+          "action_type"
+        ],
+        "unique": false
+      },
+      {
+        "name": "ix_pending_actions_chat_id",
+        "columns": [
+          "chat_id"
+        ],
+        "unique": false
+      },
+      {
+        "name": "ix_pending_actions_expires_at",
+        "columns": [
+          "expires_at"
+        ],
+        "unique": false
+      },
+      {
+        "name": "ix_pending_actions_status",
+        "columns": [
+          "status"
+        ],
+        "unique": false
+      }
+    ]
+  },
+  {
+    "name": "projects",
+    "columns": [
+      {
+        "name": "id",
+        "type": "String",
+        "length": 36,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "name",
+        "type": "String",
+        "length": 255,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "description",
+        "type": "Text",
+        "length": null,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "status",
+        "type": "String",
+        "length": 32,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "created_at",
+        "type": "DateTime",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": "now()"
+      },
+      {
+        "name": "updated_at",
+        "type": "DateTime",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": "now()"
+      }
+    ],
+    "pk": [
+      "id"
+    ],
+    "unique": [],
+    "foreign_keys": [],
+    "indexes": [
+      {
+        "name": "ix_projects_name",
+        "columns": [
+          "name"
+        ],
+        "unique": false
+      }
+    ]
+  },
+  {
+    "name": "runtime_metrics",
+    "columns": [
+      {
+        "name": "id",
+        "type": "BigInteger",
+        "length": null,
+        "nullable": false,
+        "autoincrement": true,
+        "default": null
+      },
+      {
+        "name": "collected_at",
+        "type": "DateTime",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "process_id",
+        "type": "Integer",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "process_name",
+        "type": "String",
+        "length": 128,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "rss_bytes",
+        "type": "BigInteger",
+        "length": null,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "cpu_percent",
+        "type": "Float",
+        "length": null,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "vram_bytes",
+        "type": "BigInteger",
+        "length": null,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "data_bytes",
+        "type": "BigInteger",
+        "length": null,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "vector_bytes",
+        "type": "BigInteger",
+        "length": null,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "media_bytes",
+        "type": "BigInteger",
+        "length": null,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "queued_jobs",
+        "type": "Integer",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "running_jobs",
+        "type": "Integer",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "paused_jobs",
+        "type": "Integer",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "details",
+        "type": "JSON",
+        "length": null,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      }
+    ],
+    "pk": [
+      "id"
+    ],
+    "unique": [],
+    "foreign_keys": [],
+    "indexes": [
+      {
+        "name": "ix_runtime_metrics_collected_at",
+        "columns": [
+          "collected_at"
+        ],
+        "unique": false
+      }
+    ]
+  },
+  {
+    "name": "summaries",
+    "columns": [
+      {
+        "name": "id",
+        "type": "String",
+        "length": 36,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "scope_type",
+        "type": "String",
+        "length": 32,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "scope_id",
+        "type": "String",
+        "length": 64,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "content",
+        "type": "Text",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "sources",
+        "type": "JSON",
+        "length": null,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "period_start",
+        "type": "DateTime",
+        "length": null,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "period_end",
+        "type": "DateTime",
+        "length": null,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "content_hash",
+        "type": "String",
+        "length": 64,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "model",
+        "type": "String",
+        "length": 160,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "provider",
+        "type": "String",
+        "length": 32,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "input_tokens",
+        "type": "Integer",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "output_tokens",
+        "type": "Integer",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "stale",
+        "type": "Boolean",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "created_at",
+        "type": "DateTime",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": "now()"
+      },
+      {
+        "name": "updated_at",
+        "type": "DateTime",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": "now()"
+      }
+    ],
+    "pk": [
+      "id"
+    ],
+    "unique": [],
+    "foreign_keys": [],
+    "indexes": [
+      {
+        "name": "ix_summaries_content_hash",
+        "columns": [
+          "content_hash"
+        ],
+        "unique": false
+      },
+      {
+        "name": "ix_summaries_stale",
+        "columns": [
+          "stale"
+        ],
+        "unique": false
+      }
+    ]
+  },
+  {
+    "name": "sync_states",
+    "columns": [
+      {
+        "name": "id",
+        "type": "Integer",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "chat_id",
+        "type": "BigInteger",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "last_message_id",
+        "type": "BigInteger",
+        "length": null,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "last_message_date",
+        "type": "DateTime",
+        "length": null,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "state",
+        "type": "String",
+        "length": 32,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "error",
+        "type": "Text",
+        "length": null,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "created_at",
+        "type": "DateTime",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": "now()"
+      },
+      {
+        "name": "updated_at",
+        "type": "DateTime",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": "now()"
+      }
+    ],
+    "pk": [
+      "id"
+    ],
+    "unique": [
+      [
+        "chat_id"
+      ]
+    ],
+    "foreign_keys": [],
+    "indexes": []
+  },
+  {
+    "name": "tags",
+    "columns": [
+      {
+        "name": "id",
+        "type": "Integer",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "name",
+        "type": "String",
+        "length": 128,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "created_at",
+        "type": "DateTime",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": "now()"
+      },
+      {
+        "name": "updated_at",
+        "type": "DateTime",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": "now()"
+      }
+    ],
+    "pk": [
+      "id"
+    ],
+    "unique": [
+      [
+        "name"
+      ]
+    ],
+    "foreign_keys": [],
+    "indexes": []
+  },
+  {
+    "name": "telegram_accounts",
+    "columns": [
+      {
+        "name": "id",
+        "type": "Integer",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "telegram_user_id",
+        "type": "BigInteger",
+        "length": null,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "username",
+        "type": "String",
+        "length": 255,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "phone_masked",
+        "type": "String",
+        "length": 32,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "is_owner_paired",
+        "type": "Boolean",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "is_active",
+        "type": "Boolean",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "last_authenticated_at",
+        "type": "DateTime",
+        "length": null,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "created_at",
+        "type": "DateTime",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": "now()"
+      },
+      {
+        "name": "updated_at",
+        "type": "DateTime",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": "now()"
+      }
+    ],
+    "pk": [
+      "id"
+    ],
+    "unique": [
+      [
+        "telegram_user_id"
+      ]
+    ],
+    "foreign_keys": [],
+    "indexes": []
+  },
+  {
+    "name": "telegram_chat_permissions",
+    "columns": [
+      {
+        "name": "id",
+        "type": "Integer",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "chat_id",
+        "type": "BigInteger",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "permission",
+        "type": "String",
+        "length": 64,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "enabled",
+        "type": "Boolean",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "created_at",
+        "type": "DateTime",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": "now()"
+      },
+      {
+        "name": "updated_at",
+        "type": "DateTime",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": "now()"
+      }
+    ],
+    "pk": [
+      "id"
+    ],
+    "unique": [
+      [
+        "chat_id",
+        "permission"
+      ]
+    ],
+    "foreign_keys": [],
+    "indexes": [
+      {
+        "name": "ix_telegram_chat_permissions_chat_id",
+        "columns": [
+          "chat_id"
+        ],
+        "unique": false
+      }
+    ]
+  },
+  {
+    "name": "telegram_chat_policies",
+    "columns": [
+      {
+        "name": "id",
+        "type": "Integer",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "chat_id",
+        "type": "BigInteger",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "allowed",
+        "type": "Boolean",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "template",
+        "type": "String",
+        "length": 64,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "revoked_at",
+        "type": "DateTime",
+        "length": null,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "revocation_memory_action",
+        "type": "String",
+        "length": 16,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "ai_mode",
+        "type": "String",
+        "length": 32,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "preferred_cloud_provider",
+        "type": "String",
+        "length": 32,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "cloud_fallback",
+        "type": "Boolean",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "retention_days",
+        "type": "Integer",
+        "length": null,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "max_messages",
+        "type": "Integer",
+        "length": null,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "max_storage_mb",
+        "type": "Integer",
+        "length": null,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "max_vectors",
+        "type": "Integer",
+        "length": null,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "ai_efficiency_preset",
+        "type": "String",
+        "length": 32,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "filtering_level",
+        "type": "String",
+        "length": 32,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "rag_top_k",
+        "type": "Integer",
+        "length": null,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "rag_max_context_tokens",
+        "type": "Integer",
+        "length": null,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "created_at",
+        "type": "DateTime",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": "now()"
+      },
+      {
+        "name": "updated_at",
+        "type": "DateTime",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": "now()"
+      }
+    ],
+    "pk": [
+      "id"
+    ],
+    "unique": [
+      [
+        "chat_id"
+      ]
+    ],
+    "foreign_keys": [],
+    "indexes": [
+      {
+        "name": "ix_telegram_chat_policies_ai_mode",
+        "columns": [
+          "ai_mode"
+        ],
+        "unique": false
+      },
+      {
+        "name": "ix_telegram_chat_policies_allowed",
+        "columns": [
+          "allowed"
+        ],
+        "unique": false
+      }
+    ]
+  },
+  {
+    "name": "telegram_chats",
+    "columns": [
+      {
+        "name": "id",
+        "type": "Integer",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "chat_id",
+        "type": "BigInteger",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "title",
+        "type": "String",
+        "length": 512,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "username",
+        "type": "String",
+        "length": 255,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "chat_type",
+        "type": "String",
+        "length": 32,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "account_rights",
+        "type": "JSON",
+        "length": null,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "last_seen_at",
+        "type": "DateTime",
+        "length": null,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "created_at",
+        "type": "DateTime",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": "now()"
+      },
+      {
+        "name": "updated_at",
+        "type": "DateTime",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": "now()"
+      }
+    ],
+    "pk": [
+      "id"
+    ],
+    "unique": [
+      [
+        "chat_id"
+      ]
+    ],
+    "foreign_keys": [],
+    "indexes": [
+      {
+        "name": "ix_telegram_chats_title",
+        "columns": [
+          "title"
+        ],
+        "unique": false
+      }
+    ]
+  },
+  {
+    "name": "telegram_users",
+    "columns": [
+      {
+        "name": "id",
+        "type": "Integer",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "telegram_user_id",
+        "type": "BigInteger",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "username",
+        "type": "String",
+        "length": 255,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "display_name",
+        "type": "String",
+        "length": 512,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "is_bot",
+        "type": "Boolean",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "metadata_json",
+        "type": "JSON",
+        "length": null,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "created_at",
+        "type": "DateTime",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": "now()"
+      },
+      {
+        "name": "updated_at",
+        "type": "DateTime",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": "now()"
+      }
+    ],
+    "pk": [
+      "id"
+    ],
+    "unique": [
+      [
+        "telegram_user_id"
+      ]
+    ],
+    "foreign_keys": [],
+    "indexes": [
+      {
+        "name": "ix_telegram_users_username",
+        "columns": [
+          "username"
+        ],
+        "unique": false
+      }
+    ]
+  },
+  {
+    "name": "vector_stores",
+    "columns": [
+      {
+        "name": "store_id",
+        "type": "String",
+        "length": 128,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "path",
+        "type": "String",
+        "length": 512,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "collection",
+        "type": "String",
+        "length": 128,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "provider",
+        "type": "String",
+        "length": 32,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "model",
+        "type": "String",
+        "length": 160,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "embedding_version",
+        "type": "String",
+        "length": 64,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "dimension",
+        "type": "Integer",
+        "length": null,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "role",
+        "type": "String",
+        "length": 32,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "state",
+        "type": "String",
+        "length": 32,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "last_reconciled_at",
+        "type": "DateTime",
+        "length": null,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "created_at",
+        "type": "DateTime",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": "now()"
+      },
+      {
+        "name": "updated_at",
+        "type": "DateTime",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": "now()"
+      }
+    ],
+    "pk": [
+      "store_id"
+    ],
+    "unique": [
+      [
+        "path"
+      ]
+    ],
+    "foreign_keys": [],
+    "indexes": [
+      {
+        "name": "ix_vector_stores_role",
+        "columns": [
+          "role"
+        ],
+        "unique": false
+      },
+      {
+        "name": "ix_vector_stores_state",
+        "columns": [
+          "state"
+        ],
+        "unique": false
+      }
+    ]
+  },
+  {
+    "name": "ai_conversation_messages",
+    "columns": [
+      {
+        "name": "id",
+        "type": "BigInteger",
+        "length": null,
+        "nullable": false,
+        "autoincrement": true,
+        "default": null
+      },
+      {
+        "name": "conversation_id",
+        "type": "String",
+        "length": 36,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "role",
+        "type": "String",
+        "length": 16,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "content",
+        "type": "Text",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "token_count",
+        "type": "Integer",
+        "length": null,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "created_at",
+        "type": "DateTime",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      }
+    ],
+    "pk": [
+      "id"
+    ],
+    "unique": [],
+    "foreign_keys": [
+      {
+        "columns": [
+          "conversation_id"
+        ],
+        "target": [
+          "ai_conversations.id"
+        ],
+        "ondelete": "CASCADE"
+      }
+    ],
+    "indexes": []
+  },
+  {
+    "name": "ai_memory_conflicts",
+    "columns": [
+      {
+        "name": "id",
+        "type": "String",
+        "length": 36,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "memory_a_id",
+        "type": "String",
+        "length": 36,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "memory_b_id",
+        "type": "String",
+        "length": 36,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "status",
+        "type": "String",
+        "length": 32,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "resolution",
+        "type": "Text",
+        "length": null,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "created_at",
+        "type": "DateTime",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": "now()"
+      },
+      {
+        "name": "updated_at",
+        "type": "DateTime",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": "now()"
+      }
+    ],
+    "pk": [
+      "id"
+    ],
+    "unique": [],
+    "foreign_keys": [
+      {
+        "columns": [
+          "memory_a_id"
+        ],
+        "target": [
+          "ai_memories.id"
+        ],
+        "ondelete": null
+      },
+      {
+        "columns": [
+          "memory_b_id"
+        ],
+        "target": [
+          "ai_memories.id"
+        ],
+        "ondelete": null
+      }
+    ],
+    "indexes": []
+  },
+  {
+    "name": "ai_memory_sources",
+    "columns": [
+      {
+        "name": "id",
+        "type": "Integer",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "memory_id",
+        "type": "String",
+        "length": 36,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "chat_id",
+        "type": "BigInteger",
+        "length": null,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "message_id",
+        "type": "BigInteger",
+        "length": null,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "citation",
+        "type": "Text",
+        "length": null,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      }
+    ],
+    "pk": [
+      "id"
+    ],
+    "unique": [],
+    "foreign_keys": [
+      {
+        "columns": [
+          "memory_id"
+        ],
+        "target": [
+          "ai_memories.id"
+        ],
+        "ondelete": "CASCADE"
+      }
+    ],
+    "indexes": []
+  },
+  {
+    "name": "knowledge_card_sources",
+    "columns": [
+      {
+        "name": "id",
+        "type": "Integer",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "knowledge_card_id",
+        "type": "String",
+        "length": 36,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "chat_id",
+        "type": "BigInteger",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "message_id",
+        "type": "BigInteger",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      }
+    ],
+    "pk": [
+      "id"
+    ],
+    "unique": [],
+    "foreign_keys": [
+      {
+        "columns": [
+          "knowledge_card_id"
+        ],
+        "target": [
+          "knowledge_cards.id"
+        ],
+        "ondelete": "CASCADE"
+      }
+    ],
+    "indexes": []
+  },
+  {
+    "name": "knowledge_sources",
+    "columns": [
+      {
+        "name": "chat_id",
+        "type": "BigInteger",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "status",
+        "type": "String",
+        "length": 32,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "requested_for_learning",
+        "type": "Boolean",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "mysql_message_count",
+        "type": "Integer",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "text_message_count",
+        "type": "Integer",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "last_indexed_count",
+        "type": "Integer",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "vector_count",
+        "type": "Integer",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "message_storage_bytes",
+        "type": "BigInteger",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "media_storage_bytes",
+        "type": "BigInteger",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "last_job_id",
+        "type": "String",
+        "length": 36,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "last_error",
+        "type": "Text",
+        "length": null,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "owner_note",
+        "type": "Text",
+        "length": null,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "last_learned_at",
+        "type": "DateTime",
+        "length": null,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "created_at",
+        "type": "DateTime",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": "now()"
+      },
+      {
+        "name": "updated_at",
+        "type": "DateTime",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": "now()"
+      }
+    ],
+    "pk": [
+      "chat_id"
+    ],
+    "unique": [],
+    "foreign_keys": [
+      {
+        "columns": [
+          "chat_id"
+        ],
+        "target": [
+          "telegram_chats.chat_id"
+        ],
+        "ondelete": "CASCADE"
+      }
+    ],
+    "indexes": [
+      {
+        "name": "ix_knowledge_sources_last_job_id",
+        "columns": [
+          "last_job_id"
+        ],
+        "unique": false
+      },
+      {
+        "name": "ix_knowledge_sources_last_learned_at",
+        "columns": [
+          "last_learned_at"
+        ],
+        "unique": false
+      },
+      {
+        "name": "ix_knowledge_sources_requested_for_learning",
+        "columns": [
+          "requested_for_learning"
+        ],
+        "unique": false
+      },
+      {
+        "name": "ix_knowledge_sources_status",
+        "columns": [
+          "status"
+        ],
+        "unique": false
+      }
+    ]
+  },
+  {
+    "name": "tasks",
+    "columns": [
+      {
+        "name": "id",
+        "type": "String",
+        "length": 36,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "title",
+        "type": "String",
+        "length": 512,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "description",
+        "type": "Text",
+        "length": null,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "status",
+        "type": "String",
+        "length": 32,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "priority",
+        "type": "String",
+        "length": 16,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "project_id",
+        "type": "String",
+        "length": 36,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "due_at",
+        "type": "DateTime",
+        "length": null,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "completed_at",
+        "type": "DateTime",
+        "length": null,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "assignee",
+        "type": "String",
+        "length": 255,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "source",
+        "type": "String",
+        "length": 32,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "ai_confirmed",
+        "type": "Boolean",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "created_at",
+        "type": "DateTime",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": "now()"
+      },
+      {
+        "name": "updated_at",
+        "type": "DateTime",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": "now()"
+      }
+    ],
+    "pk": [
+      "id"
+    ],
+    "unique": [],
+    "foreign_keys": [
+      {
+        "columns": [
+          "project_id"
+        ],
+        "target": [
+          "projects.id"
+        ],
+        "ondelete": "SET NULL"
+      }
+    ],
+    "indexes": [
+      {
+        "name": "ix_tasks_due_at",
+        "columns": [
+          "due_at"
+        ],
+        "unique": false
+      },
+      {
+        "name": "ix_tasks_status",
+        "columns": [
+          "status"
+        ],
+        "unique": false
+      }
+    ]
+  },
+  {
+    "name": "telegram_messages",
+    "columns": [
+      {
+        "name": "id",
+        "type": "BigInteger",
+        "length": null,
+        "nullable": false,
+        "autoincrement": true,
+        "default": null
+      },
+      {
+        "name": "chat_id",
+        "type": "BigInteger",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "message_id",
+        "type": "BigInteger",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "sender_id",
+        "type": "BigInteger",
+        "length": null,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "text",
+        "type": "Text",
+        "length": null,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "sent_at",
+        "type": "DateTime",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "edited_at",
+        "type": "DateTime",
+        "length": null,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "reply_to_message_id",
+        "type": "BigInteger",
+        "length": null,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "is_outgoing",
+        "type": "Boolean",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "is_deleted",
+        "type": "Boolean",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "has_media",
+        "type": "Boolean",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "metadata_json",
+        "type": "JSON",
+        "length": null,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "normalized_text",
+        "type": "Text",
+        "length": null,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "content_hash",
+        "type": "String",
+        "length": 64,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "embedding_version",
+        "type": "String",
+        "length": 64,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "embedding_provider",
+        "type": "String",
+        "length": 32,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "embedding_model",
+        "type": "String",
+        "length": 160,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "vector_status",
+        "type": "String",
+        "length": 32,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "embedded_at",
+        "type": "DateTime",
+        "length": null,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "embedding_error",
+        "type": "Text",
+        "length": null,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "embedding_skip_reason",
+        "type": "String",
+        "length": 32,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "created_at",
+        "type": "DateTime",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": "now()"
+      },
+      {
+        "name": "updated_at",
+        "type": "DateTime",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": "now()"
+      }
+    ],
+    "pk": [
+      "id"
+    ],
+    "unique": [
+      [
+        "chat_id",
+        "message_id"
+      ]
+    ],
+    "foreign_keys": [
+      {
+        "columns": [
+          "chat_id"
+        ],
+        "target": [
+          "telegram_chats.chat_id"
+        ],
+        "ondelete": "CASCADE"
+      }
+    ],
+    "indexes": [
+      {
+        "name": "ft_messages_text",
+        "columns": [
+          "text"
+        ],
+        "unique": false,
+        "mysql_prefix": "FULLTEXT"
+      },
+      {
+        "name": "ix_messages_chat_date",
+        "columns": [
+          "chat_id",
+          "sent_at"
+        ],
+        "unique": false
+      },
+      {
+        "name": "ix_messages_sender_date",
+        "columns": [
+          "sender_id",
+          "sent_at"
+        ],
+        "unique": false
+      },
+      {
+        "name": "ix_telegram_messages_content_hash",
+        "columns": [
+          "content_hash"
+        ],
+        "unique": false
+      },
+      {
+        "name": "ix_telegram_messages_embedding_skip_reason",
+        "columns": [
+          "embedding_skip_reason"
+        ],
+        "unique": false
+      },
+      {
+        "name": "ix_telegram_messages_sender_id",
+        "columns": [
+          "sender_id"
+        ],
+        "unique": false
+      },
+      {
+        "name": "ix_telegram_messages_vector_status",
+        "columns": [
+          "vector_status"
+        ],
+        "unique": false
+      }
+    ]
+  },
+  {
+    "name": "vector_source_coverage",
+    "columns": [
+      {
+        "name": "store_id",
+        "type": "String",
+        "length": 128,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "chat_id",
+        "type": "BigInteger",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "mysql_total",
+        "type": "Integer",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "eligible_total",
+        "type": "Integer",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "active_vector_count",
+        "type": "Integer",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "missing_count",
+        "type": "Integer",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "orphan_count",
+        "type": "Integer",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "coverage_state",
+        "type": "String",
+        "length": 32,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "reconciled_at",
+        "type": "DateTime",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "created_at",
+        "type": "DateTime",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": "now()"
+      },
+      {
+        "name": "updated_at",
+        "type": "DateTime",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": "now()"
+      }
+    ],
+    "pk": [
+      "store_id",
+      "chat_id"
+    ],
+    "unique": [],
+    "foreign_keys": [
+      {
+        "columns": [
+          "store_id"
+        ],
+        "target": [
+          "vector_stores.store_id"
+        ],
+        "ondelete": "CASCADE"
+      }
+    ],
+    "indexes": []
+  },
+  {
+    "name": "reminders",
+    "columns": [
+      {
+        "name": "id",
+        "type": "String",
+        "length": 36,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "task_id",
+        "type": "String",
+        "length": 36,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "remind_at",
+        "type": "DateTime",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "message",
+        "type": "Text",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "status",
+        "type": "String",
+        "length": 32,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "sent_at",
+        "type": "DateTime",
+        "length": null,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "created_at",
+        "type": "DateTime",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": "now()"
+      },
+      {
+        "name": "updated_at",
+        "type": "DateTime",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": "now()"
+      }
+    ],
+    "pk": [
+      "id"
+    ],
+    "unique": [],
+    "foreign_keys": [
+      {
+        "columns": [
+          "task_id"
+        ],
+        "target": [
+          "tasks.id"
+        ],
+        "ondelete": "CASCADE"
+      }
+    ],
+    "indexes": [
+      {
+        "name": "ix_reminders_remind_at",
+        "columns": [
+          "remind_at"
+        ],
+        "unique": false
+      }
+    ]
+  },
+  {
+    "name": "task_history",
+    "columns": [
+      {
+        "name": "id",
+        "type": "BigInteger",
+        "length": null,
+        "nullable": false,
+        "autoincrement": true,
+        "default": null
+      },
+      {
+        "name": "task_id",
+        "type": "String",
+        "length": 36,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "changed_at",
+        "type": "DateTime",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "changed_by",
+        "type": "String",
+        "length": 64,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "old_values",
+        "type": "JSON",
+        "length": null,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "new_values",
+        "type": "JSON",
+        "length": null,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      }
+    ],
+    "pk": [
+      "id"
+    ],
+    "unique": [],
+    "foreign_keys": [
+      {
+        "columns": [
+          "task_id"
+        ],
+        "target": [
+          "tasks.id"
+        ],
+        "ondelete": "CASCADE"
+      }
+    ],
+    "indexes": []
+  },
+  {
+    "name": "task_sources",
+    "columns": [
+      {
+        "name": "id",
+        "type": "Integer",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "task_id",
+        "type": "String",
+        "length": 36,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "chat_id",
+        "type": "BigInteger",
+        "length": null,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "message_id",
+        "type": "BigInteger",
+        "length": null,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "source_text",
+        "type": "Text",
+        "length": null,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      }
+    ],
+    "pk": [
+      "id"
+    ],
+    "unique": [],
+    "foreign_keys": [
+      {
+        "columns": [
+          "task_id"
+        ],
+        "target": [
+          "tasks.id"
+        ],
+        "ondelete": "CASCADE"
+      }
+    ],
+    "indexes": []
+  },
+  {
+    "name": "task_tags",
+    "columns": [
+      {
+        "name": "task_id",
+        "type": "String",
+        "length": 36,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "tag_id",
+        "type": "Integer",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      }
+    ],
+    "pk": [
+      "task_id",
+      "tag_id"
+    ],
+    "unique": [],
+    "foreign_keys": [
+      {
+        "columns": [
+          "tag_id"
+        ],
+        "target": [
+          "tags.id"
+        ],
+        "ondelete": "CASCADE"
+      },
+      {
+        "columns": [
+          "task_id"
+        ],
+        "target": [
+          "tasks.id"
+        ],
+        "ondelete": "CASCADE"
+      }
+    ],
+    "indexes": []
+  },
+  {
+    "name": "telegram_attachments",
+    "columns": [
+      {
+        "name": "id",
+        "type": "BigInteger",
+        "length": null,
+        "nullable": false,
+        "autoincrement": true,
+        "default": null
+      },
+      {
+        "name": "telegram_message_id",
+        "type": "BigInteger",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "telegram_file_id",
+        "type": "String",
+        "length": 512,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "file_name",
+        "type": "String",
+        "length": 512,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "mime_type",
+        "type": "String",
+        "length": 255,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "size_bytes",
+        "type": "BigInteger",
+        "length": null,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "sha256",
+        "type": "String",
+        "length": 64,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "local_path",
+        "type": "String",
+        "length": 1024,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "metadata_json",
+        "type": "JSON",
+        "length": null,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "created_at",
+        "type": "DateTime",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": "now()"
+      },
+      {
+        "name": "updated_at",
+        "type": "DateTime",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": "now()"
+      }
+    ],
+    "pk": [
+      "id"
+    ],
+    "unique": [],
+    "foreign_keys": [
+      {
+        "columns": [
+          "telegram_message_id"
+        ],
+        "target": [
+          "telegram_messages.id"
+        ],
+        "ondelete": "CASCADE"
+      }
+    ],
+    "indexes": [
+      {
+        "name": "ix_telegram_attachments_sha256",
+        "columns": [
+          "sha256"
+        ],
+        "unique": false
+      }
+    ]
+  },
+  {
+    "name": "telegram_message_versions",
+    "columns": [
+      {
+        "name": "id",
+        "type": "BigInteger",
+        "length": null,
+        "nullable": false,
+        "autoincrement": true,
+        "default": null
+      },
+      {
+        "name": "telegram_message_id",
+        "type": "BigInteger",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "text",
+        "type": "Text",
+        "length": null,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "version_number",
+        "type": "Integer",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "captured_at",
+        "type": "DateTime",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      }
+    ],
+    "pk": [
+      "id"
+    ],
+    "unique": [
+      [
+        "telegram_message_id",
+        "version_number"
+      ]
+    ],
+    "foreign_keys": [
+      {
+        "columns": [
+          "telegram_message_id"
+        ],
+        "target": [
+          "telegram_messages.id"
+        ],
+        "ondelete": "CASCADE"
+      }
+    ],
+    "indexes": []
+  },
+  {
+    "name": "telegram_reactions",
+    "columns": [
+      {
+        "name": "id",
+        "type": "BigInteger",
+        "length": null,
+        "nullable": false,
+        "autoincrement": true,
+        "default": null
+      },
+      {
+        "name": "telegram_message_id",
+        "type": "BigInteger",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "actor_id",
+        "type": "BigInteger",
+        "length": null,
+        "nullable": true,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "reaction",
+        "type": "String",
+        "length": 64,
+        "nullable": false,
+        "autoincrement": false,
+        "default": null
+      },
+      {
+        "name": "created_at",
+        "type": "DateTime",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": "now()"
+      },
+      {
+        "name": "updated_at",
+        "type": "DateTime",
+        "length": null,
+        "nullable": false,
+        "autoincrement": false,
+        "default": "now()"
+      }
+    ],
+    "pk": [
+      "id"
+    ],
+    "unique": [],
+    "foreign_keys": [
+      {
+        "columns": [
+          "telegram_message_id"
+        ],
+        "target": [
+          "telegram_messages.id"
+        ],
+        "ondelete": "CASCADE"
+      }
+    ],
+    "indexes": []
+  }
+]

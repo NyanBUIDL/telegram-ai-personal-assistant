@@ -5,6 +5,7 @@ Revises: 0004
 """
 
 import sqlalchemy as sa
+
 from alembic import op
 
 revision = "0005"
@@ -14,42 +15,51 @@ depends_on = None
 
 
 def upgrade() -> None:
-    bind = op.get_bind()
-    inspector = sa.inspect(bind)
-    if not inspector.has_table("vector_stores"):
-        op.create_table(
-            "vector_stores",
-            sa.Column("store_id", sa.String(128), primary_key=True),
-            sa.Column("path", sa.String(512), nullable=False, unique=True),
-            sa.Column("collection", sa.String(128), nullable=False),
-            sa.Column("provider", sa.String(32), nullable=False),
-            sa.Column("model", sa.String(160)),
-            sa.Column("embedding_version", sa.String(64)),
-            sa.Column("dimension", sa.Integer()),
-            sa.Column("role", sa.String(32), nullable=False),
-            sa.Column("state", sa.String(32), nullable=False),
-            sa.Column("last_reconciled_at", sa.DateTime()),
-            sa.Column("created_at", sa.DateTime(), server_default=sa.func.current_timestamp(), nullable=False),
-            sa.Column("updated_at", sa.DateTime(), server_default=sa.func.current_timestamp(), nullable=False),
-        )
-        op.create_index("ix_vector_stores_role", "vector_stores", ["role"])
-        op.create_index("ix_vector_stores_state", "vector_stores", ["state"])
-    if not inspector.has_table("vector_source_coverage"):
-        op.create_table(
-            "vector_source_coverage",
-            sa.Column("store_id", sa.String(128), sa.ForeignKey("vector_stores.store_id", ondelete="CASCADE"), primary_key=True),
-            sa.Column("chat_id", sa.BigInteger(), primary_key=True),
-            sa.Column("mysql_total", sa.Integer(), server_default="0", nullable=False),
-            sa.Column("eligible_total", sa.Integer(), server_default="0", nullable=False),
-            sa.Column("active_vector_count", sa.Integer(), server_default="0", nullable=False),
-            sa.Column("missing_count", sa.Integer(), server_default="0", nullable=False),
-            sa.Column("orphan_count", sa.Integer(), server_default="0", nullable=False),
-            sa.Column("coverage_state", sa.String(32), server_default="unknown", nullable=False),
-            sa.Column("reconciled_at", sa.DateTime(), nullable=False),
-            sa.Column("created_at", sa.DateTime(), server_default=sa.func.current_timestamp(), nullable=False),
-            sa.Column("updated_at", sa.DateTime(), server_default=sa.func.current_timestamp(), nullable=False),
-        )
-        op.create_index("ix_vector_source_coverage_chat_id", "vector_source_coverage", ["chat_id"])
+    op.create_table(
+        "vector_stores",
+        sa.Column("store_id", sa.String(128), primary_key=True),
+        sa.Column("path", sa.String(512), nullable=False, unique=True),
+        sa.Column("collection", sa.String(128), nullable=False),
+        sa.Column("provider", sa.String(32), nullable=False),
+        sa.Column("model", sa.String(160)),
+        sa.Column("embedding_version", sa.String(64)),
+        sa.Column("dimension", sa.Integer()),
+        sa.Column("role", sa.String(32), nullable=False),
+        sa.Column("state", sa.String(32), nullable=False),
+        sa.Column("last_reconciled_at", sa.DateTime()),
+        sa.Column(
+            "created_at", sa.DateTime(), server_default=sa.func.current_timestamp(), nullable=False
+        ),
+        sa.Column(
+            "updated_at", sa.DateTime(), server_default=sa.func.current_timestamp(), nullable=False
+        ),
+    )
+    op.create_index("ix_vector_stores_role", "vector_stores", ["role"])
+    op.create_index("ix_vector_stores_state", "vector_stores", ["state"])
+    op.create_table(
+        "vector_source_coverage",
+        sa.Column(
+            "store_id",
+            sa.String(128),
+            sa.ForeignKey("vector_stores.store_id", ondelete="CASCADE"),
+            primary_key=True,
+        ),
+        sa.Column("chat_id", sa.BigInteger(), primary_key=True),
+        sa.Column("mysql_total", sa.Integer(), server_default="0", nullable=False),
+        sa.Column("eligible_total", sa.Integer(), server_default="0", nullable=False),
+        sa.Column("active_vector_count", sa.Integer(), server_default="0", nullable=False),
+        sa.Column("missing_count", sa.Integer(), server_default="0", nullable=False),
+        sa.Column("orphan_count", sa.Integer(), server_default="0", nullable=False),
+        sa.Column("coverage_state", sa.String(32), server_default="unknown", nullable=False),
+        sa.Column("reconciled_at", sa.DateTime(), nullable=False),
+        sa.Column(
+            "created_at", sa.DateTime(), server_default=sa.func.current_timestamp(), nullable=False
+        ),
+        sa.Column(
+            "updated_at", sa.DateTime(), server_default=sa.func.current_timestamp(), nullable=False
+        ),
+    )
+    op.create_index("ix_vector_source_coverage_chat_id", "vector_source_coverage", ["chat_id"])
 
 
 def downgrade() -> None:

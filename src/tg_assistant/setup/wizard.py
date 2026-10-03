@@ -3,13 +3,13 @@ from __future__ import annotations
 import getpass
 import secrets
 import string
-import subprocess
-import sys
 from pathlib import Path
 
 import typer
+from sqlalchemy import create_engine
 
 from ..config import get_settings
+from ..db.migrations import upgrade_database
 from ..paths import project_root
 from ..security import SecretStore
 from .mysql import (
@@ -128,7 +128,20 @@ def run_setup() -> None:
     )
     get_settings.cache_clear()
     typer.echo(f"MySQL {version}: đã tạo database/user.")
-    subprocess.run([sys.executable, "-m", "alembic", "upgrade", "head"], check=True)
+    migrated_settings = get_settings()
+    engine = create_engine(
+        migrated_settings.database_url(store.get("database_password") or "", async_driver=False)
+    )
+    try:
+        with engine.connect() as connection:
+            report = upgrade_database(
+                connection,
+                script_location=project_root() / "alembic",
+                backup_dir=migrated_settings.data_dir / "backups",
+            )
+    finally:
+        engine.dispose()
+    typer.echo(f"Schema Alembic: {report.current_revision}")
     verify_migrated_database(
         host=settings.database_host,
         port=settings.database_port,
