@@ -9,6 +9,8 @@ COUNTS = {"passed", "failed", "skipped", "errors", "exit_code"}
 IMAGES = {
     *(f"browser-{kind}-{width}.png" for kind in ("components", "login") for width in (360, 390, 1280, 1440)),
     "browser-dialog-390.png",
+    *(f"d02-browser-{width}.png" for width in (360, 390, 1280, 1440)),
+    "native-backup-dialog.png",
     *(f"native-dialog-scale-{scale}.png" for scale in ("1", "1.25", "1.5", "2")),
 }
 

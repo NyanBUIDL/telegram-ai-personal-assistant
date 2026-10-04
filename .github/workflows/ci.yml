@@ -21,7 +21,8 @@ jobs:
   windows-python:
     name: Windows Python ${{ matrix.python }} / SQLite
     runs-on: windows-latest
-    timeout-minutes: 20
+    # Python 3.12 also builds the dashboard and runs real API browser regressions.
+    timeout-minutes: 25
     strategy:
       fail-fast: false
       matrix:
@@ -57,6 +58,34 @@ jobs:
         env:
           QT_SCALE_FACTOR: '2'
         run: python -m pytest tests/test_desktop_theme.py
+      - name: Set up Node 24 for Windows native-to-browser regressions
+        if: matrix.python == '3.12'
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: dashboard-prototype/package-lock.json
+      - name: Install dashboard dependencies
+        if: matrix.python == '3.12'
+        working-directory: dashboard-prototype
+        run: npm ci
+      - name: Build dashboard for the real Admin API fixture
+        if: matrix.python == '3.12'
+        working-directory: dashboard-prototype
+        run: npm run build
+      - name: Install portable Chromium for Windows regressions
+        if: matrix.python == '3.12'
+        working-directory: dashboard-prototype
+        run: npx playwright install chromium
+      - name: Run real native-to-browser ticket and recovery regressions
+        if: matrix.python == '3.12'
+        working-directory: dashboard-prototype
+        env:
+          CI: 'true'
+          ART_EVIDENCE_DIR: ../.ci-work
+          D02_PYTHON: python
+          D02_BROWSER_CHANNEL: chromium
+        run: npx playwright test --config playwright.d02.config.js
       - name: Stage sanitized evidence
         if: always()
         run: python scripts/ci_artifacts.py .ci-work ci-artifacts
@@ -113,6 +142,7 @@ jobs:
           tests/integration/test_job_concurrency.py tests/test_embedding_profiles.py
           tests/integration/test_budget_migrations.py
           tests/test_runtime_embeddings.py
+          tests/integration/test_backup_restore.py tests/integration/test_vector_incremental.py
       - name: Stage sanitized evidence
         if: always()
         run: python scripts/ci_artifacts.py .ci-work ci-artifacts

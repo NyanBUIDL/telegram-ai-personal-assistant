@@ -93,8 +93,10 @@
         "S02",
         "V01"
       ],
-      "status": "Planned",
-      "evidence": [],
+      "status": "InReview",
+      "evidence": [
+        "docs/handoff/evidence/review-S03.md"
+      ],
       "acceptance": "Có restore drill evidence, retrieval sau restore hoặc degraded+recovery thực, không success chỉ vì import SQL."
     },
     {
@@ -121,8 +123,10 @@
         "S02",
         "V01"
       ],
-      "status": "Planned",
-      "evidence": [],
+      "status": "InReview",
+      "evidence": [
+        "docs/handoff/evidence/review-V02.md"
+      ],
       "acceptance": "Case UAT count/drop được kiểm chứng đúng store; job thành công chỉ khi invariants/candidate accounting đạt."
     },
     {
@@ -162,8 +166,10 @@
       "dependencies": [
         "D01"
       ],
-      "status": "Planned",
-      "evidence": [],
+      "status": "InReview",
+      "evidence": [
+        "docs/handoff/evidence/review-D02.md"
+      ],
       "acceptance": "Mở dashboard 1 nút không CLI, không thêm password, negative security cases đạt trên Windows."
     },
     {
