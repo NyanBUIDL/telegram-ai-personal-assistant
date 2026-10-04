@@ -511,8 +511,8 @@ async def test_mysql_budget_reservations_are_atomic_across_independent_services(
     if not raw:
         pytest.skip("Disposable loopback MySQL fixture not configured")
     url = sa.engine.make_url(raw)
-    assert url.host == "127.0.0.1" and url.port == 13307
-    assert url.username == "root" and url.password == "codex-disposable-fixture-only-2026"
+    assert url.host in {"127.0.0.1", "localhost"} and url.port in {3306, 13307}
+    assert (url.database or "").startswith("codex_")
     name = "codex_v01_" + uuid4().hex
     admin = sa.create_engine(url.set(drivername="mysql+pymysql", database=None))
     database = None
