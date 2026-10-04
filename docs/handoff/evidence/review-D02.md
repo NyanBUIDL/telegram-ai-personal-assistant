@@ -56,3 +56,37 @@ Supplied ordered evidence first reproduced the tray failure with 25 passed/1 fai
 This approval concerns the minimal test-harness fix. It does not turn the earlier whole-suite failure into a full-suite green claim. Final integrated verification, author freeze confirmation, staging and integration remain coordinator-owned. Earlier D02 restart-replay and ACL findings were already addressed and were not re-audited here; the foreign-owner remote evidence limitation remains recorded in `task-D02-fix2-review.md`.
 
 No broad or focused tests were rerun, no production files were edited, and no staging, commit or child agents were used. The reviewer wrote this requested private review report only.
+
+
+# D02 — scoped visual CI correction review
+
+Verdict: **Approved.** No Critical or Important findings in this correction. The visual tests now match the approved native-launcher authentication UI without restoring browser code/secret entry or weakening native authentication.
+
+## Scope and verified packet
+
+Only `dashboard-prototype/tests/visual/art-baseline.spec.js` changes. Reviewed packet: `.test-temp/d02-visual-review/followup.patch`, final `manifest.json`, exact before/after test snapshots, source-hash record, commands, RED/GREEN/build logs, four login screenshots and authentication rerun logs.
+
+Patch exact-byte SHA256: `2c293eb32359949ced0c8bf174ad41ecce9d5efe6fa2455721d10de74a896f47`.
+
+Final manifest exact-byte SHA256: `9abbc5117167553a6e93219b3ca9b5bd65ecbd5b52f4ed013a6d560dd97a83e2`.
+
+After the initial packet notification, the author completed the manifest by appending four screenshot and two authentication-log entries. The production sources, test snapshots and patch remained unchanged. The reviewer verified the completed manifest, including those added entries: all listed exact-byte hashes matched. Current App.jsx, styles.css, d02-auth.spec.js and auth-bootstrap.js also matched the unchanged-source hashes.
+
+## Assessment
+
+The four login-reference cases previously required the obsolete browser `Mã đăng nhập` field. They now require the native-launcher heading, actual “Mở dashboard” instructions, single-use/30-second lifetime copy, and the prohibition on entering API keys, OTP or passwords in the browser. They explicitly require no input, textarea or select controls.
+
+All four widths (360/390/1280/1440) and existing screenshot filenames remain. The change preserves border/shadow/overflow and 44-pixel control checks, and adds explicit paper/panel/ink colors, square corners, main-title/logo Peter Obscure, other-copy/control Darley Sans, actual loaded fonts, visible keyboard focus, and Enter-triggered session retry with the native-login screen still present afterward. Narrowing the control loop to buttons matches the intended removal of browser input fields; the new zero-input assertion guards that removal.
+
+The component geometry/typography/toggle tests, modal focus trap/Escape/focus-restoration test, and the two expected-failure JavaScript/console-error negative controls are retained. No test is dropped. The isolated visual fixture continues to deny operational API requests; it does not fabricate owner authentication. Native ticket and real-browser security coverage remain in the unchanged authentication spec.
+
+## Evidence and limits
+
+- Supplied actual RED run: all **four** login-reference cases fail on the removed code-field label. The prior hosted run likewise reported those four failures with seven other cases passing.
+- Completed cached-Chromium visual run: **11 passed**, 33.1 seconds. This total includes the two intentionally expected-failure browser-error controls, which demonstrate that injected page/console errors are rejected.
+- Unchanged real-authentication rerun: **5 passed**, 44.7 seconds, covering early fragment removal/protected setup session, fresh-context replay denial, real expiry, foreign Host/Origin and HTTP mint refusal, and malformed/duplicate fragment refusal.
+- The earlier authentication attempt failed before fixture readiness with `Synthetic native fixture did not reply`; four cases did not run. This boot/setup failure is preserved in the packet and is not treated as a product-security RED result or omitted from the evidence.
+
+The reviewer assessed the immutable source and supplied execution evidence without rerunning tests. This scoped approval is not a full-suite or release-readiness claim. Other D02 findings were already addressed and were not re-audited. Final author freeze and integration remain coordinator-owned.
+
+No production/source edits, staging, commits, broad tests or child agents were performed by this reviewer; only this explicitly requested private review report was written.

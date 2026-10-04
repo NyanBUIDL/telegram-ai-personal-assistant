@@ -87,19 +87,46 @@ for (const width of [360, 390, 1280, 1440]) {
     });
     await page.route('**/api/v1/**', route => route.abort());
     await page.goto(base);
-    await expect(page.getByLabel('Mã đăng nhập')).toBeVisible();
+    const nativeHeading = page.getByRole('heading', { name: 'Mở từ ứng dụng Windows' });
+    const retry = page.getByRole('button', { name: 'Kiểm tra lại phiên' });
+    await expect(nativeHeading).toBeVisible();
+    await expect(page.locator('.login-form > p:not(.eyebrow)')).toContainText('bấm “Mở dashboard”');
+    await expect(page.locator('.login-form > p:not(.eyebrow)')).toContainText('dùng một lần và hết hạn sau 30 giây');
+    await expect(page.locator('.login-form > small')).toHaveText('Không nhập API key, OTP Telegram hoặc mật khẩu vào trình duyệt.');
+    await expect(page.locator('input,textarea,select')).toHaveCount(0);
+    await expect(retry).toBeVisible();
     await page.evaluate(() => document.fonts.ready);
     await page.screenshot({path:path.join(evidence,`browser-login-${width}.png`),fullPage:true});
+    await expect(page.locator('.login-shell')).toHaveCSS('background-color','rgb(243, 239, 223)');
+    await expect(page.locator('.login-form')).toHaveCSS('background-color','rgb(255, 253, 245)');
     await expect(page.locator('.login-form')).toHaveCSS('border-top-width','3px');
+    await expect(page.locator('.login-form')).toHaveCSS('border-top-color','rgb(9, 9, 9)');
+    await expect(page.locator('.login-form')).toHaveCSS('border-radius','0px');
     await expect(page.locator('.login-form')).toHaveCSS('box-shadow','rgb(9, 9, 9) 7px 7px 0px 0px');
     await expect(page.locator('.login-poster')).toHaveCSS('background-image','none');
-    for (const control of await page.locator('button,input').all()) {
+    await expect(page.locator('.login-poster')).toHaveCSS('background-color','rgb(9, 9, 9)');
+    await expect(page.locator('.login-copy h1')).toHaveCSS('font-family', /Peter Obscure/);
+    await expect(page.locator('.login-brand strong')).toHaveCSS('font-family', /Peter Obscure/);
+    for (const copy of await page.locator('.login-form h2,.login-form p,.login-form small,.login-copy p,.login-security-strip span').all()) {
+      await expect(copy).toHaveCSS('font-family', /Darley Sans/);
+    }
+    const loadedFonts = await page.evaluate(() => [...document.fonts].filter(font => font.status === 'loaded').map(font => font.family.replaceAll('"', '')));
+    expect(loadedFonts).toEqual(expect.arrayContaining(['Darley Sans', 'Peter Obscure']));
+    for (const control of await page.getByRole('button').all()) {
       const box = await control.boundingBox();
       expect(box.width).toBeGreaterThanOrEqual(44);
       expect(box.height).toBeGreaterThanOrEqual(44);
       await expect(control).toHaveCSS('font-family', /Darley Sans/);
     }
     expect(await page.evaluate(()=>document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await page.keyboard.press('Tab');
+    await expect(retry).toBeFocused();
+    await expect(retry).toHaveCSS('outline-width','3px');
+    await expect(retry).toHaveCSS('outline-style','solid');
+    await expect(retry).toHaveCSS('outline-color','rgb(9, 9, 9)');
+    await Promise.all([page.waitForEvent('load'), page.keyboard.press('Enter')]);
+    await expect(nativeHeading).toBeVisible();
+    await expect(page.locator('input,textarea,select')).toHaveCount(0);
   });
 }
 
