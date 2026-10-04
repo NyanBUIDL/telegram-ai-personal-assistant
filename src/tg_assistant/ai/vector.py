@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import json
+import os
+import tempfile
 from pathlib import Path
 
 from qdrant_client import QdrantClient
@@ -17,14 +20,53 @@ from qdrant_client.models import (
 class LocalVectorStore:
     COLLECTION = "telegram_messages"
 
-    def __init__(self, path: Path, vector_size: int = 1536) -> None:
+    def __init__(self, path: Path, vector_size: int = 1536, *, profile=None) -> None:
+        self.profile = profile
+        if profile is not None:
+            if vector_size != profile.dimension:
+                raise ValueError("Vector identity dimension mismatch")
+            manifest = path / "embedding-profile.json"
+            identity = profile.model_dump(mode="json", exclude={"cloud_consent"})
+            if manifest.exists():
+                try:
+                    saved = json.loads(manifest.read_text(encoding="utf-8"))
+                except (ValueError, OSError):
+                    raise ValueError("Invalid vector identity") from None
+                if saved != identity:
+                    raise ValueError("Vector identity mismatch; preserve the existing corpus")
+            elif path.exists() and any(path.iterdir()):
+                raise ValueError("Unknown vector identity; explicit recovery is required")
         path.mkdir(parents=True, exist_ok=True)
         self.client = QdrantClient(path=str(path))
-        if not self.client.collection_exists(self.COLLECTION):
-            self.client.create_collection(
-                self.COLLECTION,
-                vectors_config=VectorParams(size=vector_size, distance=Distance.COSINE),
-            )
+        try:
+            if not self.client.collection_exists(self.COLLECTION):
+                self.client.create_collection(
+                    self.COLLECTION,
+                    vectors_config=VectorParams(size=vector_size, distance=Distance.COSINE),
+                )
+            elif (
+                self.client.get_collection(self.COLLECTION).config.params.vectors.size
+                != vector_size
+            ):
+                raise ValueError("Vector identity dimension mismatch")
+            if profile is not None and not manifest.exists():
+                # Qdrant's exclusive local lock serializes competing initializers.
+                temporary = None
+                try:
+                    with tempfile.NamedTemporaryFile(
+                        mode="w", encoding="utf-8", dir=path, delete=False
+                    ) as file:
+                        temporary = Path(file.name)
+                        json.dump(identity, file, sort_keys=True)
+                        file.flush()
+                        os.fsync(file.fileno())
+                    temporary.replace(manifest)
+                finally:
+                    if temporary is not None:
+                        temporary.unlink(missing_ok=True)
+        except BaseException:
+            self.client.close()
+            raise
 
     def upsert(
         self, reference_id: int, vector: list[float], *, chat_id: int, message_id: int

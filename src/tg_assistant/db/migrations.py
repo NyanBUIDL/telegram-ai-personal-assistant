@@ -80,6 +80,12 @@ def _type(column, table: str, dialect: str) -> str:
         return "datetime"
     if isinstance(value, sa.Float):
         return "float"
+    if isinstance(value, sa.Numeric) and type(value).__name__ in {"Numeric", "NUMERIC", "DECIMAL"}:
+        # MySQL reflects NUMERIC as DECIMAL. Preserve exact precision/scale and
+        # dialect flags; neither floating-point nor unsigned types are equivalent.
+        if getattr(value, "zerofill", False):
+            return "zerofill:" + str(value).lower()
+        return f"numeric:{value.precision}:{value.scale}"
     if isinstance(value, sa.JSON):
         return "json"
     return str(value).lower()

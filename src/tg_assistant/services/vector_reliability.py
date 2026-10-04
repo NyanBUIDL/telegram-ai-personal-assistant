@@ -16,49 +16,55 @@ from ..db.models import TelegramChatPolicy, TelegramMessage, VectorSourceCoverag
 
 def local_store_id(settings: Settings) -> str:
     """Stable identity; does not depend on the selected chat-completion provider."""
-    material = "|".join(
-        (
-            str(settings.resolved_semantic_vector_path.resolve()),
-            LocalVectorStore.COLLECTION,
-            "ollama",
-            settings.ollama_embedding_model,
-            settings.embedding_version,
-            str(settings.ollama_vector_size),
-        )
-    )
-    return f"local-first-{sha256(material.encode()).hexdigest()[:16]}"
+    return settings.embedding_profile.store_id
 
 
 def legacy_store_id(settings: Settings) -> str:
-    return f"legacy-{sha256(str(settings.resolved_qdrant_path.resolve()).encode()).hexdigest()[:16]}"
+    return (
+        f"legacy-{sha256(str(settings.resolved_qdrant_path.resolve()).encode()).hexdigest()[:16]}"
+    )
 
 
 async def ensure_vector_store_registry(session, settings: Settings) -> VectorStore:
     """Register metadata only. Existing vectors are neither read nor modified here."""
     active_id = local_store_id(settings)
+    profile = settings.embedding_profile
     active_path = str(settings.resolved_semantic_vector_path.resolve())
     active = await session.get(VectorStore, active_id)
+    previous = await session.scalar(
+        select(VectorStore).where(
+            VectorStore.role == "semantic_active", VectorStore.store_id != active_id
+        )
+    )
     values = {
         "path": active_path,
         "collection": LocalVectorStore.COLLECTION,
-        "provider": "ollama",
-        "model": settings.ollama_embedding_model,
+        "provider": profile.provider,
+        "endpoint_id": profile.endpoint_id,
+        "model": profile.model,
         "embedding_version": settings.embedding_version,
-        "dimension": settings.ollama_vector_size,
-        "role": "semantic_active",
-        "state": "active",
+        "dimension": profile.dimension,
+        "role": "semantic_candidate" if previous is not None else "semantic_active",
+        "state": "candidate" if previous is not None else "active",
     }
     if active is None:
         active = VectorStore(store_id=active_id, **values)
         session.add(active)
     else:
-        for name, value in values.items():
-            setattr(active, name, value)
+        if any(
+            getattr(active, name) != value
+            for name, value in values.items()
+            if name not in {"role", "state"}
+        ):
+            raise ValueError("Registered vector identity mismatch")
 
     legacy_path = settings.resolved_qdrant_path.resolve()
     if legacy_path != Path(active_path):
         legacy_id = legacy_store_id(settings)
         legacy = await session.get(VectorStore, legacy_id)
+        existing_path = await session.scalar(
+            select(VectorStore).where(VectorStore.path == str(legacy_path))
+        )
         legacy_values = {
             "path": str(legacy_path),
             "collection": LocalVectorStore.COLLECTION,
@@ -69,17 +75,21 @@ async def ensure_vector_store_registry(session, settings: Settings) -> VectorSto
             "role": "legacy_read_only",
             "state": "read_only",
         }
-        if legacy is None:
+        if legacy is None and existing_path is None:
             session.add(VectorStore(store_id=legacy_id, **legacy_values))
-        else:
-            for name, value in legacy_values.items():
-                setattr(legacy, name, value)
+        elif legacy is not None:
+            if legacy.provider != "legacy" or legacy.path != str(legacy_path):
+                raise ValueError("Legacy vector identity mismatch")
     return active
 
 
-async def inspect_source_coverage(session, *, chat_id: int, settings: Settings, vectors: LocalVectorStore) -> dict:
+async def inspect_source_coverage(
+    session, *, chat_id: int, settings: Settings, vectors: LocalVectorStore
+) -> dict:
     """Compare MySQL source data with the active Local-first index without writes to Qdrant."""
-    policy = await session.scalar(select(TelegramChatPolicy).where(TelegramChatPolicy.chat_id == chat_id))
+    policy = await session.scalar(
+        select(TelegramChatPolicy).where(TelegramChatPolicy.chat_id == chat_id)
+    )
     filtering_level = policy.filtering_level if policy else "standard"
     rows = list(
         (
@@ -106,13 +116,13 @@ async def inspect_source_coverage(session, *, chat_id: int, settings: Settings, 
     eligible_total = len(eligible_ids)
     active_count = len(active_ids)
     coverage_percent = round((active_count / eligible_total) * 100, 1) if eligible_total else 100.0
-    coverage_state = (
-        "healthy" if not missing_ids and not orphan_ids else "reconciliation_required"
-    )
+    coverage_state = "healthy" if not missing_ids and not orphan_ids else "reconciliation_required"
     now = datetime.now(UTC)
     store = await ensure_vector_store_registry(session, settings)
     store.last_reconciled_at = now
-    coverage = await session.get(VectorSourceCoverage, {"store_id": store.store_id, "chat_id": chat_id})
+    coverage = await session.get(
+        VectorSourceCoverage, {"store_id": store.store_id, "chat_id": chat_id}
+    )
     values = {
         "mysql_total": len(rows),
         "eligible_total": eligible_total,

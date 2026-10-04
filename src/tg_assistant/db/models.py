@@ -3,6 +3,7 @@ from __future__ import annotations
 import enum
 import uuid
 from datetime import datetime
+from decimal import Decimal
 
 from sqlalchemy import (
     JSON,
@@ -13,6 +14,7 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Integer,
+    Numeric,
     String,
     Text,
     UniqueConstraint,
@@ -252,6 +254,7 @@ class VectorStore(Base, TimestampMixin):
     path: Mapped[str] = mapped_column(String(512), unique=True, nullable=False)
     collection: Mapped[str] = mapped_column(String(128), nullable=False)
     provider: Mapped[str] = mapped_column(String(32), nullable=False)
+    endpoint_id: Mapped[str | None] = mapped_column(String(64))
     model: Mapped[str | None] = mapped_column(String(160))
     embedding_version: Mapped[str | None] = mapped_column(String(64))
     dimension: Mapped[int | None] = mapped_column(Integer)
@@ -500,6 +503,45 @@ class Summary(Base, TimestampMixin):
     stale: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, index=True)
 
 
+class AiBudgetLock(Base):
+    __tablename__ = "ai_budget_locks"
+    profile_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    version: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+
+
+class AiBudgetReservation(Base):
+    __tablename__ = "ai_budget_reservations"
+    request_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    profile_id: Mapped[str] = mapped_column(
+        ForeignKey("ai_budget_locks.profile_id"), nullable=False, index=True
+    )
+    occurred_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, index=True
+    )
+    provider: Mapped[str] = mapped_column(String(32), nullable=False)
+    model: Mapped[str] = mapped_column(String(160), nullable=False)
+    pricing_version: Mapped[str] = mapped_column(String(64), nullable=False)
+    pricing_rates: Mapped[dict] = mapped_column(JSON, nullable=False)
+    operation: Mapped[str] = mapped_column(String(64), nullable=False)
+    feature: Mapped[str] = mapped_column(String(64), nullable=False)
+    route: Mapped[str | None] = mapped_column(String(64))
+    chat_id: Mapped[int | None] = mapped_column(BigInteger, index=True)
+    reserved_input_tokens: Mapped[int] = mapped_column(Integer, nullable=False)
+    reserved_output_tokens: Mapped[int] = mapped_column(Integer, nullable=False)
+    reserved_cost_usd: Mapped[Decimal] = mapped_column(Numeric(24, 12), nullable=False)
+    is_local: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    fallback_used: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    state: Mapped[str] = mapped_column(String(16), nullable=False, index=True)
+    submitted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    settled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    actual_input_tokens: Mapped[int | None] = mapped_column(Integer)
+    actual_output_tokens: Mapped[int | None] = mapped_column(Integer)
+    cached_tokens: Mapped[int | None] = mapped_column(Integer)
+    cache_write_tokens: Mapped[int | None] = mapped_column(Integer)
+    actual_cost_usd: Mapped[Decimal | None] = mapped_column(Numeric(24, 12))
+    last_error_code: Mapped[str | None] = mapped_column(String(64))
+
+
 class AiUsage(Base):
     __tablename__ = "ai_usage"
     id: Mapped[int] = mapped_column(BIGINT_PK, primary_key=True, autoincrement=True)
@@ -523,6 +565,11 @@ class AiUsage(Base):
     is_local: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     fallback_used: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     error_code: Mapped[str | None] = mapped_column(String(64))
+    reservation_id: Mapped[str | None] = mapped_column(
+        ForeignKey("ai_budget_reservations.request_id"), unique=True
+    )
+    pricing_version: Mapped[str | None] = mapped_column(String(64))
+    cache_write_tokens: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
 
 class AiQueryCache(Base, TimestampMixin):

@@ -34,7 +34,9 @@ def run(tmp_path, *args, configured=True):
     )
 
 
-def fixtures(tmp_path, *, skipped=False, include_new=True):
+def fixtures(
+    tmp_path, *, skipped=False, include_new=True, include_budget=True, include_runtime=True
+):
     migration = tmp_path / "test_migrations.py"
     revocation = tmp_path / "test_revocation_jobs.py"
     migration.write_text(
@@ -64,7 +66,37 @@ def fixtures(tmp_path, *, skipped=False, include_new=True):
             "@pytest.mark.parametrize('storage', ['sqlite', 'mysql'])\ndef test_sqlite_busy_is_bounded(storage):\n    if storage == 'mysql': pytest.skip('SQLite-only semantics')\n"
         )
     profiles.write_text("def test_mysql_atomic_budget():\n    assert True\n", encoding="utf-8")
-    return str(migration), str(revocation), str(jobs), str(profiles)
+    selected = (str(migration), str(revocation), str(jobs), str(profiles))
+    if not include_budget:
+        return selected
+    costs = tmp_path / "test_budget_migrations.py"
+    costs.write_text(
+        "import pytest\n@pytest.mark.parametrize('budget_connection', ['sqlite', 'mysql'])\n"
+        "def test_budget_precision(budget_connection):\n    assert budget_connection == 'mysql'\n",
+        encoding="utf-8",
+    )
+    selected = (*selected, str(costs))
+    if not include_runtime:
+        return selected
+    runtime = tmp_path / "test_runtime_embeddings.py"
+    runtime.write_text(
+        "import pytest\n@pytest.mark.parametrize('runtime_case', ['sqlite', 'mysql'])\n"
+        "def test_runtime_authority_and_caps(runtime_case):\n    assert runtime_case == 'mysql'\n",
+        encoding="utf-8",
+    )
+    return (*selected, str(runtime))
+
+
+def test_mysql_gate_rejects_omitted_runtime_policy_and_budget_controls(tmp_path):
+    result = run(tmp_path, "--mysql-required", *fixtures(tmp_path, include_runtime=False))
+    assert result.returncode != 0
+    assert "required MySQL cases did not pass" in result.stdout + result.stderr
+
+
+def test_mysql_gate_rejects_omitted_budget_migration_controls(tmp_path):
+    result = run(tmp_path, "--mysql-required", *fixtures(tmp_path, include_budget=False))
+    assert result.returncode != 0
+    assert "required MySQL cases did not pass" in result.stdout + result.stderr
 
 
 def test_mysql_gate_rejects_omitted_new_storage_and_budget_coverage(tmp_path):
@@ -77,7 +109,7 @@ def test_mysql_gate_runs_both_required_modules_and_deselects_sqlite(tmp_path):
     result = run(tmp_path, "--mysql-required", *fixtures(tmp_path))
     assert result.returncode == 0, result.stdout + result.stderr
     report = json.loads((tmp_path / "summary.json").read_text())
-    assert report == {"passed": 4, "failed": 0, "skipped": 0, "errors": 0, "exit_code": 0}
+    assert report == {"passed": 6, "failed": 0, "skipped": 0, "errors": 0, "exit_code": 0}
 
 
 def test_mysql_gate_rejects_skips_in_required_cases(tmp_path):

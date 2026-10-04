@@ -39,7 +39,7 @@ from .runtime import (
     prompt_secrets,
     run_application,
 )
-from .security import SecretStore, contains_secret
+from .security import SecretStore
 from .services.maintenance import profile_maintenance, profile_writer
 from .services.storage import StorageService
 from .setup.mysql import detect_mysql, find_mysql_tool
@@ -539,23 +539,27 @@ def sync(limit: int = typer.Option(1000, min=1, max=100000)) -> None:
 @profile_writer(lambda: get_settings())
 def reindex() -> None:
     async def execute() -> None:
+        from types import SimpleNamespace
+
         from .ai.vector import LocalVectorStore
+        from .runtime import Application, make_budget
 
         settings, store = get_settings(), SecretStore()
         db = make_database(settings, store)
-        ai = make_local_embedding_engine(settings, store)
-        if not ai.available or not settings.enable_embeddings:
-            typer.echo(f"Embedding đang tắt hoặc chưa có key cho provider {settings.ai_provider}.")
-            await db.close()
-            return
-        vectors, count = (
-            LocalVectorStore(
-                settings.resolved_semantic_vector_path,
-                vector_size=settings.ollama_vector_size,
-            ),
-            0,
-        )
+        ai = make_local_embedding_engine(settings, store, make_budget(settings))
+        vectors = None
         try:
+            if not ai.available or not settings.enable_embeddings or settings.ai_provider == "off":
+                typer.echo("Embedding disabled or selected provider unavailable.")
+                return
+            vectors = LocalVectorStore(
+                settings.resolved_semantic_vector_path,
+                vector_size=settings.embedding_profile.dimension,
+                profile=settings.embedding_profile,
+            )
+            runtime = Application.__new__(Application)
+            runtime.settings, runtime.database, runtime.policy = settings, db, PolicyEngine()
+            runtime.embedding_ai, runtime.rag = ai, SimpleNamespace(vectors=vectors)
             async with db.session() as session:
                 allowed = (
                     select(TelegramChatPermission.chat_id)
@@ -569,27 +573,25 @@ def reindex() -> None:
                         TelegramChatPermission.enabled.is_(True),
                     )
                 )
-                rows = (
-                    await session.scalars(
-                        select(TelegramMessage).where(
-                            TelegramMessage.chat_id.in_(allowed),
-                            TelegramMessage.is_deleted.is_(False),
-                            TelegramMessage.text.is_not(None),
+                rows = list(
+                    (
+                        await session.scalars(
+                            select(TelegramMessage).where(
+                                TelegramMessage.chat_id.in_(allowed),
+                                TelegramMessage.is_deleted.is_(False),
+                                TelegramMessage.text.is_not(None),
+                            )
                         )
-                    )
-                ).all()
-                for row in rows:
-                    if contains_secret(row.text or ""):
-                        continue
-                    vector = await ai.embed(session, row.text or "")
-                    if vector:
-                        vectors.upsert(
-                            row.id, vector, chat_id=row.chat_id, message_id=row.message_id
-                        )
-                        count += 1
-            typer.echo(f"Đã lập chỉ mục {count} tin.")
+                    ).all()
+                )
+                result = await runtime._index_knowledge_rows(
+                    session, rows, permission=PermissionName.SEARCH_MESSAGES
+                )
+                typer.echo(f"Indexed {result.indexed} messages; reused {result.reused}.")
         finally:
-            vectors.close()
+            if vectors is not None:
+                vectors.close()
+            await ai.close()
             await db.close()
 
     asyncio.run(execute())

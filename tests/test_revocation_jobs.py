@@ -3,11 +3,13 @@ from __future__ import annotations
 import asyncio
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
 from sqlalchemy import select
 
+from tg_assistant.config import Settings
 from tg_assistant.db.models import (
     BackgroundJob,
     PermissionName,
@@ -60,9 +62,12 @@ def application(session):
     app.database = Database(session)
     app.policy = PolicyEngine()
     app._knowledge_lock = asyncio.Lock()
-    app.settings = SimpleNamespace(
+    app.settings = Settings(
+        _env_file=None,
+        data_dir=Path(".test-temp/v01/f01-profile").resolve(),
         ai_provider="ollama",
         ollama_embedding_model="test",
+        ollama_vector_size=1,
         embedding_version="v1",
         max_input_tokens_per_request=500,
     )

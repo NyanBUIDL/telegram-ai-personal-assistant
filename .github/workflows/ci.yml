@@ -111,6 +111,8 @@ jobs:
           python scripts/ci_checks.py --mysql-required --report .ci-work/summary.json
           tests/integration/test_migrations.py tests/test_revocation_jobs.py
           tests/integration/test_job_concurrency.py tests/test_embedding_profiles.py
+          tests/integration/test_budget_migrations.py
+          tests/test_runtime_embeddings.py
       - name: Stage sanitized evidence
         if: always()
         run: python scripts/ci_artifacts.py .ci-work ci-artifacts
@@ -150,6 +152,8 @@ jobs:
       - run: npm run build
       - run: npm run lint
       - run: npm run test:sites
+      - name: Preserve exact Telegram IDs in real API payloads
+        run: node --test tests/chat-ids.test.mjs
       - name: Install portable Chromium
         run: npx playwright install --with-deps chromium
       - name: Run browser geometry, fonts, keyboard and error regressions

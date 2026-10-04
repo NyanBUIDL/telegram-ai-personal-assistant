@@ -5,7 +5,7 @@ from dataclasses import dataclass
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from .engine import AiEngine
+from .engine import AiEngine, AiUnavailableError
 
 log = structlog.get_logger(__name__)
 
@@ -23,17 +23,22 @@ class AiRoute:
 class AiRouter:
     """Route answer generation while keeping embeddings on the active corpus engine."""
 
-    def __init__(self, engines: dict[str, AiEngine], *, default_provider: str) -> None:
+    def __init__(
+        self, engines: dict[str, AiEngine], *, default_provider: str, cloud_consent: bool = False
+    ) -> None:
         self.engines = engines
         self.default_provider = default_provider
         self.enabled = default_provider != "off"
+        self.cloud_consent = cloud_consent
 
     def _cloud_provider(self, preferred: str | None) -> str | None:
-        if preferred in CLOUD_PROVIDERS and preferred in self.engines:
-            return preferred
+        if not self.cloud_consent:
+            return None
+        if preferred is not None:
+            return preferred if preferred in CLOUD_PROVIDERS and preferred in self.engines else None
         if self.default_provider in CLOUD_PROVIDERS and self.default_provider in self.engines:
             return self.default_provider
-        return next((name for name in ("openai", "openrouter") if name in self.engines), None)
+        return None
 
     def plan(self, route: AiRoute) -> list[str]:
         if not self.enabled:
@@ -59,6 +64,8 @@ class AiRouter:
                 for provider in (cloud, local if route.cloud_fallback else None)
                 if provider
             ]
+        if self.default_provider in CLOUD_PROVIDERS and not self.cloud_consent:
+            return []
         return [self.default_provider] if self.default_provider in self.engines else []
 
     async def answer(
@@ -72,6 +79,8 @@ class AiRouter:
         feature: str = "normal_ask",
         query_route: str = "local_rag",
         chat_id: int | None = None,
+        source_modes: list[str] | None = None,
+        pre_submit=None,
     ) -> str:
         plan = self.plan(route)
         if not plan:
@@ -89,6 +98,8 @@ class AiRouter:
                     route=query_route,
                     chat_id=chat_id,
                     fallback_used=index > 0,
+                    source_modes=source_modes,
+                    pre_submit=pre_submit,
                 )
                 log.info(
                     "ai_route_succeeded",
@@ -97,16 +108,18 @@ class AiRouter:
                     fallback_used=index > 0,
                 )
                 return answer
-            except Exception as exc:
+            except AiUnavailableError as exc:
                 last_error = exc
                 log.warning(
                     "ai_route_failed",
                     provider=provider,
                     mode=route.mode,
                     has_fallback=index + 1 < len(plan),
-                    error=str(exc),
+                    error_code="provider_unavailable",
                 )
-        raise RuntimeError(f"Tất cả AI provider trong route đều lỗi: {last_error}") from last_error
+        raise RuntimeError(
+            "AI provider unavailable for the explicitly selected route"
+        ) from last_error
 
     async def close(self) -> None:
         seen: set[int] = set()

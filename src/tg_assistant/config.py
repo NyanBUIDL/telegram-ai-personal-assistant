@@ -5,6 +5,7 @@ import os
 import re
 import tempfile
 from functools import lru_cache
+from hashlib import sha256
 from pathlib import Path
 from typing import Any, Literal
 from urllib.parse import quote_plus, urlparse
@@ -180,7 +181,9 @@ class Settings(BaseSettings):
     ollama_embedding_model: str = "nomic-embed-text:latest"
     ollama_vector_size: int = 768
     ollama_qdrant_path: Path | None = None
-    embedding_provider: Literal["ollama"] = "ollama"
+    cloud_consent: bool = False
+    embedding_provider: Literal["ollama", "openai", "openrouter", "off"] = "ollama"
+    cloud_embedding_dimension: int = Field(default=1536, ge=1, le=3072)
     embedding_version: str = "local-v1"
 
     confirmation_ttl_seconds: int = 300
@@ -332,7 +335,37 @@ class Settings(BaseSettings):
         inspection only; it is not a runtime resolver because chat provider
         selection must never switch the embedding corpus.
         """
-        return self.resolved_local_embedding_qdrant_path
+        base = self.ollama_qdrant_path or self.data_dir / "qdrant_profiles"
+        return base / self.embedding_profile.store_id
+
+    @property
+    def embedding_profile(self):
+        from .contracts import EmbeddingProfile
+
+        provider = self.embedding_provider
+        endpoint = {
+            "ollama": self.ollama_base_url,
+            "openai": self.openai_base_url,
+            "openrouter": self.openrouter_base_url,
+            "off": "off",
+        }[provider]
+        endpoint_id = f"endpoint-{sha256(endpoint.encode()).hexdigest()[:32]}"
+        dimension = (
+            self.ollama_vector_size if provider == "ollama" else self.cloud_embedding_dimension
+        )
+        material = json.dumps(
+            [provider, endpoint_id, self.active_embedding_model, self.embedding_version, dimension],
+            separators=(",", ":"),
+        )
+        return EmbeddingProfile(
+            provider=provider,
+            endpoint_id=endpoint_id,
+            model=self.active_embedding_model,
+            embedding_version=self.embedding_version,
+            dimension=dimension,
+            store_id=f"embedding-{sha256(material.encode()).hexdigest()[:32]}",
+            cloud_consent=self.cloud_consent,
+        )
 
     @property
     def active_qdrant_vector_size(self) -> int:
@@ -366,21 +399,18 @@ class Settings(BaseSettings):
 
     @property
     def active_embedding_model(self) -> str:
-        """The shared corpus is always embedded locally.
-
-        Chat routing may change between OpenAI, OpenRouter and Ollama, but the
-        vector corpus must remain independent from that choice.  Keeping this
-        property local also prevents an accidental cloud embedding backfill
-        when an owner switches the answer provider from the dashboard.
-        """
-        return self.ollama_embedding_model
+        """Embedding selection is independent of the answer provider."""
+        if self.embedding_provider == "ollama":
+            return self.ollama_embedding_model
+        if self.embedding_provider == "openrouter":
+            return self.openrouter_embedding_model
+        return self.openai_embedding_model
 
     @property
     def provider_embedding_model(self) -> str:
         """Compatibility model used only when constructing a chat provider client.
 
-        The running application never uses this client to backfill the shared
-        corpus; that work is performed by the dedicated local Ollama engine.
+        Shared-corpus work uses the independently selected embedding profile.
         """
         if self.ai_provider == "ollama":
             return self.ollama_embedding_model
@@ -392,6 +422,18 @@ class Settings(BaseSettings):
 @lru_cache
 def get_settings() -> Settings:
     return Settings()
+
+
+def current_cloud_consent(settings: Settings) -> bool:
+    """Read current non-secret profile settings, without cached/legacy consent."""
+    return Settings(
+        _env_file=None, data_dir=settings.data_dir, profile_id=settings.profile_id
+    ).cloud_consent
+
+
+def current_model_enabled(settings: Settings, *, embedding=False) -> bool:
+    current = Settings(_env_file=None, data_dir=settings.data_dir, profile_id=settings.profile_id)
+    return current.ai_provider != "off" and (not embedding or current.enable_embeddings)
 
 
 def save_settings_env(values: dict[str, str]) -> None:

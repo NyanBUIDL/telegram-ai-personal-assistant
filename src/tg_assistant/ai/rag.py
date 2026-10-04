@@ -10,17 +10,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..db.models import (
     AiQueryCache,
-    AiUsage,
     PermissionName,
     TelegramChat,
     TelegramChatPolicy,
     TelegramMessage,
+    VectorStore,
 )
 from ..policy import PolicyEngine
 from ..security import redact
 from ..services.revocation import AuthorizedAnswer, require_authorization, validate_answer
 from ..services.search import SearchService, parse_search_query
-from .engine import AiEngine
+from .budget import BudgetService
+from .engine import AiEngine, AiPolicyError
 from .local_first import (
     PRESETS,
     classify_query,
@@ -152,8 +153,7 @@ def referenced_evidence_indexes(
 def renumber_source_references(answer: str, indexes: list[int]) -> str:
     """Renumber retained source references so the visible sequence starts at S1."""
     mapping = {
-        source_index + 1: visible_index
-        for visible_index, source_index in enumerate(indexes, 1)
+        source_index + 1: visible_index for visible_index, source_index in enumerate(indexes, 1)
     }
 
     def replace(match: re.Match[str]) -> str:
@@ -176,9 +176,7 @@ class RagService:
         self.policy, self.ai, self.vectors = policy, ai, vectors
         self.router = router
         self.embedding_ai = embedding_ai or ai
-        self.default_preset = (
-            default_preset if default_preset in PRESETS else "balanced"
-        )
+        self.default_preset = default_preset if default_preset in PRESETS else "balanced"
         self.keyword = SearchService(policy)
 
     async def answer(
@@ -211,20 +209,36 @@ class RagService:
                 "Không tìm thấy đủ thông tin trong 7 ngày gần nhất "
                 "từ dữ liệu Telegram đã được cấp quyền."
             )
-        epochs = {chat_id: await require_authorization(session, chat_id, PermissionName.SEARCH_MESSAGES) for chat_id in allowed}
-        async def fence():
+        epochs = {
+            chat_id: await require_authorization(session, chat_id, PermissionName.SEARCH_MESSAGES)
+            for chat_id in allowed
+        }
+
+        async def fence(*, embedding=False):
+            provider_fence = getattr(self, "provider_fence", None)
+            if provider_fence:
+                await provider_fence(
+                    epochs,
+                    PermissionName.SEARCH_MESSAGES,
+                    cloud=(self.embedding_ai.provider in {"openai", "openrouter"})
+                    if embedding
+                    else any(provider in {"openai", "openrouter"} for provider in provider_plan),
+                    store_id=getattr(getattr(self.vectors, "profile", None), "store_id", None)
+                    if embedding
+                    else None,
+                )
+                return
             database = getattr(self, "database", None)
             if database:
                 async with database.session() as current:
                     await validate_answer(current, AuthorizedAnswer("", epochs))
             else:
                 await validate_answer(session, AuthorizedAnswer("", epochs))
+
         policies = list(
             (
                 await session.scalars(
-                    select(TelegramChatPolicy).where(
-                        TelegramChatPolicy.chat_id.in_(allowed)
-                    )
+                    select(TelegramChatPolicy).where(TelegramChatPolicy.chat_id.in_(allowed))
                 )
             ).all()
         )
@@ -234,9 +248,7 @@ class RagService:
             if policy.ai_efficiency_preset in PRESETS
         }
         preset = PRESETS[
-            configured_presets.pop()
-            if len(configured_presets) == 1
-            else self.default_preset
+            configured_presets.pop() if len(configured_presets) == 1 else self.default_preset
         ]
         configured_top_k = [policy.rag_top_k for policy in policies if policy.rag_top_k]
         effective_top_k = min(
@@ -247,11 +259,20 @@ class RagService:
         feature = route_feature(query_route)
         ai_route = await self.policy.ai_route(session, allowed)
         provider_plan = self.router.plan(ai_route) if self.router else [self.ai.provider]
+        cloud_modes = {"inherit", "local_first", "cloud_only", "cloud_first"}
+        modes_by_chat = {policy.chat_id: policy.ai_mode for policy in policies}
+        if any(provider in {"openai", "openrouter"} for provider in provider_plan):
+            # Filter before keyword/vector retrieval, context and cache lookup.
+            # LOCAL ONLY remains excluded even when cloud is merely a fallback.
+            allowed = [chat_id for chat_id in allowed if modes_by_chat.get(chat_id) in cloud_modes]
+            policies = [policy for policy in policies if policy.chat_id in allowed]
+            epochs = {chat_id: epoch for chat_id, epoch in epochs.items() if chat_id in allowed}
+            if not allowed:
+                return "Không có nguồn được phép gửi tới AI cloud."
+        source_modes = [modes_by_chat[chat_id] for chat_id in allowed]
         planned_provider = provider_plan[0] if provider_plan else "off"
         planned_engine = (
-            self.router.engines.get(planned_provider)
-            if self.router
-            else self.ai
+            self.router.engines.get(planned_provider) if self.router else self.ai
         ) or self.ai
         knowledge_updated_at = await session.scalar(
             select(func.max(TelegramMessage.updated_at)).where(
@@ -259,9 +280,7 @@ class RagService:
                 TelegramMessage.is_deleted.is_(False),
             )
         )
-        knowledge_version = (
-            knowledge_updated_at.isoformat() if knowledge_updated_at else "empty"
-        )
+        knowledge_version = knowledge_updated_at.isoformat() if knowledge_updated_at else "empty"
         cache_key, normalized_query_hash = query_cache_key(
             question,
             chat_ids=allowed,
@@ -285,34 +304,25 @@ class RagService:
         )
         if cached:
             await fence()
-            cached.hit_count += 1
-            cached.last_hit_at = now
-            session.add(
-                AiUsage(
-                    occurred_at=now,
-                    model=cached.model or planned_engine.model,
-                    operation="cache_hit",
-                    input_tokens=0,
-                    output_tokens=0,
-                    estimated_cost_usd=0,
-                    success=True,
-                    provider=cached.provider,
-                    feature=feature,
-                    route=query_route.value,
-                    chat_id=allowed[0] if len(allowed) == 1 else None,
-                    cached_tokens=estimate_tokens(cached.response),
-                    embedding_tokens=0,
-                    cache_hit=True,
-                    is_local=cached.provider == "ollama",
-                    fallback_used=False,
-                )
+            await session.commit()
+            budget = getattr(planned_engine, "budget", None) or BudgetService(1, 10)
+            await budget.admit_cache_hit(
+                session,
+                cache_key=cache_key,
+                response=cached.response,
+                cached_tokens=estimate_tokens(cached.response),
+                provider=cached.provider,
+                model=cached.model or planned_engine.model,
+                feature=feature,
+                route=query_route.value,
+                chat_id=allowed[0] if len(allowed) == 1 else None,
+                now=now,
             )
+            await fence()
             return AuthorizedAnswer(cached.response, epochs)
         recent_since, asked_at = rag_time_window()
         effective_after = (
-            parsed.after
-            if parsed.after is not None or parsed.before is not None
-            else recent_since
+            parsed.after if parsed.after is not None or parsed.before is not None else recent_since
         )
         effective_before = parsed.before or asked_at
         effective_question = parsed.text or question
@@ -334,7 +344,23 @@ class RagService:
             )
             for result in keywords
         }
-        if self.vectors and self.embedding_ai.available:
+        cloud_embedding = getattr(self.embedding_ai, "provider", "ollama") in {
+            "openai",
+            "openrouter",
+        }
+        embedding_allowed = bool(provider_plan) and (
+            not cloud_embedding or all(mode in cloud_modes for mode in source_modes)
+        )
+        profile = getattr(self.vectors, "profile", None)
+        if profile is not None:
+            store = await session.get(VectorStore, profile.store_id)
+            embedding_allowed = (
+                embedding_allowed
+                and store is not None
+                and store.role == "semantic_active"
+                and store.state == "active"
+            )
+        if self.vectors and self.embedding_ai.available and embedding_allowed:
             reference_filters = [
                 TelegramMessage.chat_id.in_(allowed),
                 TelegramMessage.sent_at <= effective_before,
@@ -378,7 +404,23 @@ class RagService:
             )
             try:
                 await fence()
-                query_vector = await self.embedding_ai.embed(session, effective_question)
+                if isinstance(self.embedding_ai, AiEngine):
+                    await session.commit()
+
+                    async def embedding_fence():
+                        await fence(embedding=True)
+
+                    query_vector = await self.embedding_ai.embed(
+                        session,
+                        effective_question,
+                        source_modes=source_modes,
+                        pre_submit=embedding_fence,
+                        chat_id=allowed[0] if len(allowed) == 1 else None,
+                    )
+                else:
+                    query_vector = await self.embedding_ai.embed(session, effective_question)
+            except AiPolicyError:
+                raise
             except Exception:
                 query_vector = None
             if query_vector:
@@ -398,9 +440,7 @@ class RagService:
                     ]
                     if effective_after is not None:
                         row_filters.append(TelegramMessage.sent_at >= effective_after)
-                    row = await session.scalar(
-                        select(TelegramMessage).where(*row_filters)
-                    )
+                    row = await session.scalar(select(TelegramMessage).where(*row_filters))
                     if row:
                         combined[(row.chat_id, row.message_id)] = (
                             score,
@@ -452,13 +492,9 @@ class RagService:
         bounded_evidence: list[SourceEvidence] = []
         context_tokens = 0
         policy_context_limits = [
-            policy.rag_max_context_tokens
-            for policy in policies
-            if policy.rag_max_context_tokens
+            policy.rag_max_context_tokens for policy in policies if policy.rag_max_context_tokens
         ]
-        max_context_tokens = min(
-            [preset.max_context_tokens, *policy_context_limits]
-        )
+        max_context_tokens = min([preset.max_context_tokens, *policy_context_limits])
         for evidence in evidence_rows:
             context = source_context(len(contexts) + 1, evidence)
             tokens = estimate_tokens(context)
@@ -469,6 +505,8 @@ class RagService:
             context_tokens += tokens
         evidence_rows = bounded_evidence
         await fence()
+        if isinstance(self.ai, AiEngine):
+            await session.commit()
         if self.router:
             answer = await self.router.answer(
                 session,
@@ -479,6 +517,17 @@ class RagService:
                 feature=feature,
                 query_route=query_route.value,
                 chat_id=allowed[0] if len(allowed) == 1 else None,
+                source_modes=source_modes,
+                pre_submit=fence,
+            )
+        elif isinstance(self.ai, AiEngine):
+            answer = await self.ai.answer(
+                session,
+                effective_question,
+                contexts,
+                include_source_refs=include_citations,
+                source_modes=source_modes,
+                pre_submit=fence,
             )
         elif include_citations:
             answer = await self.ai.answer(session, effective_question, contexts)
@@ -494,10 +543,7 @@ class RagService:
             indexes = referenced_evidence_indexes(answer, item_count=len(evidence_rows))
             cited_rows = [evidence_rows[index] for index in indexes]
             answer = renumber_source_references(answer, indexes)
-            answer = (
-                f"{answer.rstrip()}\n\n"
-                f"{citation_appendix(cited_rows)}"
-            )
+            answer = f"{answer.rstrip()}\n\n{citation_appendix(cited_rows)}"
         else:
             answer = without_source_references(answer)
         session.add(
@@ -517,9 +563,7 @@ class RagService:
                         "message_id": evidence.message_id,
                         "url": evidence.url,
                         "title": evidence.title,
-                        "sent_at": (
-                            evidence.sent_at.isoformat() if evidence.sent_at else None
-                        ),
+                        "sent_at": (evidence.sent_at.isoformat() if evidence.sent_at else None),
                     }
                     for evidence in evidence_rows
                 ],

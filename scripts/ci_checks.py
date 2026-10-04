@@ -16,6 +16,8 @@ REQUIRED_MYSQL_MODULES = {
     "test_revocation_jobs.py",
     "test_job_concurrency.py",
     "test_embedding_profiles.py",
+    "test_budget_migrations.py",
+    "test_runtime_embeddings.py",
 }
 # F02 parametrizes the SQLite rowid semantic check over both fixture backends;
 # its MySQL variant is intentionally inapplicable, not required dialect coverage.
@@ -61,7 +63,15 @@ class Evidence:
         selected, deselected = [], []
         for item in items:
             params = getattr(getattr(item, "callspec", None), "params", {})
-            backend = params.get("connection", params.get("backend", params.get("storage")))
+            backend = params.get(
+                "connection",
+                params.get(
+                    "backend",
+                    params.get(
+                        "storage", params.get("budget_connection", params.get("runtime_case"))
+                    ),
+                ),
+            )
             is_mysql = (
                 backend == "mysql"
                 if backend is not None
