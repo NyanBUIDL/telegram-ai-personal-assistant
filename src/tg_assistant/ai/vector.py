@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import tempfile
+import uuid
 from pathlib import Path
 
 from qdrant_client import QdrantClient
@@ -11,7 +12,6 @@ from qdrant_client.models import (
     FieldCondition,
     Filter,
     MatchValue,
-    PointIdsList,
     PointStruct,
     VectorParams,
 )
@@ -68,6 +68,36 @@ class LocalVectorStore:
             self.client.close()
             raise
 
+    def point_id(self, reference_id: int, *, chat_id: int, message_id: int):
+        if self.profile is None:
+            return reference_id
+        return str(
+            uuid.uuid5(uuid.NAMESPACE_URL, f"{self.profile.store_id}:{chat_id}:{message_id}")
+        )
+
+    def has_current_point(
+        self, reference_id: int, *, chat_id: int, message_id: int, content_hash: str | None
+    ) -> bool:
+        points = self.client.retrieve(
+            self.COLLECTION,
+            ids=[self.point_id(reference_id, chat_id=chat_id, message_id=message_id)],
+            with_payload=True,
+            with_vectors=False,
+        )
+        return bool(
+            points
+            and all(
+                (points[0].payload or {}).get(key) == value
+                for key, value in {
+                    "reference_id": reference_id,
+                    "chat_id": chat_id,
+                    "message_id": message_id,
+                    "content_hash": content_hash,
+                    "store_id": self.profile.store_id if self.profile else None,
+                }.items()
+            )
+        )
+
     def upsert(
         self, reference_id: int, vector: list[float], *, chat_id: int, message_id: int
     ) -> None:
@@ -76,6 +106,8 @@ class LocalVectorStore:
     def upsert_many(
         self,
         entries: list[tuple[int, list[float], int, int]],
+        *,
+        content_hashes: dict[int, str | None] | None = None,
     ) -> None:
         if not entries:
             return
@@ -83,9 +115,15 @@ class LocalVectorStore:
             self.COLLECTION,
             [
                 PointStruct(
-                    id=reference_id,
+                    id=self.point_id(reference_id, chat_id=chat_id, message_id=message_id),
                     vector=vector,
-                    payload={"chat_id": chat_id, "message_id": message_id},
+                    payload={
+                        "chat_id": chat_id,
+                        "message_id": message_id,
+                        "reference_id": reference_id,
+                        "content_hash": (content_hashes or {}).get(reference_id),
+                        "store_id": self.profile.store_id if self.profile else None,
+                    },
                 )
                 for reference_id, vector, chat_id, message_id in entries
             ],
@@ -107,7 +145,16 @@ class LocalVectorStore:
             FieldCondition(key="chat_id", match=MatchAny(any=allowed_chat_ids)),
         ]
         if allowed_reference_ids is not None:
-            conditions.append(HasIdCondition(has_id=allowed_reference_ids))
+            conditions.append(
+                Filter(
+                    should=[
+                        HasIdCondition(has_id=allowed_reference_ids),
+                        FieldCondition(
+                            key="reference_id", match=MatchAny(any=allowed_reference_ids)
+                        ),
+                    ]
+                )
+            )
 
         points = self.client.query_points(
             self.COLLECTION,
@@ -115,7 +162,14 @@ class LocalVectorStore:
             query_filter=Filter(must=conditions),
             limit=limit,
         ).points
-        return [(int(point.id), float(point.score), dict(point.payload or {})) for point in points]
+        return [
+            (
+                int((point.payload or {}).get("reference_id", point.id)),
+                float(point.score),
+                dict(point.payload or {}),
+            )
+            for point in points
+        ]
 
     def reference_ids(self, *, chat_id: int | None = None) -> list[int]:
         query_filter = (
@@ -138,10 +192,12 @@ class LocalVectorStore:
                 scroll_filter=query_filter,
                 limit=256,
                 offset=offset,
-                with_payload=False,
+                with_payload=True,
                 with_vectors=False,
             )
-            result.extend(int(point.id) for point in points)
+            result.extend(
+                int((point.payload or {}).get("reference_id", point.id)) for point in points
+            )
             if offset is None:
                 return result
 
@@ -149,9 +205,16 @@ class LocalVectorStore:
         unique = list(dict.fromkeys(reference_ids))
         if not unique:
             return 0
+        from qdrant_client.models import HasIdCondition, MatchAny
+
         self.client.delete(
             self.COLLECTION,
-            points_selector=PointIdsList(points=unique),
+            points_selector=Filter(
+                should=[
+                    HasIdCondition(has_id=unique),
+                    FieldCondition(key="reference_id", match=MatchAny(any=unique)),
+                ]
+            ),
             wait=True,
         )
         return len(unique)

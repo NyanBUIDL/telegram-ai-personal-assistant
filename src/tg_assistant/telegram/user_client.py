@@ -492,6 +492,7 @@ class UserClientAdapter:
         )
         if stored:
             stored.is_deleted = True
+            await self._dirty_message(session, stored)
         session.add(
             AuditLog(
                 occurred_at=datetime.now(UTC),
@@ -595,6 +596,23 @@ class UserClientAdapter:
                     ).all()
                     for row in rows:
                         row.is_deleted = True
+                        await self._dirty_message(session, row)
+
+    async def _dirty_message(self, session: AsyncSession, row: TelegramMessage) -> None:
+        """Coalesce invalidations transactionally with the authoritative edit/delete."""
+        row.vector_dirty = True
+        row.content_hash = None  # invalidate any captured in-flight embedding fence
+        # An edited/deleted canonical may need a surviving duplicate promoted.
+        duplicates = (
+            await session.scalars(
+                select(TelegramMessage).where(
+                    TelegramMessage.chat_id == row.chat_id,
+                    TelegramMessage.embedding_skip_reason == "duplicate",
+                )
+            )
+        ).all()
+        for duplicate in duplicates:
+            duplicate.vector_dirty = True
 
     async def _upsert_message(self, session: AsyncSession, message: Any) -> None:
         row = await session.scalar(
@@ -604,6 +622,8 @@ class UserClientAdapter:
             )
         )
         if row:
+            if row.text != message.message or row.is_deleted:
+                await self._dirty_message(session, row)
             if row.text != message.message:
                 version_number = (
                     int(
@@ -649,14 +669,18 @@ class UserClientAdapter:
             "metadata_json": {"media_kind": message_media_kind(message)},
         }
         update_columns = {
-            key: value for key, value in values.items() if key not in {"chat_id", "message_id"}
+            key: value
+            for key, value in values.items()
+            if key not in {"chat_id", "message_id", "metadata_json"}
         }
         dialect = session.get_bind().dialect.name
         if dialect == "mysql":
             statement = mysql_insert(TelegramMessage).values(**values)
             await session.execute(
                 statement.on_duplicate_key_update(
-                    **{key: getattr(statement.inserted, key) for key in update_columns}
+                    **{key: getattr(statement.inserted, key) for key in update_columns},
+                    vector_dirty=True,
+                    content_hash=None,
                 )
             )
             return
@@ -665,7 +689,11 @@ class UserClientAdapter:
             await session.execute(
                 statement.on_conflict_do_update(
                     index_elements=["chat_id", "message_id"],
-                    set_={key: getattr(statement.excluded, key) for key in update_columns},
+                    set_={
+                        **{key: getattr(statement.excluded, key) for key in update_columns},
+                        "vector_dirty": True,
+                        "content_hash": None,
+                    },
                 )
             )
             return

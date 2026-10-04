@@ -125,6 +125,10 @@ async def test_continued_learning_selects_only_rows_after_checkpoint(session) ->
                 message_id=row_id,
                 text=f"tin {row_id}",
                 sent_at=now,
+                # Selection-only fixture: prior rows were accounted at the
+                # checkpoint. No actual point or vector readiness is asserted.
+                vector_status="indexed" if row_id <= 3 else "pending",
+                metadata_json={"checkpoint_accounted": True} if row_id <= 3 else None,
             )
             for row_id in range(1, 6)
         ]

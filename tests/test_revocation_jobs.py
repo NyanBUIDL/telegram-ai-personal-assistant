@@ -9,6 +9,7 @@ from types import SimpleNamespace
 import pytest
 from sqlalchemy import select
 
+from tg_assistant.ai.vector import LocalVectorStore
 from tg_assistant.config import Settings
 from tg_assistant.db.models import (
     BackgroundJob,
@@ -182,7 +183,7 @@ async def test_queued_job_cannot_reallow_blocked_chat(session, mode):
 
 
 @pytest.mark.asyncio
-async def test_revoke_during_embedding_prevents_upsert(session):
+async def test_revoke_during_embedding_prevents_upsert(session, tmp_path):
     await authorize(session)
     row = TelegramMessage(
         chat_id=100,
@@ -193,8 +194,12 @@ async def test_revoke_during_embedding_prevents_upsert(session):
     session.add(row)
     await session.commit()
     app = application(session)
-    points = []
-    app.rag.vectors.upsert_many = points.extend
+    app.settings = app.settings.model_copy(update={"data_dir": tmp_path / "profile"})
+    app.rag.vectors = LocalVectorStore(
+        app.settings.resolved_semantic_vector_path,
+        vector_size=1,
+        profile=app.settings.embedding_profile,
+    )
 
     async def embed(*args, **kwargs):
         await PolicyEngine().set_allowed(session, 100, False)
@@ -203,11 +208,12 @@ async def test_revoke_during_embedding_prevents_upsert(session):
 
     app.embedding_ai.embed_many = embed
     try:
-        await app._index_knowledge_rows(session, [row])
-    except PermissionError:
-        pass
-    assert points == []
-    assert row.vector_status != "indexed"
+        with pytest.raises(AuthorizationRevoked):
+            await app._index_knowledge_rows(session, [row])
+        assert app.rag.vectors.count(chat_id=100) == 0
+        assert row.vector_status != "indexed"
+    finally:
+        app.rag.vectors.close()
 
 
 @pytest.mark.asyncio
@@ -343,7 +349,14 @@ async def test_committed_revoke_during_embedding_from_another_transaction(tmp_pa
         await connection.run_sync(Base.metadata.create_all)
     started = asyncio.Event()
     release = asyncio.Event()
-    points = []
+    app = application(None)
+    app.settings = app.settings.model_copy(update={"data_dir": tmp_path / "profile"})
+    app.database = database
+    app.rag.vectors = LocalVectorStore(
+        app.settings.resolved_semantic_vector_path,
+        vector_size=1,
+        profile=app.settings.embedding_profile,
+    )
     try:
         async with database.session() as session:
             await authorize(session)
@@ -359,9 +372,6 @@ async def test_committed_revoke_during_embedding_from_another_transaction(tmp_pa
         async def index():
             async with database.session() as session:
                 row = await session.scalar(select(TelegramMessage))
-                app = application(session)
-                app.database = database
-                app.rag.vectors.upsert_many = points.extend
 
                 async def embed(*args, **kwargs):
                     started.set()
@@ -378,7 +388,7 @@ async def test_committed_revoke_during_embedding_from_another_transaction(tmp_pa
         assert report.authorization_epoch == 1
         release.set()
         await asyncio.wait_for(task, 5)
-        assert points == []
+        assert app.rag.vectors.count(chat_id=100) == 0
         async with database.session() as session:
             assert (await session.scalar(select(TelegramMessage.vector_status))) != "indexed"
         # A fresh database object represents restart and preserves the fence.
@@ -389,6 +399,7 @@ async def test_committed_revoke_during_embedding_from_another_transaction(tmp_pa
                 await require_authorization(session, 100, PermissionName.AUTO_KNOWLEDGE, 0)
     finally:
         release.set()
+        app.rag.vectors.close()
         await database.close()
 
 

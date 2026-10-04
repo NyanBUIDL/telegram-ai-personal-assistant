@@ -131,6 +131,9 @@ class TelegramMessage(Base, TimestampMixin):
     vector_status: Mapped[str] = mapped_column(
         String(32), default="pending", nullable=False, index=True
     )
+    vector_dirty: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default="0", nullable=False, index=True
+    )
     embedded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     embedding_error: Mapped[str | None] = mapped_column(Text)
     embedding_skip_reason: Mapped[str | None] = mapped_column(String(32), index=True)
@@ -202,9 +205,7 @@ class TelegramChatPolicy(Base, TimestampMixin):
     max_storage_mb: Mapped[int | None] = mapped_column(Integer)
     max_vectors: Mapped[int | None] = mapped_column(Integer)
     ai_efficiency_preset: Mapped[str | None] = mapped_column(String(32))
-    filtering_level: Mapped[str] = mapped_column(
-        String(32), default="standard", nullable=False
-    )
+    filtering_level: Mapped[str] = mapped_column(String(32), default="standard", nullable=False)
     rag_top_k: Mapped[int | None] = mapped_column(Integer)
     rag_max_context_tokens: Mapped[int | None] = mapped_column(Integer)
 

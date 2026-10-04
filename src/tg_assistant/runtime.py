@@ -17,13 +17,12 @@ import uvicorn
 from aiogram import Bot
 from apscheduler.events import EVENT_JOB_ERROR, EVENT_JOB_EXECUTED, EVENT_JOB_MISSED
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from sqlalchemy import delete, exists, func, or_, select, text, update
+from sqlalchemy import case, delete, exists, func, or_, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .admin_api import AdminContext, create_admin_app, ensure_dashboard_secret
 from .ai.budget import BudgetService
 from .ai.engine import AiEngine, AiPolicyError, AiUncertainError, make_embedding_engine
-from .ai.local_first import embedding_decision
 from .ai.rag import (
     RagService,
     SourceEvidence,
@@ -103,7 +102,11 @@ from .services.revocation import (
     validate_answer,
 )
 from .services.tasks import TaskService
-from .services.vector_reliability import ensure_vector_store_registry
+from .services.vector_reliability import (
+    SourceIndexService,
+    ensure_vector_store_registry,
+    inspect_source_coverage,
+)
 from .telegram.control_bot import ControlBot, telegram_html_chunks
 from .telegram.pairing import PairingCode
 from .telegram.user_client import UserClientAdapter, mask_phone
@@ -233,20 +236,74 @@ def knowledge_rows_query(
     checkpoint_id: int = 0,
     since: datetime | None = None,
 ):
-    """Select rows that extend the shared corpus without re-embedding old rows."""
-    query = select(TelegramMessage).where(
-        TelegramMessage.chat_id == chat_id,
-        TelegramMessage.is_deleted.is_(False),
-        TelegramMessage.text.is_not(None),
-    )
+    """Drain invalidations before admissions in the shared deterministic order."""
+    fresh = TelegramMessage.is_deleted.is_(False) & TelegramMessage.text.is_not(None)
+    if limit <= 0:
+        fresh = TelegramMessage.id < 0  # exhausted quota: drain invalidations only
     if checkpoint_id > 0:
-        query = query.where(TelegramMessage.id > checkpoint_id)
-        if since is not None:
-            query = query.where(TelegramMessage.sent_at >= since)
-        return query.order_by(TelegramMessage.id.asc()).limit(limit)
+        fresh = fresh & or_(
+            TelegramMessage.id > checkpoint_id,
+            TelegramMessage.embedding_skip_reason == "quota_exceeded",
+            TelegramMessage.vector_status == "pending",
+        )
     if since is not None:
-        query = query.where(TelegramMessage.sent_at >= since)
-    return query.order_by(TelegramMessage.sent_at.desc()).limit(limit)
+        fresh = fresh & (TelegramMessage.sent_at >= since)
+    return (
+        select(TelegramMessage)
+        .where(
+            TelegramMessage.chat_id == chat_id, or_(TelegramMessage.vector_dirty.is_(True), fresh)
+        )
+        .order_by(
+            case(
+                (TelegramMessage.is_deleted.is_(True) & TelegramMessage.vector_dirty.is_(True), 0),
+                (
+                    TelegramMessage.vector_dirty.is_(True)
+                    & or_(
+                        TelegramMessage.embedded_at.is_not(None),
+                        TelegramMessage.vector_status == "indexed",
+                    ),
+                    1,
+                ),
+                else_=2,
+            ),
+            TelegramMessage.id.asc(),
+        )
+        .limit(limit if limit > 0 else 100)
+    )
+
+
+async def knowledge_checkpoint_after(
+    session,
+    chat_id: int,
+    previous_id: int,
+    evaluated_rows: list[TelegramMessage],
+    *,
+    since: datetime | None = None,
+) -> int:
+    """Advance only over accounted candidates; retain older pending work.
+
+    Deletions/repairs can preempt admission batches by design. Their higher row
+    ID cannot certify that intervening, untouched source rows were evaluated.
+    Pending selection below checkpoints also repairs older legacy checkpoints.
+    """
+    proposed = max(previous_id, max((row.id for row in evaluated_rows), default=previous_id))
+    first_pending = await session.scalar(
+        select(func.min(TelegramMessage.id)).where(
+            TelegramMessage.chat_id == chat_id,
+            TelegramMessage.id > previous_id,
+            TelegramMessage.id <= proposed,
+            TelegramMessage.id.not_in([row.id for row in evaluated_rows]),
+            TelegramMessage.is_deleted.is_(False),
+            TelegramMessage.text.is_not(None),
+            or_(TelegramMessage.vector_status == "pending", TelegramMessage.vector_dirty.is_(True)),
+            *([TelegramMessage.sent_at >= since] if since is not None else []),
+        )
+    )
+    return (
+        min(proposed, max(previous_id, first_pending - 1))
+        if first_pending is not None
+        else proposed
+    )
 
 
 def knowledge_checkpoint_key(provider: str, chat_id: int) -> str:
@@ -1511,7 +1568,14 @@ class Application:
                 await session.scalars(
                     select(TelegramMessage)
                     .where(TelegramMessage.id.in_(row_ids))
-                    .order_by(TelegramMessage.id)
+                    .order_by(
+                        case(
+                            (TelegramMessage.is_deleted.is_(True), 0),
+                            (TelegramMessage.embedded_at.is_not(None), 1),
+                            else_=2,
+                        ),
+                        TelegramMessage.id,
+                    )
                     .with_for_update()
                     .execution_options(populate_existing=True)
                 )
@@ -1535,25 +1599,47 @@ class Application:
         waiting_intents = {}
         reused = filtered = duplicate = skipped = 0
         seen_by_chat = {}
-        existing_hashes = list(
+        index = SourceIndexService(self.settings, self.rag.vectors)
+        source_policies = {
+            policy.chat_id: policy
+            for policy in (
+                await session.scalars(
+                    select(TelegramChatPolicy).where(TelegramChatPolicy.chat_id.in_(epochs))
+                )
+            ).all()
+        }
+        existing_rows = list(
             (
-                await session.execute(
-                    select(TelegramMessage.chat_id, TelegramMessage.content_hash).where(
+                await session.scalars(
+                    select(TelegramMessage).where(
+                        TelegramMessage.chat_id.in_(epochs),
                         TelegramMessage.id.not_in(row_ids),
-                        TelegramMessage.vector_status == "indexed",
-                        TelegramMessage.embedding_provider == profile.provider,
-                        TelegramMessage.embedding_model == profile.model,
-                        TelegramMessage.embedding_version == profile.embedding_version,
-                        TelegramMessage.metadata_json["embedding_store_id"].as_string()
-                        == profile.store_id,
+                        TelegramMessage.is_deleted.is_(False),
                     )
                 )
             ).all()
         )
-        for chat_id, digest in existing_hashes:
-            seen_by_chat.setdefault(chat_id, set()).add(digest)
+        for previous in sorted(existing_rows, key=lambda row: row.id):
+            decision = index.decision(previous, source_policies.get(previous.chat_id))
+            if decision.eligible and index.current(previous):
+                seen_by_chat.setdefault(previous.chat_id, {}).setdefault(
+                    decision.content_hash, previous.id
+                )
+        source_admissions = {
+            chat_id: index.admitted_canonicals(
+                [row for row in existing_rows + current_rows if row.chat_id == chat_id],
+                source_policies.get(chat_id),
+            )
+            for chat_id in epochs
+        }
+        present_by_chat = {
+            chat_id: set(self.rag.vectors.reference_ids(chat_id=chat_id)) for chat_id in epochs
+        }
+        admitted_by_chat = {
+            chat_id: len(reference_ids) for chat_id, reference_ids in present_by_chat.items()
+        }
         for row in current_rows:
-            seen = seen_by_chat.setdefault(row.chat_id, set())
+            seen = seen_by_chat.setdefault(row.chat_id, {})
             mode = policies.get(row.chat_id)
             if mode == "off" or (
                 cloud and mode not in {"inherit", "local_first", "cloud_only", "cloud_first"}
@@ -1561,6 +1647,25 @@ class Application:
                 skipped += 1
                 continue
             metadata = dict(row.metadata_json or {})
+            decision = index.decision(row, source_policies.get(row.chat_id))
+            if not decision.eligible:
+                self.rag.vectors.delete_reference_ids([row.id])
+                if row.id in present_by_chat[row.chat_id]:
+                    present_by_chat[row.chat_id].remove(row.id)
+                    admitted_by_chat[row.chat_id] -= 1
+                row.vector_status, row.embedding_skip_reason = "skipped", decision.reason
+                row.vector_dirty = False
+                if decision.reason in {
+                    "empty_content",
+                    "service_message",
+                    "unsupported_content",
+                    "retention_excluded",
+                    "request_too_large",
+                }:
+                    skipped += 1
+                else:
+                    filtered += 1
+                continue
             pending_id = metadata.get("embedding_request_id")
             if pending_id:
                 pending = await session.get(AiBudgetReservation, pending_id)
@@ -1578,32 +1683,59 @@ class Application:
                 ):
                     await session.commit()
                     raise AiUncertainError("Embedding outcome requires reconciliation")
-            decision = embedding_decision(
-                row.text, metadata=metadata, duplicate_hashes=seen, filtering_level=filtering_level
-            )
+            point_current = index.current(row)
             row.normalized_text = decision.normalized_text or None
             row.content_hash = decision.content_hash
             row.embedding_error = None
+            if point_current:
+                reused += 1
+                row.vector_dirty = False
+                row.metadata_json = {
+                    **metadata,
+                    "embedding_policy_version": index.policy_version(source_policies[row.chat_id]),
+                }
+                seen.setdefault(decision.content_hash, row.id)
+                continue
+            if decision.content_hash in seen:
+                row.vector_status, row.embedding_skip_reason = "skipped", "duplicate"
+                row.metadata_json = {
+                    **metadata,
+                    "duplicate_reference_id": seen[decision.content_hash],
+                    "embedding_store_id": profile.store_id,
+                    "embedding_policy_version": index.policy_version(source_policies[row.chat_id]),
+                }
+                row.vector_dirty = True
+                self.rag.vectors.delete_reference_ids([row.id])
+                duplicate += 1
+                continue
             if (
                 row.vector_status == "indexed"
-                and row.embedding_provider == profile.provider
-                and row.embedding_model == profile.model
-                and row.embedding_version == profile.embedding_version
-                and metadata.get("embedding_store_id") == profile.store_id
                 and metadata.get("embedding_content_hash") == decision.content_hash
             ):
-                reused += 1
-                seen.add(decision.content_hash or "")
+                metadata["embedding_repair_generation"] = (
+                    int(metadata.get("embedding_repair_generation", 0)) + 1
+                )
+                row.metadata_json = metadata
+            source_policy = source_policies.get(row.chat_id)
+            cap = index.point_cap(source_policy)
+            canonical = source_admissions[row.chat_id].get(decision.content_hash)
+            if row.id not in present_by_chat[row.chat_id] and (
+                canonical is None
+                or canonical.id != row.id
+                or (cap is not None and admitted_by_chat[row.chat_id] >= cap)
+            ):
+                row.vector_status, row.embedding_skip_reason = "skipped", "quota_exceeded"
+                # Admission deferral is separate from the invalidation outbox.
+                # Reconsider when capacity is available, even below checkpoint.
+                row.vector_dirty = False
+                row.metadata_json = {
+                    **metadata,
+                    "embedding_store_id": profile.store_id,
+                    "embedding_policy_version": index.policy_version(source_policy),
+                }
+                skipped += 1
                 continue
-            if not decision.eligible:
-                row.vector_status, row.embedding_skip_reason = "skipped", decision.reason
-                if decision.reason == "duplicate":
-                    duplicate += 1
-                elif decision.reason in {"empty_content", "service_message", "unsupported_content"}:
-                    skipped += 1
-                else:
-                    filtered += 1
-                continue
+            row.vector_dirty = True
             row.vector_status, row.embedding_skip_reason = "pending", None
             if (
                 len((row.normalized_text or "").encode("utf-8")) + 16
@@ -1613,7 +1745,9 @@ class Application:
                 skipped += 1
                 continue
             eligible.append(row)
-            seen.add(decision.content_hash or "")
+            if row.id not in present_by_chat[row.chat_id]:
+                admitted_by_chat[row.chat_id] += 1
+            seen[decision.content_hash] = row.id
         # Each reservation belongs to one source so per-group caps cannot be
         # charged only to the first source of a mixed batch.
         batches = [
@@ -1629,7 +1763,15 @@ class Application:
             material = [
                 profile.store_id,
                 permission.value,
-                [(row.id, row.content_hash, epochs[row.chat_id]) for row in batch],
+                [
+                    (
+                        row.id,
+                        row.content_hash,
+                        epochs[row.chat_id],
+                        (row.metadata_json or {}).get("embedding_repair_generation", 0),
+                    )
+                    for row in batch
+                ],
             ]
             request_id = sha256(json.dumps(material, separators=(",", ":")).encode()).hexdigest()
             if any(waiting_intents.get(row.id, request_id) != request_id for row in batch):
@@ -1671,9 +1813,11 @@ class Application:
                 [
                     (row.id, vector, row.chat_id, row.message_id)
                     for row, vector in zip(batch, vectors, strict=True)
-                ]
+                ],
+                content_hashes={row.id: row.content_hash for row in batch},
             )
             for row in batch:
+                row.vector_dirty = False
                 row.embedding_provider, row.embedding_model = profile.provider, profile.model
                 row.embedding_version = profile.embedding_version
                 row.vector_status, row.embedded_at = "indexed", datetime.now(UTC)
@@ -1681,9 +1825,14 @@ class Application:
                 row.metadata_json = {
                     **(row.metadata_json or {}),
                     "embedding_content_hash": row.content_hash,
+                    "embedding_policy_version": index.policy_version(source_policies[row.chat_id]),
                 }
             indexed += len(vectors)
             await session.commit()
+        for row in current_rows:
+            if row.embedding_skip_reason == "duplicate":
+                row.vector_dirty = False
+        await session.commit()
         return EmbeddingIndexResult(
             processed=len(current_rows),
             indexed=indexed,
@@ -1748,20 +1897,12 @@ class Application:
                         )
                         rows = (
                             await session.scalars(
-                                select(TelegramMessage)
-                                .where(
-                                    TelegramMessage.chat_id == chat_id,
-                                    TelegramMessage.id > last_id,
-                                    TelegramMessage.is_deleted.is_(False),
-                                    TelegramMessage.text.is_not(None),
-                                    *(
-                                        [TelegramMessage.sent_at >= retention_since]
-                                        if retention_since
-                                        else []
-                                    ),
+                                knowledge_rows_query(
+                                    chat_id,
+                                    limit=refresh_limit,
+                                    checkpoint_id=last_id,
+                                    since=retention_since,
                                 )
-                                .order_by(TelegramMessage.id.asc())
-                                .limit(refresh_limit)
                             )
                         ).all()
                         if not rows:
@@ -1774,7 +1915,9 @@ class Application:
                             authorization_epochs={chat_id: epoch},
                         )
                         await self._source_fence(chat_id, PermissionName.AUTO_KNOWLEDGE, epoch)
-                        newest_id = max(row.id for row in rows)
+                        newest_id = await knowledge_checkpoint_after(
+                            session, chat_id, last_id, list(rows), since=retention_since
+                        )
                         if checkpoint:
                             checkpoint.value = newest_id
                         else:
@@ -2486,7 +2629,9 @@ class Application:
                     if await honor_learning_pause(session, job):
                         log.info("learning_job_paused", job_id=job.id, phase="after_embedding")
                         return
-                    newest_id = max((row.id for row in rows), default=checkpoint_id)
+                    newest_id = await knowledge_checkpoint_after(
+                        session, chat_id, checkpoint_id, rows, since=retention_since
+                    )
                     if rows:
                         if checkpoint:
                             checkpoint.value = newest_id
@@ -2509,8 +2654,13 @@ class Application:
                         + index_result.skipped
                         + index_result.failed
                     )
-                    invariant_ok = evaluated == accounted
-                    coverage_warning = vectors_after < vectors_before
+                    invariant_ok = evaluated == accounted == len(rows)
+                    coverage = await inspect_source_coverage(
+                        session, chat_id=chat_id, settings=self.settings, vectors=self.rag.vectors
+                    )
+                    coverage_warning = (
+                        vectors_after < vectors_before or coverage["coverage_state"] != "healthy"
+                    )
                     final_status = (
                         "completed_with_warning"
                         if coverage_warning or not invariant_ok
@@ -2549,8 +2699,8 @@ class Application:
                         "checkpoint_after": newest_id,
                         "vectors_before": vectors_before,
                         "vectors_after": vectors_after,
-                        "active_vector_store_id": self.settings.resolved_semantic_vector_path.name,
-                        "embedding_model": self.settings.ollama_embedding_model,
+                        "active_vector_store_id": self.settings.embedding_profile.store_id,
+                        "embedding_model": self.settings.embedding_profile.model,
                         "embedding_version": self.settings.embedding_version,
                         "corpus": LocalVectorStore.COLLECTION,
                         "embedding_duration_ms": round(embedding_duration_ms, 2),
