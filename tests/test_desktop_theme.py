@@ -7,7 +7,6 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QPalette
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import (
-    QApplication,
     QDialog,
     QDialogButtonBox,
     QFrame,
@@ -22,12 +21,8 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 @pytest.fixture(scope="module")
-def app():
-    application = QApplication.instance() or QApplication([])
-    if not unthemed():
-        from tg_assistant.desktop.theme import apply_theme
-        apply_theme(application, ROOT / "dashboard-prototype/public/fonts")
-    return application
+def app(qt_application):
+    return qt_application
 
 
 def unthemed():

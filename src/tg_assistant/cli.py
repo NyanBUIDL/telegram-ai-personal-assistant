@@ -27,6 +27,8 @@ from .db.models import (
     TelegramChatPolicy,
     TelegramMessage,
 )
+from .desktop.instance import AlreadyRunning, InstanceGuard
+from .desktop.runtime_controller import RuntimeController
 from .paths import ensure_runtime_dirs, project_root
 from .policy import PolicyEngine
 from .runtime import (
@@ -40,7 +42,7 @@ from .runtime import (
     run_application,
 )
 from .security import SecretStore
-from .services.maintenance import profile_maintenance, profile_writer
+from .services.maintenance import FileLock, MaintenanceBusy, profile_maintenance, profile_writer
 from .services.storage import StorageService
 from .setup.mysql import detect_mysql, find_mysql_tool
 from .setup.wizard import run_setup
@@ -59,6 +61,8 @@ def _configure_console_utf8() -> None:
 _configure_console_utf8()
 
 app = typer.Typer(help="Telegram AI Personal Assistant", no_args_is_help=True)
+NATIVE_START_TIMEOUT = 20.0
+NATIVE_STOP_TIMEOUT = 20.0
 
 
 def _runtime_files() -> tuple[Path, Path, Path]:
@@ -66,11 +70,35 @@ def _runtime_files() -> tuple[Path, Path, Path]:
     return root / "assistant.pid", root / "assistant.lock", root / "stop.request"
 
 
+def _command_runtime_files() -> tuple[Path, Path, Path]:
+    try:
+        return _runtime_files()
+    except (OSError, ValueError):
+        typer.echo(
+            "Không truy cập được profile; runtime_configuration_invalid. Kiểm tra cấu hình và quyền sở hữu."
+        )
+        raise typer.Exit(code=1) from None
+
+
 def _started_file() -> Path:
     return ensure_runtime_dirs()["data"] / "started_at"
 
 
+def _legacy_pid(path: Path) -> int:
+    try:
+        with path.open(encoding="ascii") as stream:
+            content = stream.read(65)
+        if len(content) > 64:
+            return 0
+        pid = int(content.strip())
+        return pid if 0 < pid <= 0xFFFFFFFF else 0
+    except (OSError, ValueError):
+        return 0
+
+
 def _process_exists(pid: int) -> bool:
+    if type(pid) is not int or pid <= 0:
+        return False
     if os.name == "nt":
         tasklist = shutil.which("tasklist")
         if not tasklist:
@@ -92,38 +120,118 @@ def _process_exists(pid: int) -> bool:
 class InstanceLock:
     def __init__(self, path: Path) -> None:
         self.path, self.handle = path, None
+        self.guard = None
 
     def __enter__(self) -> InstanceLock:
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        self.handle = self.path.open("a+")
         try:
-            if os.name == "nt":
-                import msvcrt
-
-                msvcrt.locking(self.handle.fileno(), msvcrt.LK_NBLCK, 1)
-            else:
-                import fcntl
-
-                fcntl.flock(self.handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except OSError as exc:
-            self.handle.close()
-            raise RuntimeError("Ứng dụng đã chạy ở instance khác") from exc
+            self.guard = InstanceGuard().acquire()
+            self.path.parent.mkdir(parents=True, exist_ok=True)
+            self.handle = FileLock(self.path, exclusive=True)
+        except (AlreadyRunning, MaintenanceBusy):
+            self.__exit__()
+            raise RuntimeError("Ứng dụng đã chạy ở instance khác") from None
+        except BaseException:
+            self.__exit__()
+            raise
         return self
 
     def __exit__(self, *_: object) -> None:
         if self.handle:
             try:
-                if os.name == "nt":
-                    import msvcrt
-
-                    self.handle.seek(0)
-                    msvcrt.locking(self.handle.fileno(), msvcrt.LK_UNLCK, 1)
-                else:
-                    import fcntl
-
-                    fcntl.flock(self.handle, fcntl.LOCK_UN)
-            finally:
                 self.handle.close()
+            finally:
+                self.handle = None
+                if self.guard:
+                    self.guard.close()
+                    self.guard = None
+        elif self.guard:
+            self.guard.close()
+            self.guard = None
+
+
+def _native_controller() -> RuntimeController:
+    return RuntimeController(get_settings())
+
+
+def _echo_native_state(state) -> None:
+    typer.echo(f"Trạng thái: {state.phase}; {state.code}.")
+    if state.phase == "ready":
+        typer.echo(f"Runtime đã xác nhận (PID {state.pid}).")
+        typer.echo(f"Dashboard local: {state.url}")
+
+
+def _native_start() -> None:
+    runtime = _native_controller()
+    try:
+        started = runtime.start()
+        deadline = time.monotonic() + NATIVE_START_TIMEOUT
+        state = runtime.snapshot
+        while time.monotonic() < deadline:
+            if started.done():
+                started.result()
+            state = runtime.refresh().result(timeout=max(0.01, min(2, deadline - time.monotonic())))
+            if state.phase == "ready":
+                _echo_native_state(state)
+                return
+            if state.phase == "error" or (state.phase == "stopped" and runtime.process):
+                _echo_native_state(state)
+                raise typer.Exit(code=1)
+            time.sleep(min(0.05, max(0, deadline - time.monotonic())))
+        typer.echo(
+            f"Đang khởi động; chưa xác nhận readiness. Chạy status để kiểm tra. ({state.code})"
+        )
+        raise typer.Exit(code=1)
+    except typer.Exit:
+        raise
+    except TimeoutError:
+        typer.echo("Đang khởi động; chưa xác nhận readiness. Chạy status để kiểm tra.")
+        raise typer.Exit(code=1) from None
+    except (OSError, ValueError, RuntimeError):
+        typer.echo("Không thể khởi động; runtime_start_failed. Kiểm tra cấu hình hoặc bảo trì.")
+        raise typer.Exit(code=1) from None
+    finally:
+        runtime.close()
+
+
+def _native_status() -> None:
+    runtime = _native_controller()
+    try:
+        _echo_native_state(runtime.refresh().result(timeout=2))
+    except (OSError, ValueError, RuntimeError, TimeoutError):
+        typer.echo("Trạng thái: unknown; runtime_readiness_unavailable.")
+        raise typer.Exit(code=1) from None
+    finally:
+        runtime.close()
+
+
+def _native_stop() -> None:
+    runtime = _native_controller()
+    try:
+        state = runtime.refresh().result(timeout=2)
+        if state.phase != "ready":
+            _echo_native_state(state)
+            typer.echo("Chưa xác nhận runtime; không gửi yêu cầu dừng. Chạy status để kiểm tra.")
+            raise typer.Exit(code=1)
+        runtime.stop()
+        deadline = time.monotonic() + NATIVE_STOP_TIMEOUT
+        while time.monotonic() < deadline:
+            state = runtime.refresh().result(timeout=2)
+            if state.phase == "stopped":
+                typer.echo("Đã dừng an toàn.")
+                return
+            if state.phase == "error":
+                break
+            time.sleep(0.05)
+        _echo_native_state(state)
+        typer.echo("Chưa xác nhận đã dừng; không ép tắt. Chạy status để kiểm tra.")
+        raise typer.Exit(code=1)
+    except typer.Exit:
+        raise
+    except (OSError, ValueError, RuntimeError, TimeoutError):
+        typer.echo("Chưa xác nhận đã dừng; runtime_stop_unconfirmed. Không ép tắt.")
+        raise typer.Exit(code=1) from None
+    finally:
+        runtime.close()
 
 
 async def _is_paired() -> bool:
@@ -188,24 +296,19 @@ def _prepare_sqlite_storage(settings, store) -> None:
 
 @app.command()
 def start() -> None:
-    """Thiết lập nếu cần rồi chạy nền, không cần Administrator."""
-    pid_file, lock_file, stop_file = _runtime_files()
+    """Mở runtime native trên Windows; giữ đường chạy nền legacy trên hệ khác."""
+    pid_file, lock_file, stop_file = _command_runtime_files()
     if pid_file.exists():
-        try:
-            pid = int(pid_file.read_text().strip())
-        except ValueError:
-            pid = 0
+        pid = _legacy_pid(pid_file)
         if pid and _process_exists(pid):
-            typer.echo(f"Đang chạy (PID {pid}).")
-            settings = get_settings()
-            if settings.admin_api_enabled:
-                typer.echo(
-                    f"Dashboard local: http://{settings.admin_api_host}:"
-                    f"{settings.admin_api_port} "
-                    "(lấy mã bằng: .\\.venv\\Scripts\\tg-assistant.exe dashboard-code)"
-                )
+            typer.echo(
+                f"Đã có tiến trình legacy (PID {pid}); chưa kiểm tra readiness. Không mở thêm."
+            )
             return
         pid_file.unlink(missing_ok=True)
+    if os.name == "nt":
+        _native_start()
+        return
     with InstanceLock(lock_file):
         _ensure_ready()
     stop_file.unlink(missing_ok=True)
@@ -288,11 +391,14 @@ def run() -> None:
 
 @app.command()
 def stop() -> None:
-    pid_file, _, stop_file = _runtime_files()
+    pid_file, _, stop_file = _command_runtime_files()
+    pid = _legacy_pid(pid_file)
+    if os.name == "nt" and not (pid and _process_exists(pid)):
+        _native_stop()
+        return
     if not pid_file.exists():
         typer.echo("Không chạy.")
         return
-    pid = int(pid_file.read_text().strip())
     if not _process_exists(pid):
         pid_file.unlink(missing_ok=True)
         typer.echo("Không chạy (đã dọn PID cũ).")
@@ -308,20 +414,45 @@ def stop() -> None:
 
 @app.command()
 def restart() -> None:
+    if os.name == "nt":
+        pid_file, _, _ = _command_runtime_files()
+        pid = _legacy_pid(pid_file)
+        if not (pid and _process_exists(pid)):
+            runtime = _native_controller()
+            try:
+                state = runtime.refresh().result(timeout=2)
+            except (OSError, ValueError, RuntimeError, TimeoutError):
+                typer.echo("Chưa xác nhận runtime; runtime_readiness_unavailable.")
+                raise typer.Exit(code=1) from None
+            finally:
+                runtime.close()
+            if state.phase == "ready":
+                _native_stop()
+            else:
+                # Missing/stale readiness is safe to start only if no SID worker owns the guard.
+                # Release this probe before launch; the child acquires the same singleton guard.
+                try:
+                    with InstanceGuard():
+                        pass
+                except (AlreadyRunning, OSError, ValueError):
+                    typer.echo("Chưa xác nhận runtime; runtime_restart_unconfirmed. Không mở thêm.")
+                    raise typer.Exit(code=1) from None
+            start()
+            return
     stop()
     start()
 
 
 @app.command()
 def status() -> None:
-    pid_file, _, _ = _runtime_files()
+    pid_file, _, _ = _command_runtime_files()
+    pid = _legacy_pid(pid_file)
+    if os.name == "nt" and not (pid and _process_exists(pid)):
+        _native_status()
+        return
     if not pid_file.exists():
         typer.echo("Trạng thái: stopped")
         return
-    try:
-        pid = int(pid_file.read_text().strip())
-    except ValueError:
-        pid = 0
     uptime = "-"
     try:
         started = datetime.fromisoformat(_started_file().read_text(encoding="ascii"))
@@ -329,7 +460,8 @@ def status() -> None:
     except (OSError, ValueError):
         pass
     typer.echo(
-        f"Trạng thái: {'running' if pid and _process_exists(pid) else 'stale'}; "
+        f"Trạng thái: {'legacy_process' if pid and _process_exists(pid) else 'stale'}; "
+        "readiness chưa kiểm tra; "
         f"PID: {pid or '-'}; uptime: {uptime}"
     )
 

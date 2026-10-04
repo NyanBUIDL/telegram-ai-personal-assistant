@@ -46,6 +46,9 @@ dev = [
 [project.scripts]
 tg-assistant = "tg_assistant.cli:app"
 
+[project.gui-scripts]
+tg-assistant-desktop = "tg_assistant.desktop.app:main"
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/tg_assistant"]
 

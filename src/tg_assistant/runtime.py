@@ -83,7 +83,7 @@ from .services.jobs import (
     utc,
     worker_lease,
 )
-from .services.maintenance import profile_writer
+from .services.maintenance import MaintenanceService, profile_writer
 from .services.memory import MemoryService
 from .services.ollama import OllamaPullCancelled, OllamaService
 from .services.operations import (
@@ -839,8 +839,22 @@ class Application:
                     source.status = "revoked"
                     source.requested_for_learning = False
 
-    def __init__(self) -> None:
-        self.settings, self.store, self.paths = get_settings(), SecretStore(), ensure_runtime_dirs()
+    def __init__(self, *, settings: Settings | None = None, admin_app_ready=None) -> None:
+        self.settings = settings if settings is not None else get_settings()
+        self.admin_app_ready = admin_app_ready
+        self.store = self.paths = self.database = self.user = None
+        self.ai = self.embedding_ai = self.ai_router = None
+        self.coingecko = self.ollama = self.rag = None
+        self.bot = self.admin_server = self.scheduler = None
+        self.stopping = asyncio.Event()
+        self._tasks = []
+        self._closed = False
+
+    def _initialize(self) -> None:
+        self.store = SecretStore()
+        self.paths = ensure_runtime_dirs(
+            self.settings.data_dir, profile_id=self.settings.profile_id
+        )
         configure_logging(self.settings.log_level, self.paths["logs"])
         self.database = make_database(self.settings, self.store)
         self.policy = PolicyEngine()
@@ -878,7 +892,6 @@ class Application:
             self._scheduler_event,
             EVENT_JOB_EXECUTED | EVENT_JOB_ERROR | EVENT_JOB_MISSED,
         )
-        self.stopping = asyncio.Event()
         self._knowledge_lock = asyncio.Lock()
         self._group_ai_limiter = SlidingWindowLimiter(limit=3, seconds=60)
 
@@ -3454,14 +3467,30 @@ class Application:
             await asyncio.sleep(2)
 
     async def run(self) -> None:
-        me = await self.user.authenticate(self.store.get("telegram_phone") or "")
+        try:
+            self._initialize()
+            await self._run()
+        finally:
+            await self.close()
+
+    async def _run(self) -> None:
+        me = (
+            await self.user.resume_existing()
+            if self.admin_app_ready is not None
+            else await self.user.authenticate(self.store.get("telegram_phone") or "")
+        )
         async with self.database.session() as session:
             await ensure_vector_store_registry(session, self.settings)
-            account = await session.scalar(
-                select(TelegramAccount).where(TelegramAccount.telegram_user_id == int(me.id))
+            paired = list(
+                await session.scalars(
+                    select(TelegramAccount).where(
+                        TelegramAccount.is_owner_paired.is_(True),
+                        TelegramAccount.is_active.is_(True),
+                    )
+                )
             )
-            if not account or not account.is_owner_paired:
-                raise RuntimeError("Chưa pair owner; chạy tg-assistant start ở terminal")
+            if len(paired) != 1 or paired[0].telegram_user_id != int(me.id):
+                raise RuntimeError("owner_pairing_required")
             await self.user.discover_dialogs(session)
             recovered_jobs = await recover_interrupted_learning_jobs(session)
             if recovered_jobs:
@@ -3536,7 +3565,7 @@ class Application:
             coalesce=True,
         )
         log.info("application_started", owner_id=int(me.id))
-        tasks = [
+        self._tasks = [
             asyncio.create_task(self.bot.run()),
             asyncio.create_task(self.user.client.run_until_disconnected()),
             asyncio.create_task(self._execute_actions()),
@@ -3561,56 +3590,111 @@ class Application:
                     history_sender_lookup_handler=self._resolve_history_sender_identity,
                 )
             )
-            self.admin_server = uvicorn.Server(
-                uvicorn.Config(
-                    admin_app,
-                    host=self.settings.admin_api_host,
-                    port=self.settings.admin_api_port,
-                    access_log=False,
-                    log_config=None,
-                    server_header=False,
-                )
+            if self.admin_app_ready is not None:
+                self.admin_app_ready(admin_app)
+            else:
+                self._start_admin_server(admin_app)
+        stopped = asyncio.create_task(self.stopping.wait())
+        self._tasks.append(stopped)
+        completed, _ = await asyncio.wait(self._tasks, return_when=asyncio.FIRST_COMPLETED)
+        if stopped not in completed and not self.stopping.is_set():
+            raise RuntimeError("runtime_connection_lost")
+
+    def _start_admin_server(self, admin_app) -> None:
+        self.admin_server = uvicorn.Server(
+            uvicorn.Config(
+                admin_app,
+                host=self.settings.admin_api_host,
+                port=self.settings.admin_api_port,
+                access_log=False,
+                log_config=None,
+                server_header=False,
             )
-            self.admin_server.install_signal_handlers = lambda: None  # type: ignore[method-assign]
-            tasks.append(asyncio.create_task(self.admin_server.serve()))
-            log.info(
-                "admin_api_started",
-                url=(f"http://{self.settings.admin_api_host}:{self.settings.admin_api_port}"),
-            )
-        try:
-            await self.stopping.wait()
-        finally:
-            for task in tasks:
-                task.cancel()
-            await asyncio.gather(*tasks, return_exceptions=True)
-            await self.close()
+        )
+        self.admin_server.install_signal_handlers = lambda: None  # type: ignore[method-assign]
+        self._tasks.append(asyncio.create_task(self.admin_server.serve()))
+        log.info(
+            "admin_api_started",
+            url=(f"http://{self.settings.admin_api_host}:{self.settings.admin_api_port}"),
+        )
 
     async def close(self) -> None:
+        task = getattr(self, "_close_task", None)
+        if task is None:
+            task = asyncio.create_task(self._close_resources())
+            self._close_task = task
+        cancelled = False
+        while True:
+            try:
+                await asyncio.shield(task)
+                break
+            except asyncio.CancelledError:
+                cancelled = True
+                if task.done():
+                    task.result()
+                    break
+        if cancelled:
+            raise asyncio.CancelledError
+
+    async def _close_resources(self) -> None:
+        self._closed = True
         self.stopping.set()
+        errors = []
+        for task in getattr(self, "_tasks", ()):
+            task.cancel()
+        await asyncio.gather(*getattr(self, "_tasks", ()), return_exceptions=True)
         if self.admin_server:
             self.admin_server.should_exit = True
-        if self.scheduler.running:
-            self.scheduler.shutdown(wait=False)
-        if self.bot:
-            await self.bot.close()
-        if self.rag.vectors:
-            self.rag.vectors.close()
-        await self.ai_router.close()
-        await self.embedding_ai.close()
-        await self.ollama.close()
-        await self.coingecko.close()
-        await self.user.close()
-        await self.database.close()
+        if self.scheduler and self.scheduler.running:
+            try:
+                self.scheduler.pause()
+                # APScheduler 3's AsyncIOExecutor cancels and clears these
+                # futures on shutdown; retain ownership until writers finish
+                # their async finalizers, before closing clients/admission.
+                scheduled = tuple(
+                    future
+                    for executor in self.scheduler._executors.values()
+                    for future in getattr(executor, "_pending_futures", ())
+                )
+                self.scheduler.shutdown(wait=False)
+                await asyncio.sleep(0)
+                await asyncio.gather(*scheduled, return_exceptions=True)
+            except Exception as exc:
+                errors.append(exc)
+        if self.rag and self.rag.vectors:
+            try:
+                self.rag.vectors.close()
+            except Exception as exc:
+                errors.append(exc)
+        resources = (
+            self.bot,
+            self.ai_router or self.ai,
+            self.embedding_ai,
+            self.ollama,
+            self.coingecko,
+            self.user,
+            self.database,
+        )
+        for resource in resources:
+            if resource:
+                try:
+                    await resource.close()
+                except Exception as exc:
+                    errors.append(exc)
+        if errors:
+            raise RuntimeError("runtime_cleanup_failed") from None
         log.info("application_stopped")
 
 
-@profile_writer(lambda: get_settings())
-async def run_application() -> None:
-    app = Application()
-    loop = asyncio.get_running_loop()
-    for sig in (signal.SIGINT, signal.SIGTERM):
-        try:
-            loop.add_signal_handler(sig, app.stopping.set)
-        except NotImplementedError:
-            pass
-    await app.run()
+async def run_application(*, settings: Settings | None = None, admin_app_ready=None) -> None:
+    settings = settings if settings is not None else get_settings()
+    paths = ensure_runtime_dirs(settings.data_dir, profile_id=settings.profile_id)
+    with MaintenanceService(paths["config"], profile_id=settings.profile_id).operation():
+        app = Application(settings=settings, admin_app_ready=admin_app_ready)
+        loop = asyncio.get_running_loop()
+        for sig in (signal.SIGINT, signal.SIGTERM):
+            try:
+                loop.add_signal_handler(sig, app.stopping.set)
+            except NotImplementedError:
+                pass
+        await app.run()

@@ -29,10 +29,10 @@ Ngày lập: 02/10/2026. **Thiết kế đã duyệt; implementation đang thự
 ### M2 — Tri thức, bảo mật và desktop
 
 - [ ] **S03 — Backup/restore có kiểm chứng và fence runtime** · Reliability · phụ thuộc: S02, V01 · Planned.
-- [ ] **V01 — Profile embedding cloud/local và data boundary theo nguồn** · Reliability · phụ thuộc: S01, F01 · InProgress.
+- [x] **V01 — Profile embedding cloud/local và data boundary theo nguồn** · Reliability · phụ thuộc: S01, F01 · Verified.
 - [ ] **V02 — Incremental index, chỉnh sửa/xóa/dedup và coverage cùng contract** · Reliability · phụ thuộc: S02, V01 · Planned.
 - [ ] **V03 — Recovery từng nguồn thực thi được và có rollback** · Reliability · phụ thuộc: V02, S02 · Planned.
-- [ ] **D01 — Native launcher/tray và service lifecycle** · Platform · phụ thuộc: S01, S02 · InProgress.
+- [x] **D01 — Native launcher/tray và service lifecycle** · Platform · phụ thuộc: S01, S02 · Verified.
 - [ ] **D02 — Một nút đăng nhập dashboard qua IPC ticket** · Platform · phụ thuộc: D01 · Planned.
 
 ### M3 — Kết nối và onboarding

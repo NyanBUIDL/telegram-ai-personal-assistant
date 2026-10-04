@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-10-03",
+  "updated_at": "2026-10-04",
   "scope": "Windows per-user local application",
   "baseline_commit": "7429fcffd61860e9502f066e0b6a921df72fe176",
   "documents_ready": true,
@@ -106,8 +106,10 @@
         "S01",
         "F01"
       ],
-      "status": "InProgress",
-      "evidence": [],
+      "status": "Verified",
+      "evidence": [
+        "docs/handoff/evidence/task-V01.md"
+      ],
       "acceptance": "Cloud/local capability matrix thực/mock riêng; không hidden provider fallback và corpus mixing."
     },
     {
@@ -145,8 +147,11 @@
         "S01",
         "S02"
       ],
-      "status": "InProgress",
-      "evidence": [],
+      "status": "Verified",
+      "evidence": [
+        "docs/handoff/evidence/task-D01.md",
+        "docs/handoff/evidence/task-D01-cli-adapter.md"
+      ],
       "acceptance": "Desktop launcher dùng được với profile chưa setup và legacy, không secret in subprocess args."
     },
     {

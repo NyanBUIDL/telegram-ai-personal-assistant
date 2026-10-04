@@ -163,9 +163,19 @@ class UserClientAdapter:
     ) -> None:
         self.session_path, self.encrypted_path = session_path, encrypted_path
         self.crypto = EncryptedSession(store)
-        if encrypted_path.exists() and not session_path.exists():
-            self.crypto.decrypt_file(encrypted_path, session_path)
-        self.client = TelegramClient(str(session_path), api_id, api_hash)
+        decrypted = False
+        try:
+            if encrypted_path.exists() and not session_path.exists():
+                decrypted = True
+                self.crypto.decrypt_file(encrypted_path, session_path)
+            self.client = TelegramClient(str(session_path), api_id, api_hash)
+        except BaseException:
+            # The original ciphertext is still intact. Remove only the working
+            # copy created by this constructor when transport creation fails.
+            if decrypted:
+                session_path.unlink(missing_ok=True)
+                Path(f"{session_path}-journal").unlink(missing_ok=True)
+            raise
         self.policy = policy
         self.owner_id: int | None = None
         self.username: str | None = None
@@ -178,12 +188,35 @@ class UserClientAdapter:
         self.username = getattr(me, "username", None)
         return me
 
+    async def resume_existing(self) -> Any:
+        """Resume a stored session without Telethon's interactive login path."""
+        await self.client.connect()
+        if not await self.client.is_user_authorized():
+            raise RuntimeError("telegram_reconnect_required")
+        me = await self.client.get_me()
+        if me is None or type(me.id) is not int or me.id <= 0:
+            raise RuntimeError("telegram_reconnect_required")
+        self.owner_id = me.id
+        self.username = getattr(me, "username", None)
+        return me
+
     async def close(self) -> None:
-        await self.client.disconnect()
-        if self.session_path.exists():
-            self.crypto.encrypt_file(self.session_path, self.encrypted_path)
-            self.session_path.unlink(missing_ok=True)
-            Path(f"{self.session_path}-journal").unlink(missing_ok=True)
+        try:
+            await self.client.disconnect()
+        finally:
+            try:
+                session = getattr(self.client, "session", None)
+                if session is not None:
+                    session.close()
+            finally:
+                if self.session_path.exists():
+                    try:
+                        self.crypto.encrypt_file(self.session_path, self.encrypted_path)
+                    finally:
+                        # Atomic sealing preserves previous ciphertext on error.
+                        # Reconnect is required if the new working copy cannot seal.
+                        self.session_path.unlink(missing_ok=True)
+                        Path(f"{self.session_path}-journal").unlink(missing_ok=True)
 
     async def discover_dialogs(self, session: AsyncSession) -> int:
         count = 0
@@ -240,7 +273,10 @@ class UserClientAdapter:
             getattr(entity, "title", None)
             or " ".join(
                 value
-                for value in (getattr(entity, "first_name", None), getattr(entity, "last_name", None))
+                for value in (
+                    getattr(entity, "first_name", None),
+                    getattr(entity, "last_name", None),
+                )
                 if value
             )
             or (f"@{username}" if username else None)
@@ -344,7 +380,9 @@ class UserClientAdapter:
         if not automatic.allowed:
             return False
         try:
-            epoch = await self._authorization_fence(session, chat_id, PermissionName.AUTO_MODERATION)
+            epoch = await self._authorization_fence(
+                session, chat_id, PermissionName.AUTO_MODERATION
+            )
         except AuthorizationRevoked:
             return False
         try:
@@ -421,7 +459,9 @@ class UserClientAdapter:
             return False
         try:
             await self._authorization_fence(session, chat_id, PermissionName.AUTO_MODERATION, epoch)
-            await self._authorization_fence(session, chat_id, PermissionName.DELETE_ANY_MESSAGES, epoch)
+            await self._authorization_fence(
+                session, chat_id, PermissionName.DELETE_ANY_MESSAGES, epoch
+            )
         except AuthorizationRevoked:
             return False
         try:
@@ -479,6 +519,7 @@ class UserClientAdapter:
         group_ask_handler: GroupAskHandler | None = None,
     ) -> None:
         self.database = database
+
         @self.client.on(events.NewMessage)
         async def new_message(event: Any) -> None:
             if self.owner_id is None:
@@ -504,11 +545,7 @@ class UserClientAdapter:
                         chat_id=chat_id,
                         message=event.message,
                     )
-            if (
-                question is not None
-                and sender_id is not None
-                and group_ask_handler is not None
-            ):
+            if question is not None and sender_id is not None and group_ask_handler is not None:
                 await group_ask_handler(
                     chat_id,
                     int(sender_id),
@@ -612,9 +649,7 @@ class UserClientAdapter:
             "metadata_json": {"media_kind": message_media_kind(message)},
         }
         update_columns = {
-            key: value
-            for key, value in values.items()
-            if key not in {"chat_id", "message_id"}
+            key: value for key, value in values.items() if key not in {"chat_id", "message_id"}
         }
         dialect = session.get_bind().dialect.name
         if dialect == "mysql":
@@ -693,10 +728,14 @@ class UserClientAdapter:
                 reverse=False,
                 limit=limit,
             ):
-                await self._authorization_fence(session, chat_id, PermissionName.SYNC_HISTORY, epoch)
+                await self._authorization_fence(
+                    session, chat_id, PermissionName.SYNC_HISTORY, epoch
+                )
                 messages.append(message)
             for message in messages:
-                await self._authorization_fence(session, chat_id, PermissionName.SYNC_HISTORY, epoch)
+                await self._authorization_fence(
+                    session, chat_id, PermissionName.SYNC_HISTORY, epoch
+                )
                 await self._upsert_message(session, message)
                 highest = max(highest, int(message.id))
                 message_date = message.date
@@ -752,10 +791,14 @@ class UserClientAdapter:
                 max_id=cursor,
                 limit=page_size,
             ):
-                await self._authorization_fence(session, chat_id, PermissionName.SYNC_HISTORY, epoch)
+                await self._authorization_fence(
+                    session, chat_id, PermissionName.SYNC_HISTORY, epoch
+                )
                 messages.append(message)
             for message in messages:
-                await self._authorization_fence(session, chat_id, PermissionName.SYNC_HISTORY, epoch)
+                await self._authorization_fence(
+                    session, chat_id, PermissionName.SYNC_HISTORY, epoch
+                )
                 await self._upsert_message(session, message)
                 message_id = int(message.id)
                 oldest_id = message_id if oldest_id is None else min(oldest_id, message_id)
@@ -797,12 +840,16 @@ class UserClientAdapter:
                 reverse=False,
                 limit=min(max(limit, 1), 100),
             ):
-                await self._authorization_fence(session, chat_id, PermissionName.SYNC_HISTORY, epoch)
+                await self._authorization_fence(
+                    session, chat_id, PermissionName.SYNC_HISTORY, epoch
+                )
                 if int(message.sender_id or 0) != sender_id:
                     continue
                 messages.append(message)
             for message in messages:
-                await self._authorization_fence(session, chat_id, PermissionName.SYNC_HISTORY, epoch)
+                await self._authorization_fence(
+                    session, chat_id, PermissionName.SYNC_HISTORY, epoch
+                )
                 await self._upsert_message(session, message)
                 count += 1
         except FloodWaitError as exc:
@@ -891,7 +938,9 @@ class UserClientAdapter:
         )
         if not decision.allowed:
             raise PermissionError(decision.reason.value)
-        epoch = await self._authorization_fence(session, chat_id, PermissionName.DELETE_ANY_MESSAGES)
+        epoch = await self._authorization_fence(
+            session, chat_id, PermissionName.DELETE_ANY_MESSAGES
+        )
         await self.client.delete_messages(chat_id, message_ids)
         await self._authorization_fence(session, chat_id, PermissionName.DELETE_ANY_MESSAGES, epoch)
 
