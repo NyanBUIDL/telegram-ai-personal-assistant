@@ -252,8 +252,9 @@ def test_actual_qt_dashboard_button_opens_native_ticket_url(qt_application, tmp_
     opened = []
     monkeypatch.setattr(desktop.QDesktopServices, 'openUrl', lambda url: opened.append(url.toString()) or True)
     with socket.socket() as occupied:
-        occupied.bind(('127.0.0.1', selected.admin_api_port))
+        occupied.bind(('127.0.0.1', 0))
         occupied.listen()
+        selected = selected.model_copy(update={'admin_api_port': occupied.getsockname()[1]})
         runtime = controller(selected, tmp_path)
         window = desktop.LauncherWindow(runtime)
         try:

@@ -10,6 +10,7 @@ import socket
 import subprocess
 import sys
 import time
+from concurrent.futures import TimeoutError as FutureTimeoutError
 
 import pytest
 from PySide6.QtTest import QTest
@@ -37,6 +38,19 @@ def settings(tmp_path, monkeypatch):
     return Settings(_env_file=None, data_dir=tmp_path / "profile")
 
 
+def track_fixture_starts(runtime):
+    runtime.fixture_starts = []
+    original_start = runtime.start
+
+    def start():
+        future = original_start()
+        runtime.fixture_starts.append(future)
+        return future
+
+    runtime.start = start
+    return runtime
+
+
 def controller(settings, tmp_path):
     lifecycle = module("tg_assistant.desktop.runtime_controller")
     code = (
@@ -49,7 +63,7 @@ def controller(settings, tmp_path):
         "\n with (Path(sys.argv[1]).parent/'synthetic-worker-error.log').open('w',encoding='utf-8') as log: traceback.print_exc(file=log)"
         "\n raise"
     )
-    return lifecycle.RuntimeController(
+    return track_fixture_starts(lifecycle.RuntimeController(
         settings,
         worker_command=[
             sys.executable,
@@ -59,26 +73,116 @@ def controller(settings, tmp_path):
             str(tmp_path / "sid-instance"),
             str(settings.admin_api_port),
         ],
-    )
+    ))
 
 
 def ready(runtime, *, timeout=15):
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
-        state = runtime.refresh().result(timeout=2)
+        future = runtime.refresh()
+        try:
+            state = future.result(timeout=max(0, deadline - time.monotonic()))
+        except FutureTimeoutError:
+            future.cancel()
+            break
         if state.phase == "ready":
             return state
         if state.phase == "error":
             pytest.fail(f"Synthetic worker failed: {state.code}")
-        time.sleep(0.05)
-    pytest.fail("Worker did not reach readiness")
+        time.sleep(min(0.05, max(0, deadline - time.monotonic())))
+    pytest.fail(f"Worker did not reach readiness: {runtime.snapshot.code}")
 
 
 def stop(runtime):
-    runtime.stop()
-    if runtime.process:
-        runtime.process.wait(timeout=15)
-    runtime.close()
+    deadline = time.monotonic() + 15
+    try:
+        runtime.stop()
+        # A running start can assign Popen after stop(). Wait for fixture-owned
+        # starts; cancel queued ones before claiming cleanup is complete.
+        for future in getattr(runtime, "fixture_starts", ()):
+            if not future.cancel():
+                future.result(timeout=max(0, deadline - time.monotonic()))
+        while runtime.process and runtime.process.poll() is None:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                pytest.fail("Owned synthetic worker did not stop")
+            # The original executor may already be closed after launcher reopen.
+            # Real refresh verifies this profile/SID/incarnation before shutdown.
+            runtime._refresh()
+            runtime.stop()
+            try:
+                runtime.process.wait(timeout=min(0.1, remaining))
+            except subprocess.TimeoutExpired:
+                pass
+    finally:
+        runtime.close()
+
+
+def held_start(settings, tmp_path, monkeypatch):
+    import threading
+
+    runtime = controller(settings, tmp_path)
+    entered, release = threading.Event(), threading.Event()
+    original_start = runtime._start
+
+    def start():
+        entered.set()
+        assert release.wait(10), "Synthetic held startup was not released"
+        original_start()
+
+    monkeypatch.setattr(runtime, "_start", start)
+    startup = runtime.start()
+    assert entered.wait(2)
+    assert runtime.process is None
+    return runtime, startup, release
+
+
+def test_ready_waits_for_slow_start_within_overall_deadline(settings, tmp_path, monkeypatch):
+    import threading
+
+    runtime, startup, release = held_start(settings, tmp_path, monkeypatch)
+    timer = threading.Timer(2.2, release.set)
+    timer.start()
+    try:
+        assert ready(runtime).phase == "ready"
+    finally:
+        release.set()
+        stop(runtime)
+        timer.join()
+    assert startup.done() and runtime.process.returncode == 0
+
+
+def test_ready_deadline_failure_survives_pending_start_cleanup(settings, tmp_path, monkeypatch):
+    runtime, startup, release = held_start(settings, tmp_path, monkeypatch)
+    began = time.monotonic()
+    try:
+        with pytest.raises(pytest.fail.Exception, match="Worker did not reach readiness"):
+            ready(runtime, timeout=0.1)
+        assert time.monotonic() - began < 0.5
+    finally:
+        release.set()
+        stop(runtime)
+    assert startup.done() and runtime.process.returncode == 0
+
+
+def test_cleanup_running_start_proves_exact_owned_worker_exit(settings, tmp_path, monkeypatch):
+    import threading
+
+    from tg_assistant.desktop.instance import process_incarnation_exists
+
+    runtime, startup, release = held_start(settings, tmp_path, monkeypatch)
+    timer = threading.Timer(0.2, release.set)
+    timer.start()
+    try:
+        stop(runtime)
+        assert startup.done(), "Cleanup returned while fixture startup was running"
+        assert runtime.process is not None and runtime.process.returncode == 0
+        assert runtime.attached_process is not None
+        assert not process_incarnation_exists(*runtime.attached_process)
+    finally:
+        release.set()
+        stop(runtime)
+        timer.join()
 
 
 def test_first_launch_setup(app, settings, tmp_path):
@@ -470,7 +574,7 @@ def test_reopened_launcher_tray_stop_finishes(app, settings, tmp_path):
         first = ready(runtime)
         # Closing and reopening the launcher retains the owned worker.
         runtime.close()
-        detached = module("tg_assistant.desktop.runtime_controller").RuntimeController(settings)
+        detached = track_fixture_starts(module("tg_assistant.desktop.runtime_controller").RuntimeController(settings))
         window = module("tg_assistant.desktop.app").LauncherWindow(detached)
         window.show()
         QTest.qWait(50)
@@ -493,16 +597,9 @@ def test_reopened_launcher_tray_stop_finishes(app, settings, tmp_path):
         finally:
             tray.close()
             window.close()
-            detached.stop()
-            runtime.process.wait(timeout=15)
-            detached.close()
+            stop(detached)
     finally:
-        # The original executor is already shut down, but its exact Popen is
-        # still available solely for this fixture's completion proof.
-        if runtime.process.poll() is None:
-            state = json.loads(runtime.state_file.read_text(encoding="utf-8"))
-            (settings.data_dir / "stop.request").write_text(state["run_id"], encoding="ascii")
-            runtime.process.wait(timeout=15)
+        stop(runtime)
 
 
 def test_live_worker_identity_and_capability_mismatch_refused(settings, tmp_path):

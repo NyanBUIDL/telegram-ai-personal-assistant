@@ -90,3 +90,26 @@ The component geometry/typography/toggle tests, modal focus trap/Escape/focus-re
 The reviewer assessed the immutable source and supplied execution evidence without rerunning tests. This scoped approval is not a full-suite or release-readiness claim. Other D02 findings were already addressed and were not re-audited. Final author freeze and integration remain coordinator-owned.
 
 No production/source edits, staging, commits, broad tests or child agents were performed by this reviewer; only this explicitly requested private review report was written.
+
+
+# D02 — scoped delayed-start CI test correction review
+
+Spec verdict: **Approved.** Quality verdict: **Approved.** No Critical, Important or Minor findings. This approval covers the two-file test correction and does not establish full-suite or public-beta readiness.
+
+Reviewed `tests/desktop/test_launcher.py` and `tests/test_dashboard_launch_ticket.py` through the immutable `.test-temp/d02-start-review` packet, both before/after snapshots, production controller behavior and supplied execution evidence.
+
+Patch exact-byte SHA256: `228d8062d1479c4ad26a9c25d5286f4f2d5ac6f76eeb8c986738491a4cd0e875`.
+
+Manifest exact-byte SHA256: `a3fdd5f872119f5d7956e2217fc670b8d56528b614769f768b9502b313cb59ca`.
+
+The reviewer independently verified all 17 manifest entries, both current tests against their frozen after snapshots and all four unchanged production hashes (runtime_controller.py, app.py, tray.py, ipc.py). All match.
+
+Readiness retains the existing single 15-second deadline, with each refresh future using only its remaining portion. Deadline expiry cancels a queued refresh and reports the sanitized readiness failure; actual error snapshots still fail immediately. The 0.1-second regression verifies bounded failure and successful pending-start teardown. No deadline extension or runtime-error masking is introduced.
+
+Cleanup now tracks fixture-owned startup futures, cancels queued starts or awaits running starts before checking Popen, and drives existing real identity-checked refresh/shutdown while waiting for the exact owned process. Direct refresh permits cleanup after the original executor closes. The new regression requires actual late startup, Popen exit zero, a measured managed PID/creation-time attachment and disappearance of that incarnation. The retained reopened-launcher tray test still requires its original owned Popen to exit zero after the original executor closes. The unsafe None.poll and manual test stop-file write are removed; no broad process termination is added.
+
+The dashboard collision fixture occupies an OS-assigned port and configures it as its preferred port. It preserves the different measured worker port, real Qt click exactly once, native ticket URL, setup-only redemption 200 and replay 401. Browser-open deadlines, existing assertions and real native/authentication checks remain intact. No new skips or production changes occur.
+
+Supplied immutable execution evidence: deterministic RED **3 failed** (16.02s), reproducer GREEN **3 passed** (14.48s), permanent regressions **3 passed** (16.47s), and ordered native checks **30 passed, 0 failed/skipped/errors, exit 0** (50.06s). The reviewer checked the ordered JUnit independently: 30 cases, no failures/errors/skips, 50.061s, with all 17 D02 native/ticket cases retained.
+
+These are author runs on Windows Python 3.12.14. Exact-new-HEAD Windows 3.13 remote CI remains coordinator-owned Pending; the precise slow startup substep and broader historical CI disposition are not claimed resolved by local evidence. No tests were rerun during review and no new probe was needed. No Git commands/mutations, real accounts, test/production edits or child agents were used. The requested private report is `.superpowers/sdd/windows-public-beta-2026-10-02/review-D02-start-fix.md`.
