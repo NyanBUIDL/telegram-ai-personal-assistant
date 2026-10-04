@@ -67,6 +67,7 @@ from .auth import (
     SESSION_COOKIE,
     AdminAuth,
     AdminSession,
+    LegacyCodeReplayStore,
     is_loopback_origin,
     login_code_expires_at,
 )
@@ -361,6 +362,7 @@ def create_admin_app(context: AdminContext) -> FastAPI:
     auth = AdminAuth(
         context.admin_secret,
         session_minutes=settings.admin_session_minutes,
+        replay_store=LegacyCodeReplayStore(settings.data_dir / "config", profile_id=settings.profile_id),
     )
     pending = PendingActionService(ttl_seconds=settings.confirmation_ttl_seconds)
     cookie = APIKeyCookie(name=SESSION_COOKIE, auto_error=False)
@@ -420,9 +422,11 @@ def create_admin_app(context: AdminContext) -> FastAPI:
     async def require_session(
         token: str | None = Depends(cookie),
     ) -> AdminSession:
-        session = auth.get_session(token)
+        session = app.state.admin_auth.get_session(token)
         if not session:
             raise HTTPException(status_code=401, detail="Cần đăng nhập owner.")
+        if session.authority != "management" or session.owner_id != context.owner_id:
+            raise HTTPException(status_code=403, detail="Cần ghép owner trước khi quản lý.")
         return session
 
     async def require_write_session(
@@ -437,6 +441,10 @@ def create_admin_app(context: AdminContext) -> FastAPI:
         if not csrf_token or not secrets_compare(csrf_token, session.csrf_token):
             raise HTTPException(status_code=403, detail="CSRF token không hợp lệ.")
         return session
+
+    from .backups import install_backup_routes
+
+    install_backup_routes(app, context, require_session, require_write_session)
 
     async def resolve_history_sender_filter(
         db: AsyncSession,

@@ -79,6 +79,7 @@ async function request(path, options = {}) {
 
 export const api = {
   session: () => request("/auth/session"),
+  bootstrapSession: () => window.__tgLaunchSession || request("/auth/session"),
   login: (code) => request("/auth/login", { method: "POST", body: { code } }),
   logout: () => request("/auth/logout", { method: "POST" }),
   overview: () => request("/overview"),

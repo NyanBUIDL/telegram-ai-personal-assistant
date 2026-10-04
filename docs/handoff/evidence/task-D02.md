@@ -1,0 +1,34 @@
+# D02 — native dashboard login evidence
+
+Implementation ready for independent root review/integration. Source frozen; no D02 stage/commit/push or release.
+
+Implemented genuine Windows SID/ACL named-pipe authority, profile/incarnation/server-PID checks, 256-bit/30-second atomic one-use hash-only ticket, measured-port window/tray open, earliest fragment scrub and same-origin POST, HttpOnly/SameSite cookie/CSRF, strict Host/Origin, logout native reopen, setup_only before verified owner attach. Fatal impersonation failure stops authority. Hidden tray-open polling bug has real RED/GREEN coverage. Existing retro art/fonts preserved.
+
+Evidence:
+- Native/auth/desktop/theme batch **81 passed, 0 failed/skipped/errors**; final hidden-tray case makes **17 D02 cases green**. Final aggregate with seven newly added S03 backup tests: **88 passed, 1 failed**; only S03 lowercase-copy assertion, corrected by root and superseded by parent-reported backup **12/12** focused run.
+- Real Chrome **5 passed**: fragment cleared before fetch/resources; actual native IPC cookie/logout; replay401; real31-second expiry401; Host/Origin403; HTTPmint404; malformed/duplicate/same-document fragment scrub.
+- Frontend build + ESLint + targeted Ruff + diff check pass; Sites **4 passed**. Auth screenshots `.test-temp/d02-browser-{360,390,1280,1440}.png`.
+- Full Python **590 passed, 133 skipped, 3 failed** during concurrent V02 work: oversized vector coverage eligibility; revocation fixture missing reference_ids; embedding-start timeout. Exact names and post-run source hashes are in the internal report/artifacts. These are not mislabeled pre-existing baseline. Optional MySQL skips do not establish required-dialect coverage.
+
+Artifacts: `.test-temp/d02-targeted-summary.json`, `.test-temp/d02-final-native-summary.json`, `.test-temp/d02-tray-red-summary.json`, `.test-temp/d02-full-summary.json`, `.test-temp/d02-full-failures.txt`, `.test-temp/d02-full-failure-source-hashes.json`. Full report: `.superpowers/sdd/windows-public-beta-2026-10-02/task-D02-report.md`.
+
+Independent integration review and clean Windows/VM/UAT/DPI/art/license release gates remain Pending. Setup gateway is the prior welcome screen; D02 does not complete the onboarding wizard or claim beta readiness. Synthetic data only; no real account/credential or paid service used.
+
+Independent-review follow-up: advanced standalone recovery codes now remain spent across API restart, using private profile/current-SID hash-only period state with a real cross-process lock and fsync/atomic replace. Corrupt/unavailable/foreign state fails closed; native desktop HTTP fallback stays disabled. Meaningful RED2 then **focused GREEN34**, including six actual competing processes (one winner), restart401, next-period code, corruption and lock/write denial.
+
+Portable browser config now supports bounded D02_PYTHON, chrome/chromium channel and ART_EVIDENCE_DIR overrides; workers1/retries0/forbidOnly and automatic trace/video/screenshots off. Final actual Chrome run with bare PATH python: **5 passed**,36.0s. Ruff/diff checks pass; no full suite rerun.
+
+Frozen scoped review package: `.test-temp/d02-replay-review/followup.patch`, manifest.json and before/after snapshots; SHA256 af1b6d6b53304fe3d2c86fb0c54c4fdec16d7168f80fcae8108d91679156ba67. Focused count artifact `.test-temp/d02-replay-final-summary.json`; screenshots `.test-temp/d02-portable-browser/d02-browser-{width}.png`. Scoped final review pending; no stage/commit/push.
+
+ACL review round2: existing config trees now undergo full ownership/reparse/hardlink preflight before inheritable DACL changes. Valid replay consumption stays in place. Actual Windows hardlink RED showed the outside disposable alias's ACL changed on denial; GREEN verifies exact original outside/config SDDL remains unchanged. Focused result **35 passed, 1 skipped**,0errors. Foreign-owned NEW-file fixture cannot be created with this local token; it is honestly Pending for elevated Windows CI, with no privileges/ownership/account workaround.
+
+Round1 advertised hash was UTF-8 LF canonical text, not actual Windows bytes; corrected manifest labels both and preserves original metadata. Canonical patch SHA256 af1b6d6b53304fe3d2c86fb0c54c4fdec16d7168f80fcae8108d91679156ba67; original byte hash 802005f75432ccd20d4f0775a5cc017c1778c43321dcd7107474975a634dcb5a. Round2 scoped package `.test-temp/d02-replay-review-round2/` has exact-byte metadata; patch byte/canonical SHA256 7fd220aaaf22e8a3b3a3c08ba40aa70980435edb3af486ee8bd919ccf51d4560. Ruff/diff checks pass. Source frozen for review; no full suite/stage/commit/push.
+
+Qt focused follow-up (2026-10-04): the frozen broad run's sole native-button failure reproduces standalone. Qt delivers pressed/clicked once; Python controller remains pending under repeated QTest.qWait. Synthetic worker heartbeat: qWait8iterations/0.5s, real QEventLoop321, actual QApplication.exec340, qWait8. Test-only bounded event-loop wait replaces qWait polling in native-button and hidden-tray tests, preserving5s/3s deadlines, actual click/action, measured URL/ticket/redeem/replay checks and all backup guards. Ordered backup/modal/launcher+D02+native-theme checks26passed0skip0error25.85s; Ruff/diff clean. Intermediate order run25passed1failed was the same tray wait-loop scheduling issue, now covered. No production files changed; no fullsuite rerun. Exact-byte scoped package .test-temp/d02-qt-yield-review/manifest.json; patch SHA25648da755799bbf41dc0c8dd32de1611521aa48711375abced83e04a2ac9c80e2f. Independent scoped review pending; no release-readiness claim.
+
+
+## Frozen integration — 2026-10-04
+
+Independent scoped review approved. Combined-tree run recorded 781 passed, 11 skipped, 1 failed in 620.15s. Only the native Qt dashboard test failed; it was reproduced independently and diagnosed as QTest wait-loop GIL starvation. Production files stayed unchanged. Corrected real event-loop waits retain the 5s/3s deadlines, native click/ticket/redeem/replay assertions; ordered focused checks passed 26 cases. This supplements, and does not relabel, the historical full run.
+
+Expanded required MySQL gate: 138 passed, 0 skipped/errors/failures, 234 deselected, 322.50s across all eight mandatory modules, including backup/restore and incremental indexing. Actual CI-channel Chromium: 5 passed in 41.0s. Python Ruff, generated contracts/art checks, frontend build and ESLint passed. Exact new-commit hosted CI remains the next integration check. Physical Windows/VM/DPI, UAT, packaging and distribution rights remain Pending.

@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import asyncio
+import base64
+import hashlib
 import json
 import os
 import socket
@@ -18,13 +20,15 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from sqlalchemy import select
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
+from ..admin_api.auth import DashboardTicketService, install_native_auth_routes
 from ..config import get_settings
 from ..contracts import ConnectionStatus, PublicProfile
 from ..db.models import TelegramAccount
-from ..paths import ensure_runtime_dirs, resource_path
+from ..paths import current_user_sid, ensure_runtime_dirs, resource_path
 from ..services.maintenance import MaintenanceService
 from ..services.storage import StorageService
 from .instance import AlreadyRunning, InstanceGuard, secure_tree
+from .ipc import NativePipeServer
 
 
 def reserve_loopback(port):
@@ -41,10 +45,13 @@ def reserve_loopback(port):
 
 
 class RuntimeGateway:
-    def __init__(self, port, run_id):
+    def __init__(self, port, run_id, *, profile_id="default"):
         self.origin = f"http://127.0.0.1:{port}"
         self.host = f"127.0.0.1:{port}"
-        self.admin = None
+        self._admin = None
+        self.tickets = DashboardTicketService(profile_id=profile_id, windows_sid=current_user_sid(), origin=self.origin)
+        self.authentication = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
+        install_native_auth_routes(self.authentication, self.tickets)
         self.code = "runtime_ready"
         tokens = json.loads(
             files("tg_assistant.desktop").joinpath("design_tokens.json").read_text(encoding="utf-8")
@@ -79,8 +86,11 @@ class RuntimeGateway:
         @setup.get("/")
         async def welcome():
             colors = tokens["colors"]
+            bootstrap = resource_path("dashboard-prototype", "public", "auth-bootstrap.js").read_text(encoding="utf-8")
+            bootstrap_hash = base64.b64encode(hashlib.sha256(bootstrap.encode()).digest()).decode()
             return HTMLResponse(
                 '<!doctype html><html lang="vi"><meta charset="utf-8">'
+                f"<script>{bootstrap}</script>"
                 '<meta name="viewport" content="width=device-width,initial-scale=1">'
                 "<title>Telegram AI</title><style>"
                 "@font-face{font-family:Darley;src:url('/assets/ui-font')}"
@@ -91,9 +101,13 @@ class RuntimeGateway:
                 "</style><body><main><h1>Telegram AI</h1>"
                 "<p>Mở ứng dụng Windows để tiếp tục thiết lập kết nối.</p></main></body></html>",
                 headers={
-                    "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; font-src 'self'; frame-ancestors 'none'"
+                    "Content-Security-Policy": f"default-src 'none'; script-src 'sha256-{bootstrap_hash}'; connect-src 'self'; style-src 'unsafe-inline'; font-src 'self'; frame-ancestors 'none'"
                 },
             )
+
+        @setup.get("/auth-bootstrap.js")
+        async def bootstrap():
+            return FileResponse(resource_path("dashboard-prototype", "public", "auth-bootstrap.js"), media_type="text/javascript")
 
         @setup.get("/assets/ui-font")
         async def ui_font():
@@ -111,12 +125,27 @@ class RuntimeGateway:
 
         self.setup = setup
 
+    @property
+    def admin(self):
+        return self._admin
+
+    @admin.setter
+    def admin(self, value):
+        self.tickets.invalidate()
+        owner = value.state.admin_context.owner_id if value is not None else None
+        self.tickets.set_verified_owner(owner)
+        if value is not None:
+            value.state.admin_auth = self.tickets
+        self._admin = value
+
     async def __call__(self, scope, receive, send):
         if scope["type"] == "http":
             headers = [(key.lower(), value) for key, value in scope["headers"]]
             hosts = [value.decode("latin1") for key, value in headers if key == b"host"]
             origins = [value.decode("latin1") for key, value in headers if key == b"origin"]
-            if hosts != [self.host] or (origins and origins != [self.origin]):
+            if hosts != [self.host] or (origins and origins != [self.origin]) or (
+                scope.get("method") not in {"GET", "HEAD", "OPTIONS"} and origins != [self.origin]
+            ):
                 response = JSONResponse(
                     {"code": "origin_denied"},
                     status_code=403,
@@ -124,6 +153,9 @@ class RuntimeGateway:
                 )
                 await response(scope, receive, send)
                 return
+        if scope.get("path", "").startswith("/api/v1/auth/") or scope.get("path") == "/api/v1/native/commands":
+            await self.authentication(scope, receive, send)
+            return
         target = (
             self.setup
             if (scope["type"] == "lifespan" or scope.get("path") == "/api/v1/runtime/readiness")
@@ -155,7 +187,7 @@ async def _serve(settings, paths, database, listener):
         launch_id = uuid4().hex
     elif UUID(launch_id).hex != launch_id:
         raise ValueError("runtime_start_failed")
-    gateway = RuntimeGateway(port, launch_id)
+    gateway = RuntimeGateway(port, launch_id, profile_id=settings.profile_id)
     state = dict(
         profile_id=settings.profile_id,
         pid=os.getpid(),
@@ -175,7 +207,9 @@ async def _serve(settings, paths, database, listener):
     server.install_signal_handlers = lambda: None
     server_task = asyncio.create_task(server.serve(sockets=[listener]))
     assistant_task = None
+    pipe = NativePipeServer(settings.profile_id, launch_id, gateway.tickets)
     try:
+        pipe.__enter__()
         while not server.started and not server_task.done():
             await asyncio.sleep(0.01)
         if server_task.done():
@@ -216,10 +250,16 @@ async def _serve(settings, paths, database, listener):
 
             assistant_task = asyncio.create_task(assistant())
         while not server_task.done():
+            if pipe.failed.is_set():
+                gateway.admin = None
+                gateway.code = "native_ipc_unavailable"
+                break
             if stop_file.exists() and stop_file.read_text(encoding="ascii") == state["run_id"]:
                 break
             await asyncio.sleep(0.1)
     finally:
+        pipe.close()
+        gateway.tickets.invalidate()
         if assistant_task:
             assistant_task.cancel()
             await asyncio.gather(assistant_task, return_exceptions=True)

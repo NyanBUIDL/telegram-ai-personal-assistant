@@ -67,6 +67,7 @@ class TrayController(QObject):
         self.menu = QMenu(window)
         for title, handler in (
             ("Mở ứng dụng", self.open),
+            ("Mở dashboard", self.open_dashboard),
             ("Khởi động", window.start),
             ("Dừng an toàn", runtime.stop),
             ("Thoát…", self.request_exit),
@@ -83,6 +84,12 @@ class TrayController(QObject):
         if self.available:
             self.icon.show()
             window.hide_on_close = True
+
+    def open_dashboard(self):
+        # Closing to tray stops the window's readiness timer; this user action
+        # needs Qt polling to deliver the completed IPC future to the browser.
+        self.window.open_dashboard()
+        self.window.timer.start()
 
     def activated(self, reason):
         if reason in {QSystemTrayIcon.Trigger, QSystemTrayIcon.DoubleClick}:

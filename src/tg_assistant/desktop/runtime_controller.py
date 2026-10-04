@@ -166,6 +166,24 @@ class RuntimeController:
     def refresh(self):
         return self.executor.submit(self._refresh)
 
+    def open_dashboard(self):
+        return self.executor.submit(self._dashboard_url)
+
+    def _dashboard_url(self):
+        from .ipc import native_request
+        state = self._refresh()
+        if state.phase != "ready":
+            raise OSError("runtime_not_ready")
+        # _refresh verifies SID, process creation time, profile and run incarnation.
+        result = native_request(self.settings.profile_id, state.run_id, {
+            "name": "issue_dashboard_ticket", "request_id": uuid4().hex,
+            "profile_id": self.settings.profile_id, "payload_nonsecret": {},
+        }, server_pid=state.pid)
+        ticket = result.get("raw_ticket")
+        if not isinstance(ticket, str) or not re.fullmatch(r"[A-Za-z0-9_-]{43}", ticket):
+            raise OSError("dashboard_launch_failed")
+        return state.url + "#launch_ticket=" + ticket
+
     def _refresh(self):
         if self.start_failed:
             return self.snapshot

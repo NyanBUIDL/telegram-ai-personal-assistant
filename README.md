@@ -317,9 +317,16 @@ Khi block, các quyền con bị tắt ngay và request mới bị Policy Engine
 
 ## Backup và restore
 
-`tg-assistant backup` gọi `mysqldump` qua biến môi trường tạm, tạo ZIP gồm SQL và manifest.
-Credential, session và API key không nằm trong backup. `restore` kiểm tra manifest, schema
-và yêu cầu xác nhận, sau đó tự tạo backup hiện trạng trước khi thay đổi database.
+Trong launcher Windows, chọn **Dữ liệu và sao lưu** để tạo hoặc khôi phục bản sao lưu.
+Luồng CLI `tg-assistant backup` dùng cùng dịch vụ, hỗ trợ SQLite và MySQL; ZIP gồm
+dữ liệu database và manifest có revision/checksum. Credential, API key, session
+Telegram và chỉ mục vector không nằm trong bản sao lưu.
+
+Khôi phục yêu cầu xác nhận, dừng và chặn các writer, kiểm tra archive trong database
+tạm và tạo bản sao hiện trạng trước khi thay đổi database. Quyền truy cập hiện tại
+được giữ; dữ liệu khôi phục cần đối chiếu lại chỉ mục vector. Runtime không tự bật
+lại sau khôi phục. Dashboard cho phép tạo và xem danh sách bản sao lưu; chọn tệp
+để khôi phục được thực hiện trong cửa sổ Windows.
 
 ## Kiểm thử
 

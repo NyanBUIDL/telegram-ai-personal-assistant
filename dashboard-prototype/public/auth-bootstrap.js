@@ -1,8 +1,4 @@
-<!doctype html>
-<html lang="vi">
-  <head>
-    <meta charset="UTF-8" />
-    <script>// Earliest inline bootstrap: erase the fragment before any resource or fetch.
+// Earliest inline bootstrap: erase the fragment before any resource or fetch.
 (() => {
   let fragment = window.location.hash;
   const eraseFragment = () => window.history.replaceState(null, '', window.location.pathname + window.location.search);
@@ -33,15 +29,3 @@
   }
   window.__tgLaunchSession.catch(() => {});
 })();
-</script>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#f3efdf" />
-    <meta name="description" content="Telegram AI local administration dashboard" />
-    <link rel="icon" href="data:," />
-    <title>Telegram AI // Admin Console</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
-  </body>
-</html>

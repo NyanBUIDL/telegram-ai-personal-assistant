@@ -5,7 +5,7 @@ from __future__ import annotations
 from sqlalchemy import create_engine, event
 
 from ..config import Settings, save_settings, validate_settings
-from ..contracts import MigrationReport, PublicProfile
+from ..contracts import BackupManifest, MaintenanceLease, MigrationReport, PublicProfile
 from ..db.base import Database, configure_sqlite
 from ..db.migrations import upgrade_database
 from ..paths import ensure_runtime_dirs, resource_path
@@ -68,3 +68,18 @@ class StorageService:
         finally:
             self.fence.close()
             engine.dispose()
+
+    def backup(self, destination) -> BackupManifest:
+        from .backup import BackupService
+
+        if not self._opened:
+            raise RuntimeError("storage_not_open")
+        with self.fence.operation():
+            return BackupService(self).backup(destination)
+
+    def restore(self, source, maintenance_lease: MaintenanceLease):
+        from .backup import BackupService
+
+        if not self._opened:
+            raise RuntimeError("storage_not_open")
+        return BackupService(self).restore(source, maintenance_lease)

@@ -1,14 +1,11 @@
 from __future__ import annotations
 
 import asyncio
-import json
 import os
 import shutil
 import subprocess
 import sys
-import tempfile
 import time
-import zipfile
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -16,7 +13,6 @@ import httpx
 import typer
 from sqlalchemy import select
 
-from . import __version__
 from .admin_api import dashboard_login_code, ensure_dashboard_secret
 from .admin_api.auth import login_code_expires_at
 from .config import get_settings
@@ -42,9 +38,9 @@ from .runtime import (
     run_application,
 )
 from .security import SecretStore
-from .services.maintenance import FileLock, MaintenanceBusy, profile_maintenance, profile_writer
+from .services.maintenance import FileLock, MaintenanceBusy, profile_writer
 from .services.storage import StorageService
-from .setup.mysql import detect_mysql, find_mysql_tool
+from .setup.mysql import detect_mysql
 from .setup.wizard import run_setup
 
 
@@ -729,157 +725,97 @@ def reindex() -> None:
     asyncio.run(execute())
 
 
+def _portable_storage() -> StorageService:
+    """Open the explicit profile without launching writers or prompting secrets."""
+    settings = get_settings()
+    storage = StorageService(settings, SecretStore())
+    from .contracts import PublicProfile
+
+    database = storage.open(PublicProfile(
+        profile_id=settings.profile_id,
+        owner_id=None,
+        storage_backend=settings.storage_backend,
+        setup_stage="storage_ready",
+        version=1,
+    ))
+    try:
+        asyncio.run(database.close())
+    except BaseException:
+        storage.fence.close()
+        raise
+    return storage
+
+
 @app.command()
 def backup(output: Path | None = None) -> None:
-    settings, store, paths = get_settings(), SecretStore(), ensure_runtime_dirs()
-    dump = find_mysql_tool("mysqldump")
-    if not dump:
-        raise typer.BadParameter("Không tìm thấy mysqldump")
-    output = output or paths["backups"] / f"backup-{datetime.now().strftime('%Y%m%d-%H%M%S')}.zip"
-    if output.exists():
-        raise typer.BadParameter(f"Không ghi đè backup đã tồn tại: {output}")
-    with tempfile.NamedTemporaryFile(
-        prefix="tg-assistant-backup-", suffix=".sql", dir=paths["backups"], delete=False
-    ) as temp_file:
-        sql_path = Path(temp_file.name)
-    env = os.environ.copy()
-    env["MYSQL_PWD"] = store.get("database_password") or ""
+    """Create a portable SQLite/MySQL snapshot without external SQL tools."""
+    storage = None
     try:
-        with sql_path.open("wb") as stream:
-            subprocess.run(
-                [
-                    dump,
-                    "--host",
-                    settings.database_host,
-                    "--port",
-                    str(settings.database_port),
-                    "--user",
-                    settings.database_user,
-                    "--single-transaction",
-                    "--routines",
-                    settings.database_name,
-                ],
-                stdout=stream,
-                env=env,
-                check=True,
-            )
-        with zipfile.ZipFile(output, "w", zipfile.ZIP_DEFLATED) as archive:
-            archive.write(sql_path, "database.sql")
-            archive.writestr(
-                "manifest.txt",
-                f"version={__version__}\nschema=0001\ncreated_at={datetime.now(UTC).isoformat()}\n",
-            )
-            safe_config = {
-                "TG_ASSISTANT_TIMEZONE": settings.timezone,
-                "TG_ASSISTANT_LOG_LEVEL": settings.log_level,
-                "TG_ASSISTANT_ADMIN_API_ENABLED": settings.admin_api_enabled,
-                "TG_ASSISTANT_ADMIN_API_HOST": settings.admin_api_host,
-                "TG_ASSISTANT_ADMIN_API_PORT": settings.admin_api_port,
-                "TG_ASSISTANT_ADMIN_SESSION_MINUTES": settings.admin_session_minutes,
-                "TG_ASSISTANT_DATABASE_HOST": settings.database_host,
-                "TG_ASSISTANT_DATABASE_PORT": settings.database_port,
-                "TG_ASSISTANT_DATABASE_NAME": settings.database_name,
-                "TG_ASSISTANT_DATABASE_USER": settings.database_user,
-                "TG_ASSISTANT_MEDIA_DOWNLOAD_ENABLED": settings.media_download_enabled,
-                "TG_ASSISTANT_MEDIA_MAX_SIZE_MB": settings.media_max_size_mb,
-                "TG_ASSISTANT_DAILY_AI_BUDGET_USD": settings.daily_ai_budget_usd,
-                "TG_ASSISTANT_MONTHLY_AI_BUDGET_USD": settings.monthly_ai_budget_usd,
-                "TG_ASSISTANT_MAX_AI_REQUESTS_PER_MINUTE": (settings.max_ai_requests_per_minute),
-                "TG_ASSISTANT_LEARNING_JOB_INTERVAL_SECONDS": (
-                    settings.learning_job_interval_seconds
-                ),
-                "TG_ASSISTANT_AI_PROVIDER": settings.ai_provider,
-                "TG_ASSISTANT_OPENAI_BASE_URL": settings.openai_base_url,
-                "TG_ASSISTANT_OPENAI_PRIMARY_MODEL": settings.openai_primary_model,
-                "TG_ASSISTANT_OPENAI_FAST_MODEL": settings.openai_fast_model,
-                "TG_ASSISTANT_OPENAI_DEEP_MODEL": settings.openai_deep_model,
-                "TG_ASSISTANT_OPENAI_EMBEDDING_MODEL": settings.openai_embedding_model,
-                "TG_ASSISTANT_OPENROUTER_BASE_URL": settings.openrouter_base_url,
-                "TG_ASSISTANT_OPENROUTER_PRIMARY_MODEL": settings.openrouter_primary_model,
-                "TG_ASSISTANT_OPENROUTER_EMBEDDING_MODEL": (settings.openrouter_embedding_model),
-                "TG_ASSISTANT_OLLAMA_BASE_URL": settings.ollama_base_url,
-                "TG_ASSISTANT_OLLAMA_PRIMARY_MODEL": settings.ollama_primary_model,
-                "TG_ASSISTANT_OLLAMA_EMBEDDING_MODEL": settings.ollama_embedding_model,
-                "TG_ASSISTANT_OLLAMA_VECTOR_SIZE": settings.ollama_vector_size,
-            }
-            archive.writestr(
-                "config.env",
-                "\n".join(f"{key}={value}" for key, value in safe_config.items()) + "\n",
-            )
-            qdrant_path = settings.resolved_semantic_vector_path
-            metadata = {
-                "configured": str(qdrant_path),
-                "present": qdrant_path.exists(),
-                "file_count": (
-                    sum(1 for item in qdrant_path.rglob("*") if item.is_file())
-                    if qdrant_path.exists()
-                    else 0
-                ),
-            }
-            archive.writestr(
-                "qdrant_metadata.json",
-                json.dumps(metadata, ensure_ascii=False, indent=2),
-            )
-        typer.echo(f"Backup không chứa secret: {output}")
+        storage = _portable_storage()
+        output = output or storage.settings.data_dir / "backups" / (
+            f"backup-{datetime.now(UTC).strftime('%Y%m%d-%H%M%S')}-{time.time_ns()}.zip"
+        )
+        manifest = storage.backup(output)
+        typer.echo(
+            f"Đã tạo bản sao lưu {manifest.backend}; schema {manifest.schema_revision}. "
+            "Thông tin đăng nhập và phiên Telegram không nằm trong bản sao lưu."
+        )
+    except MaintenanceBusy:
+        typer.echo("Đang bảo trì; maintenance_in_progress. Thử lại sau khi bảo trì kết thúc.")
+        raise typer.Exit(code=1) from None
+    except Exception:
+        typer.echo("Không thể tạo bản sao lưu; backup_failed. Kiểm tra quyền lưu và tệp đích.")
+        raise typer.Exit(code=1) from None
     finally:
-        env["MYSQL_PWD"] = ""
-        sql_path.unlink(missing_ok=True)
+        if storage is not None and storage.fence is not None:
+            storage.fence.close()
 
 
 @app.command()
-@profile_maintenance(lambda: get_settings())
 def restore(archive: Path) -> None:
-    if not archive.is_file() or not zipfile.is_zipfile(archive):
-        raise typer.BadParameter("Backup không hợp lệ")
-    with zipfile.ZipFile(archive) as source:
-        if "database.sql" not in source.namelist() or "manifest.txt" not in source.namelist():
-            raise typer.BadParameter("Thiếu manifest/database.sql")
-        manifest = source.read("manifest.txt").decode("utf-8")
-        if "schema=0001" not in manifest:
-            raise typer.BadParameter("Phiên bản schema không tương thích")
-        if source.getinfo("database.sql").file_size > 5 * 1024 * 1024 * 1024:
-            raise typer.BadParameter("Database backup vượt giới hạn an toàn 5 GiB.")
+    """Confirm first, then restore only while owning the actual writer fence."""
+    from .services.backup import BackupError
+
     if not typer.confirm(
-        "Restore sẽ thay đổi database. Ứng dụng sẽ tự tạo backup hiện trạng trước. Tiếp tục?",
-        default=False,
+        "Khôi phục sẽ thay đổi dữ liệu và tạo bản sao lưu hiện trạng trước. "
+        "Hãy dừng ứng dụng trước khi tiếp tục. Tiếp tục?", default=False,
     ):
         raise typer.Abort()
-    settings, store, paths = get_settings(), SecretStore(), ensure_runtime_dirs()
-    mysql = find_mysql_tool("mysql")
-    if not mysql:
-        raise typer.BadParameter("Không tìm thấy mysql CLI")
-    pre_restore = paths["backups"] / (f"pre-restore-{datetime.now().strftime('%Y%m%d-%H%M%S')}.zip")
-    backup(pre_restore)
-    with tempfile.NamedTemporaryFile(
-        prefix="tg-assistant-restore-", suffix=".sql", dir=paths["backups"], delete=False
-    ) as temp_file:
-        temp = Path(temp_file.name)
-    env = os.environ.copy()
-    env["MYSQL_PWD"] = store.get("database_password") or ""
+    storage = None
+    lease = None
     try:
-        with zipfile.ZipFile(archive) as source:
-            with source.open("database.sql") as source_sql, temp.open("wb") as target_sql:
-                shutil.copyfileobj(source_sql, target_sql, length=1024 * 1024)
-        with temp.open("rb") as stream:
-            subprocess.run(
-                [
-                    mysql,
-                    "--host",
-                    settings.database_host,
-                    "--port",
-                    str(settings.database_port),
-                    "--user",
-                    settings.database_user,
-                    settings.database_name,
-                ],
-                stdin=stream,
-                env=env,
-                check=True,
-            )
-        typer.echo("Restore hoàn tất.")
+        storage = _portable_storage()
+        lease = storage.fence.acquire("backup_restore", lease_seconds=1800, timeout=0)
+        try:
+            report = storage.restore(archive, lease)
+        except BackupError as error:
+            if error.original_preserved:
+                storage.fence.release(lease)
+                lease = None
+            raise
+        storage.fence.release(lease)
+        lease = None
+        typer.echo(
+            f"Đã khôi phục dữ liệu {report.backend}; schema {report.schema_revision}. "
+            "Ứng dụng cần khôi phục chỉ mục AI trước khi báo sẵn sàng. "
+            "Bản sao lưu trước khôi phục đã được giữ lại."
+        )
+    except MaintenanceBusy:
+        typer.echo(
+            "Chưa thể khôi phục; maintenance_in_progress. "
+            "Dừng ứng dụng và các tác vụ ghi, rồi kiểm tra lại trạng thái bảo trì."
+        )
+        raise typer.Exit(code=1) from None
+    except Exception:
+        typer.echo(
+            "Không thể khôi phục; restore_failed. "
+            "Kiểm tra bản sao lưu và trạng thái bảo trì trước khi thử lại."
+        )
+        raise typer.Exit(code=1) from None
     finally:
-        env["MYSQL_PWD"] = ""
-        temp.unlink(missing_ok=True)
+        # Failure never clears a persistent fence without verified preservation.
+        if storage is not None and storage.fence is not None:
+            storage.fence.close()
 
 
 @app.command()
