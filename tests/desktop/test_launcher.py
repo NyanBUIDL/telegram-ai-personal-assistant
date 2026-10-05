@@ -10,6 +10,7 @@ import socket
 import subprocess
 import sys
 import time
+import types
 from concurrent.futures import TimeoutError as FutureTimeoutError
 
 import pytest
@@ -51,6 +52,183 @@ def track_fixture_starts(runtime):
     return runtime
 
 
+def observe_fixture_readiness(runtime):
+    """Observe original calls only; each refresh owns an independent fact set."""
+    original_refresh = runtime._refresh.__func__
+    original_globals = original_refresh.__globals__
+    original_httpx = original_globals["httpx"]
+    original_owner = original_globals["process_matches_owner"]
+    original_status = original_globals["ConnectionStatus"]
+    original_datetime = original_globals["datetime"]
+    runtime.fixture_diagnostics = {"state": "absent", "http": "not_attempted"}
+
+    def refresh(self):
+        facts = {"state": "absent", "http": "not_attempted"}
+        self.fixture_diagnostics = facts
+        saved, parsed = {}, {}
+
+        def read():
+            try:
+                state = self._read_state()
+            except OSError:
+                facts["state"] = "unavailable"
+                raise
+            except ValueError:
+                facts["state"] = "invalid"
+                raise
+            saved.update(state)
+            facts.update(
+                state="valid",
+                profile_matches=state["profile_id"] == self.settings.profile_id,
+                run_matches=state["run_id"] == self.launch_id,
+                port_is_preferred=state["port"] == self.settings.admin_api_port,
+            )
+            return state
+
+        def owner(*args):
+            try:
+                result = original_owner(*args)
+            except Exception:
+                facts["owner_check"] = "error"
+                raise
+            facts["owner_matches"] = result is True
+            return result
+
+        def validate(value):
+            try:
+                measured = original_status.model_validate(value)
+            except Exception:
+                facts["body"] = "validation_error"
+                raise
+            parsed["value"] = measured
+            facts.update(
+                body="valid", service_matches=measured.service.value == "runtime",
+                measured_ready=measured.state.value == "ready",
+                capabilities_match=measured.capabilities == (
+                    ["setup"] if saved.get("mode") == "setup" else ["management"]
+                ),
+            )
+            if measured.checked_at is None:
+                facts["age"] = "absent"
+            return measured
+
+        def now(*args):
+            measured_now = original_datetime.now(*args)
+            measured = parsed["value"]
+            age = (measured_now - measured.checked_at).total_seconds()
+            facts["age"] = "future" if age < 0 else "fresh" if age < 5 else "stale"
+            return measured_now
+
+        class Headers:
+            def __init__(self, value):
+                self.value = value
+
+            def get(self, *args, **kwargs):
+                result = self.value.get(*args, **kwargs)
+                facts["header_matches"] = result == saved.get("run_id")
+                return result
+
+        class Response:
+            def __init__(self, value):
+                self.value = value
+
+            def raise_for_status(self):
+                try:
+                    return self.value.raise_for_status()
+                except Exception:
+                    facts["http"] = "status_rejected"
+                    raise
+                finally:
+                    # Passive metadata cannot replace the original outcome.
+                    try:
+                        status = self.value.status_code
+                        facts["http_status"] = status if type(status) is int and 100 <= status <= 599 else None
+                    except Exception:
+                        facts["status_observation"] = "unavailable"
+
+            @property
+            def headers(self):
+                return Headers(self.value.headers)
+
+            def json(self):
+                try:
+                    return self.value.json()
+                except Exception:
+                    facts["body"] = "decode_error"
+                    raise
+
+        def get(*args, **kwargs):
+            began = time.monotonic()
+            facts["http"] = "pending"
+            try:
+                response = original_httpx.get(*args, **kwargs)
+            except original_httpx.TimeoutException:
+                facts["http"] = "timeout"
+                raise
+            except original_httpx.HTTPError:
+                facts["http"] = "transport_error"
+                raise
+            finally:
+                facts["http_elapsed_ms"] = round((time.monotonic() - began) * 1000)
+            facts["http"] = "response"
+            return Response(response)
+
+        class Probe:
+            # Only the cloned refresh receives this self proxy. Stop and all
+            # other methods retain the real self and original state reader.
+            def __getattr__(self, name):
+                return read if name == "_read_state" else getattr(runtime, name)
+
+            def __setattr__(self, name, value):
+                setattr(runtime, name, value)
+
+        globals_copy = dict(original_globals)
+        globals_copy.update(
+            httpx=types.SimpleNamespace(get=get, HTTPError=original_httpx.HTTPError),
+            process_matches_owner=owner,
+            ConnectionStatus=types.SimpleNamespace(model_validate=validate),
+            datetime=types.SimpleNamespace(now=now),
+        )
+        probe = types.FunctionType(
+            original_refresh.__code__, globals_copy, original_refresh.__name__,
+            original_refresh.__defaults__, original_refresh.__closure__,
+        )
+        return probe(Probe())
+
+    runtime._refresh = types.MethodType(refresh, runtime)
+    return runtime
+
+
+def fixture_readiness_diagnostics(runtime, began):
+    """Only fixed codes/booleans/durations; never state, paths or error strings."""
+    diagnostics = dict(getattr(runtime, "fixture_diagnostics", {}))
+    starts = getattr(runtime, "fixture_starts", ())
+    error_types = {"OSError", "ValueError", "RuntimeError", "TimeoutError"}
+    errors = []
+    for future in starts:
+        if future.done() and not future.cancelled():
+            error = future.exception()
+            if error is not None:
+                errors.append(type(error).__name__ if type(error).__name__ in error_types else "other")
+    diagnostics.update(
+        elapsed_ms=round((time.monotonic() - began) * 1000),
+        start_done=all(future.done() for future in starts),
+        start_cancelled=any(future.cancelled() for future in starts),
+        start_errors=errors,
+        owned_process_exists=runtime.process is not None,
+        owned_process_alive=runtime.process is not None and runtime.process.poll() is None,
+    )
+    try:
+        diagnostics["state_file_exists"] = runtime.state_file.exists()
+        if diagnostics["state_file_exists"]:
+            diagnostics["state_file_bounded"] = runtime.state_file.stat().st_size <= 8192
+    except OSError:
+        diagnostics["state_file_available"] = False
+    if hasattr(runtime, "fixture_collision_occupied"):
+        diagnostics["collision_occupied"] = runtime.fixture_collision_occupied()
+    return diagnostics
+
+
 def controller(settings, tmp_path):
     lifecycle = module("tg_assistant.desktop.runtime_controller")
     code = (
@@ -63,7 +241,7 @@ def controller(settings, tmp_path):
         "\n with (Path(sys.argv[1]).parent/'synthetic-worker-error.log').open('w',encoding='utf-8') as log: traceback.print_exc(file=log)"
         "\n raise"
     )
-    return track_fixture_starts(lifecycle.RuntimeController(
+    return observe_fixture_readiness(track_fixture_starts(lifecycle.RuntimeController(
         settings,
         worker_command=[
             sys.executable,
@@ -73,11 +251,12 @@ def controller(settings, tmp_path):
             str(tmp_path / "sid-instance"),
             str(settings.admin_api_port),
         ],
-    ))
+    )))
 
 
 def ready(runtime, *, timeout=15):
-    deadline = time.monotonic() + timeout
+    began = time.monotonic()
+    deadline = began + timeout
     while time.monotonic() < deadline:
         future = runtime.refresh()
         try:
@@ -90,7 +269,8 @@ def ready(runtime, *, timeout=15):
         if state.phase == "error":
             pytest.fail(f"Synthetic worker failed: {state.code}")
         time.sleep(min(0.05, max(0, deadline - time.monotonic())))
-    pytest.fail(f"Worker did not reach readiness: {runtime.snapshot.code}")
+    diagnostics = json.dumps(fixture_readiness_diagnostics(runtime, began), sort_keys=True)
+    pytest.fail(f"Worker did not reach readiness: {runtime.snapshot.code}; diagnostics={diagnostics}")
 
 
 def stop(runtime):
@@ -290,6 +470,7 @@ def test_port_collision(settings, tmp_path):
         preferred = occupied.getsockname()[1]
         settings = settings.model_copy(update={"admin_api_port": preferred})
         runtime = controller(settings, tmp_path)
+        runtime.fixture_collision_occupied = lambda: occupied.fileno() >= 0
         try:
             runtime.start()
             state = ready(runtime)
