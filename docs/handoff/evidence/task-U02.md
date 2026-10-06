@@ -1,10 +1,11 @@
 # U02 — dashboard onboarding and native dialog relay
 
 <!-- five-current -->
-## Integrated acceptance — 06/10/2026
+## Integrated acceptance — 07/10/2026
 
 Current status: **InReview**. The coordinator's [integrated review](review-five-completion.md) and [execution manifest](five-completion.json) supersede historical code-integration Pending statements below. SQLite-only source follows the directly approved amendment. Live accounts/provider/downloads, physical Windows/installer, licensing, human UAT and soak remain Pending; this is not beta-ready or publication. O04 bot setup and U03 first-answer UX remain separate roadmap work.
 <!-- /five-current -->
+
 
 
 Status: InProgress. The isolated relay and actual HTTP/IPC/GUI bridge have independently passed review; the new setup/navigation consumer and setup-mode static delivery are in their first scoped fix round. Full integration, hosted-head verification and release acceptance remain Pending.

@@ -1,6 +1,6 @@
 # Roadmap — từ MVP đến Windows public beta
 
-Cập nhật 06/10/2026. **13/26 task đã Verified; O01/O02/O03/U02/V03 có code và review, đang nghiệm thu bản tích hợp SQLite-only.** ID/dependency/status canonical nằm trong [status.json](status.json), [CSV](roadmap.csv), [checklist](MASTER_CHECKLIST.md) và [plan chi tiết](../superpowers/plans/2026-10-02-windows-public-beta-plan.md). [Điều chỉnh SQLite-only](../superpowers/specs/2026-10-06-sqlite-only-amendment.md) đã được owner duyệt. Bằng chứng code/review/kiểm thử nằm trong [hồ sơ tích hợp](evidence/review-five-completion.md). O04/U03/U04/P01/P02/Q02/Q03/R02 còn Planned; G1–G6, installer, tài khoản thật, licensing, UAT và soak chưa được nghiệm thu. Beta-ready/published vẫn false.
+Cập nhật 07/10/2026. **13/26 task đã Verified; O01/O02/O03/U02/V03 có code và review, đang nghiệm thu bản tích hợp SQLite-only.** ID/dependency/status canonical nằm trong [status.json](status.json), [CSV](roadmap.csv), [checklist](MASTER_CHECKLIST.md) và [plan chi tiết](../superpowers/plans/2026-10-02-windows-public-beta-plan.md). [Điều chỉnh SQLite-only](../superpowers/specs/2026-10-06-sqlite-only-amendment.md) đã được owner duyệt. Bằng chứng code/review/kiểm thử nằm trong [hồ sơ tích hợp](evidence/review-five-completion.md). O04/U03/U04/P01/P02/Q02/Q03/R02 còn Planned; G1–G6, installer, tài khoản thật, licensing, UAT và soak chưa được nghiệm thu. Beta-ready/published vẫn false.
 
 | Mốc | Kết quả bàn giao | Task bắt buộc tại mốc | Chủ trì / song song |
 |---|---|---|---|

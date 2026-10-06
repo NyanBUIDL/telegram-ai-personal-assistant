@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "date": "2026-10-06",
+  "date": "2026-10-07",
   "tasks": [
     "O01",
     "O02",
@@ -14,7 +14,7 @@
   "published": false,
   "source_hash_scheme": "SHA256 of actual tested Windows working-file bytes; checkout line endings may differ",
   "source_sha256": {
-    ".github/workflows/ci.yml": "e67f10a6b3bc8bf713222d68a83c3cf91b47f6237432fa64d5b183e726a8c5ed",
+    ".github/workflows/ci.yml": "9a8f3c5ec6ea25a305e29abdda13190b87ce8b326452ab85c98fe1b7d8db1b1c",
     "dashboard-prototype/playwright.d02.config.js": "caa335bc8fb2d65ce30694a2c5b036ffecaf227241cb27e81d8b748bf382e8bc",
     "dashboard-prototype/playwright.setup.config.js": "9a06e27bcd1b24280785222b17a4b4c15315dcb679ce8cdc866add010c65f4d2",
     "dashboard-prototype/src/App.jsx": "52def1f4be9421622749e0987055cba12ea15252860ee11c9acfd1735f4537d2",
@@ -152,6 +152,14 @@
     {
       "name": "review-SQLite-final-controls.md",
       "sha256": "71342ae6774e8b75b4d0e48cb4db29acd004907c36ca6cb5770b2fc7457b87e4"
+    },
+    {
+      "name": "review-five-final-evidence.md",
+      "sha256": "248747d2a1be80ace1a667af714f0dbb7134a62af117638d8edb094b2e0bdf34"
+    },
+    {
+      "name": "review-CI-runner-budget.md",
+      "sha256": "e2949e0ed8b23ac58f42573d6994ef0d79c8c10de598fbfd2630d068941e7ca1"
     }
   ],
   "python_full": {
@@ -194,6 +202,58 @@
     ]
   },
   "hosted_ci": null,
+  "prior_hosted_ci": {
+    "head_sha": "b446f4beac6876b56b16b3ef47ce2c2db4fcbb41",
+    "run_id": 37497770701,
+    "conclusion": "cancelled",
+    "url": "https://github.com/NyanBUIDL/telegram-ai-personal-assistant/actions/runs/37497770701",
+    "jobs": [
+      {
+        "id": 112386629881,
+        "name": "Node 24 / build, lint, Sites and browser art accessibility",
+        "conclusion": "success",
+        "status": "completed"
+      },
+      {
+        "id": 112386630280,
+        "name": "Windows Python 3.12 / SQLite",
+        "conclusion": "cancelled",
+        "status": "completed"
+      },
+      {
+        "id": 112386630386,
+        "name": "Windows Python 3.13 / SQLite",
+        "conclusion": "cancelled",
+        "status": "completed"
+      },
+      {
+        "id": 112398452208,
+        "name": "Required CI",
+        "conclusion": "failure",
+        "status": "completed"
+      }
+    ],
+    "python_313_full": {
+      "passed": 1118,
+      "failed": 0,
+      "skipped": 0,
+      "duration_seconds": 1370.85,
+      "job_conclusion": "cancelled",
+      "acceptance": "not accepted; overall job cancelled"
+    },
+    "python_312": {
+      "last_reported_progress_percent": 83,
+      "full_summary": null,
+      "job_conclusion": "cancelled"
+    },
+    "reason": "25-minute whole-job timeout exhausted; includes dependency installation, full suite, scale checks and Windows native-browser gates",
+    "frontend": {
+      "node": 25,
+      "art_browser": 11,
+      "setup_browser": 15,
+      "conclusion": "success"
+    }
+  },
   "sqlite_test_conversion": {
     "literal_retained_AST_bodies": 351,
     "reviewed_adapters": 23,

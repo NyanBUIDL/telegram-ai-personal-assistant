@@ -22,7 +22,10 @@ jobs:
     name: Windows Python ${{ matrix.python }} / SQLite
     runs-on: windows-latest
     # Python 3.12 also builds the dashboard and runs real API browser regressions.
-    timeout-minutes: 25
+    # Hosted full-suite runtime measured 22m50s on Python 3.13, before scale
+    # checks and the Python 3.12 native-browser steps. Include dependency setup
+    # and those mandatory gates in the bounded job budget.
+    timeout-minutes: 40
     strategy:
       fail-fast: false
       matrix:
@@ -45,7 +48,7 @@ jobs:
       # Full suite includes contracts, SQLite migration zero/upgrade, concurrency,
       # permissions and native offscreen art/focus regressions; no coverage bypass.
       - name: Run full Python regressions
-        run: python scripts/ci_checks.py --report .ci-work/summary.json
+        run: python scripts/ci_checks.py --report .ci-work/summary.json --durations=20
       - name: Native logical scale 125 percent
         env:
           QT_SCALE_FACTOR: '1.25'

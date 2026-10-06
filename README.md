@@ -58,10 +58,13 @@ Mở PowerShell tại thư mục dự án:
 ```
 
 Script phát triển kiểm tra Python, tạo `.venv` và chạy luồng CLI. Để dùng launcher
-Windows và thiết lập bằng cửa sổ native trong bản source, cài thêm dependency desktop:
+Windows và thiết lập bằng cửa sổ native trong bản source, cài thêm dependency desktop
+và build dashboard bằng Node.js 24 tại thư mục dự án:
 
 ```powershell
 .\.venv\Scripts\python.exe -m pip install -e ".[desktop]"
+npm --prefix dashboard-prototype ci
+npm --prefix dashboard-prototype run build
 .\.venv\Scripts\tg-assistant-desktop.exe
 ```
 
