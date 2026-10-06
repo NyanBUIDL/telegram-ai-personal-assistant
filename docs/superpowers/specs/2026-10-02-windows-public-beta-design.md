@@ -1,5 +1,7 @@
 # Thiết kế bản Windows dành cho người dùng mới
 
+> **Điều chỉnh đã duyệt 06/10/2026:** Áp dụng [SQLite-only và profile mới rỗng](2026-10-06-sqlite-only-amendment.md). Yêu cầu giữ hỗ trợ MySQL advanced và các gate hai backend bên dưới được thay thế; database MySQL hiện hữu không bị kết nối hay thay đổi. Trạng thái triển khai hiện tại nằm trong `docs/handoff/status.json`; nội dung ngày 02/10 dưới đây giữ làm lịch sử thiết kế.
+
 Ngày: 02/10/2026. Trạng thái: bộ thiết kế để review/handoff; chưa triển khai.
 Phạm vi đã được người dùng xác nhận: mỗi người tự cài ứng dụng Windows và quản lý tài khoản Telegram của mình.
 Nguồn: repo NyanBUIDL/telegram-ai-personal-assistant, baseline 7429fcffd61860e9502f066e0b6a921df72fe176; đánh giá RELEASE_READINESS_REVIEW_VI.md.

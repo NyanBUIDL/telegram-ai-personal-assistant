@@ -20,7 +20,13 @@ from qdrant_client.models import (
 class LocalVectorStore:
     COLLECTION = "telegram_messages"
 
-    def __init__(self, path: Path, vector_size: int = 1536, *, profile=None) -> None:
+    def __init__(
+        self, path: Path, vector_size: int = 1536, *, profile=None, require_existing=False
+    ) -> None:
+        if require_existing:
+            from ..services.vector_paths import validate_persisted_collection
+
+            validate_persisted_collection(path, vector_size)
         self.profile = profile
         if profile is not None:
             if vector_size != profile.dimension:
@@ -40,6 +46,8 @@ class LocalVectorStore:
         self.client = QdrantClient(path=str(path))
         try:
             if not self.client.collection_exists(self.COLLECTION):
+                if require_existing:
+                    raise ValueError("vector_storage_unavailable")
                 self.client.create_collection(
                     self.COLLECTION,
                     vectors_config=VectorParams(size=vector_size, distance=Distance.COSINE),

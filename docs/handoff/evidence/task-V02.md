@@ -33,3 +33,9 @@ Independent review round2 corrected mixed dirty/clean admission order and checkp
 Independent scoped review approved. Combined-tree run recorded 781 passed, 11 skipped, 1 failed in 620.15s. Only the native Qt dashboard test failed; it was reproduced independently and diagnosed as QTest wait-loop GIL starvation. Production files stayed unchanged. Corrected real event-loop waits retain the 5s/3s deadlines, native click/ticket/redeem/replay assertions; ordered focused checks passed 26 cases. This supplements, and does not relabel, the historical full run.
 
 Expanded required MySQL gate: 138 passed, 0 skipped/errors/failures, 234 deselected, 322.50s across all eight mandatory modules, including backup/restore and incremental indexing. Actual CI-channel Chromium: 5 passed in 41.0s. Python Ruff, generated contracts/art checks, frontend build and ESLint passed. Exact new-commit hosted CI remains the next integration check. Physical Windows/VM/DPI, UAT, packaging and distribution rights remain Pending.
+
+## Exact-head hosted verification — 2026-10-05
+
+Source/test commit `bc17653d454ee1de736f20e5c53e6c5727379db7`, [CI run 37304932639](https://github.com/NyanBUIDL/telegram-ai-personal-assistant/actions/runs/37304932639): Node, MySQL, both Windows Python versions and Required CI all succeeded, including evidence uploads. Windows 3.12: 650 passed/146 skipped in 709.69s; Windows 3.13: 650 passed/146 skipped in 553.46s. Skips stay separate from acceptance. The strict eight-module MySQL gate passed 138 cases with zero skips in 249.55s, including actual incremental-index cases.
+
+V02 acceptance and independent review are Verified for this exact snapshot. New V03 recovery integration and other working source remain under separate review/tests; this CI does not certify them. Human/VM/installer/UAT/distribution release gates remain Pending, and beta_ready stays false.

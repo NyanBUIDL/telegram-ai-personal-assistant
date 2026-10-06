@@ -4,10 +4,8 @@ from __future__ import annotations
 
 import asyncio
 import json
-import os
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
-from uuid import uuid4
 
 import httpx
 import pytest
@@ -41,9 +39,8 @@ class FixtureStore:
         return "synthetic-sdk-key"
 
 
-@pytest_asyncio.fixture(params=["sqlite", "mysql"])
+@pytest_asyncio.fixture(params=["sqlite"])
 async def incremental_case(tmp_path, monkeypatch, request):
-    monkeypatch.setattr("tg_assistant.config.project_root", lambda: tmp_path / "no-installation")
     selected = Settings(
         _env_file=None,
         data_dir=tmp_path / "profile",
@@ -54,23 +51,7 @@ async def incremental_case(tmp_path, monkeypatch, request):
     )
     save_settings(selected)
     monkeypatch.setenv("TG_ASSISTANT_DATA_DIR", str(selected.data_dir))
-    admin = None
-    if request.param == "mysql":
-        value = os.environ.get("TG_TEST_MYSQL_URL")
-        if not value:
-            pytest.skip("Disposable MySQL URL required")
-        url = sa.engine.make_url(value)
-        assert url.host in {"127.0.0.1", "localhost"} and url.port in {3306, 13307}
-        assert (url.database or "").startswith("codex_")
-        name = "codex_v02_" + uuid4().hex
-        admin = sa.create_engine(url.set(database=""))
-        with admin.connect() as connection:
-            connection.exec_driver_sql(f"CREATE DATABASE `{name}` CHARACTER SET utf8mb4")
-        dburl = url.set(database=name, drivername="mysql+asyncmy").render_as_string(
-            hide_password=False
-        )
-    else:
-        dburl = f"sqlite+aiosqlite:///{tmp_path / 'runtime.db'}"
+    dburl = f"sqlite+aiosqlite:///{tmp_path / 'runtime.db'}"
     db = Database(dburl)
     async with db.engine.begin() as connection:
         await connection.run_sync(Base.metadata.create_all)
@@ -136,10 +117,6 @@ async def incremental_case(tmp_path, monkeypatch, request):
         app.rag.vectors.close()
         await app.embedding_ai.close()
         await db.close()
-        if admin:
-            with admin.connect() as connection:
-                connection.exec_driver_sql(f"DROP DATABASE `{name}`")
-            admin.dispose()
 
 
 async def rows(session, message_ids):
@@ -382,27 +359,13 @@ async def test_scoped_point_identity_survives_sql_pk_replacement(incremental_cas
     )
 
 
-@pytest.fixture(params=["sqlite", "mysql"])
+@pytest.fixture(params=["sqlite"])
 def incremental_connection(tmp_path, request):
     from pathlib import Path
 
     from alembic.config import Config
 
-    admin = None
-    if request.param == "mysql":
-        value = os.environ.get("TG_TEST_MYSQL_URL")
-        if not value:
-            pytest.skip("Disposable MySQL URL required")
-        url = sa.engine.make_url(value)
-        assert url.host in {"127.0.0.1", "localhost"} and url.port in {3306, 13307}
-        assert (url.database or "").startswith("codex_")
-        name = "codex_v02_migration_" + uuid4().hex
-        admin = sa.create_engine(url.set(database=""))
-        with admin.connect() as connection:
-            connection.exec_driver_sql(f"CREATE DATABASE `{name}` CHARACTER SET utf8mb4")
-        engine = sa.create_engine(url.set(database=name))
-    else:
-        engine = sa.create_engine(f"sqlite:///{tmp_path / 'incremental.db'}")
+    engine = sa.create_engine(f"sqlite:///{tmp_path / 'incremental.db'}")
     try:
         with engine.connect() as connection:
             root = Path(__file__).resolve().parents[2]
@@ -412,10 +375,6 @@ def incremental_connection(tmp_path, request):
             yield connection, config
     finally:
         engine.dispose()
-        if admin:
-            with admin.connect() as connection:
-                connection.exec_driver_sql(f"DROP DATABASE `{name}`")
-            admin.dispose()
 
 
 def test_migration0009_and_restore_metadata_are_real_and_repeatable(incremental_connection):

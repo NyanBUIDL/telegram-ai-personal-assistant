@@ -4,15 +4,12 @@ from __future__ import annotations
 
 import asyncio
 import json
-import os
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
-from uuid import uuid4
 
 import httpx
 import pytest
 import pytest_asyncio
-import sqlalchemy as sa
 from sqlalchemy import select
 
 from tg_assistant.ai.budget import BudgetService
@@ -91,9 +88,8 @@ async def test_unconsented_runtime_factory_does_not_read_cloud_key(tmp_path):
         await embedding.close()
 
 
-@pytest_asyncio.fixture(params=["sqlite", "mysql"])
+@pytest_asyncio.fixture(params=["sqlite"])
 async def runtime_case(tmp_path, monkeypatch, request):
-    monkeypatch.setattr("tg_assistant.config.project_root", lambda: tmp_path / "no-installation")
     selected = Settings(
         _env_file=None,
         data_dir=tmp_path / "profile",
@@ -104,23 +100,7 @@ async def runtime_case(tmp_path, monkeypatch, request):
     )
     save_settings(selected)
     monkeypatch.setenv("TG_ASSISTANT_DATA_DIR", str(selected.data_dir))
-    admin = None
-    if request.param == "mysql":
-        value = os.environ.get("TG_TEST_MYSQL_URL")
-        if not value:
-            pytest.skip("Disposable MySQL URL required")
-        url = sa.engine.make_url(value)
-        assert url.host in {"127.0.0.1", "localhost"} and url.port in {3306, 13307}
-        assert (url.database or "").startswith("codex_")
-        name = "codex_v01_" + uuid4().hex
-        admin = sa.create_engine(url.set(database=None))
-        with admin.connect() as connection:
-            connection.exec_driver_sql(f"CREATE DATABASE `{name}` CHARACTER SET utf8mb4")
-        dburl = url.set(database=name, drivername="mysql+asyncmy").render_as_string(
-            hide_password=False
-        )
-    else:
-        dburl = f"sqlite+aiosqlite:///{tmp_path / 'runtime.db'}"
+    dburl = f"sqlite+aiosqlite:///{tmp_path / 'runtime.db'}"
     db = Database(dburl)
     async with db.engine.begin() as connection:
         await connection.run_sync(Base.metadata.create_all)
@@ -186,10 +166,6 @@ async def runtime_case(tmp_path, monkeypatch, request):
         app.rag.vectors.close()
         await app.embedding_ai.close()
         await db.close()
-        if admin:
-            with admin.connect() as connection:
-                connection.exec_driver_sql(f"DROP DATABASE `{name}`")
-            admin.dispose()
 
 
 async def rows(session, message_ids):
@@ -276,7 +252,9 @@ async def test_application_close_releases_independent_embedding_http_client(runt
     app.stopping = asyncio.Event()
     app.admin_server, app.bot = None, None
     app.scheduler = SimpleNamespace(running=False)
-    app.ai_router = app.ollama = app.coingecko = app.user = SimpleNamespace(close=closed)
+    app.ai_router = app.ollama = app.coingecko = app.user = SimpleNamespace(
+        close=closed, engines={}
+    )
     transport = app.embedding_ai.client._client
     assert not transport.is_closed
     await app.close()
@@ -392,6 +370,8 @@ async def test_runtime_rechecks_after_budget_await_before_http(runtime_case, cha
 
 async def test_runtime_chat_switch_preserves_cloud_embedding_without_ollama(runtime_case):
     app, _, _ = runtime_case
+    # Synthetic authenticated adapter seam: this post-auth callback needs owner 1.
+    app.user = SimpleNamespace(owner_id=1)
     app.store = FixtureStore()
     app.bot = None
     app.ai = make_ai_engine(app.settings, app.store, app.budget)

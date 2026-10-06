@@ -1,0 +1,221 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-06",
+  "tasks": [
+    "O01",
+    "O02",
+    "O03",
+    "U02",
+    "V03"
+  ],
+  "acceptance_status": "InReview",
+  "product_commit": null,
+  "beta_ready": false,
+  "published": false,
+  "source_hash_scheme": "SHA256 of actual tested Windows working-file bytes; checkout line endings may differ",
+  "source_sha256": {
+    ".github/workflows/ci.yml": "e67f10a6b3bc8bf713222d68a83c3cf91b47f6237432fa64d5b183e726a8c5ed",
+    "dashboard-prototype/playwright.d02.config.js": "caa335bc8fb2d65ce30694a2c5b036ffecaf227241cb27e81d8b748bf382e8bc",
+    "dashboard-prototype/playwright.setup.config.js": "9a06e27bcd1b24280785222b17a4b4c15315dcb679ce8cdc866add010c65f4d2",
+    "dashboard-prototype/src/App.jsx": "52def1f4be9421622749e0987055cba12ea15252860ee11c9acfd1735f4537d2",
+    "dashboard-prototype/src/api.js": "1327bdedc987e6bb6cc47ce0b881cbecb014f1e66ad5f10d4043a73fcbb0b6b0",
+    "dashboard-prototype/src/contracts/generated.js": "92cbd151755052773d9aef63861b74d6a1fb789c0cd899016dda388a6c469157",
+    "dashboard-prototype/src/styles.css": "07d60258794e572ca6ebd2deee3ccccf417887a7a9d4c6749c87794387706443",
+    "dashboard-prototype/src/views/GroupsView.jsx": "9fe28a0811e77df2a5279ea1d2efc81594d1384c8b50238527fec2190ad987a9",
+    "dashboard-prototype/src/views/KnowledgeView.jsx": "322928a269e27f9a3cfcd3856723240cd6d244936a4f00e02e3abe0d9821217b",
+    "dashboard-prototype/src/views/OnboardingView.jsx": "4352bca25e904b2e43460639c208e79b78506c3532565894c3a4ad9c4ceebdd8",
+    "dashboard-prototype/tests/d02-auth.spec.js": "38e022fb7ab4a31aa5fa1a2bbfb04863a81e1fabd2de2a4cd0aa4fcce39d8f1b",
+    "dashboard-prototype/tests/e2e/onboarding-dashboard.spec.js": "c7c3be27a12db1d9e8ab18dcce041ccfafa548825faac63a4934b8047aedf432",
+    "dashboard-prototype/tests/u02-native.spec.js": "da405d8a3dad4585e38b7d83fa71433b61cf7a768c1818ec3269c26333947b3b",
+    "pyproject.toml": "0566f5c4197109d28c3c167f0f7ccc4f7d237889709d8b8dbce703b9bacdc174",
+    "scripts/ci_checks.py": "6559993a3553b555a8a60ba9aa566366e4bdaffc3d233c0908030c620e347839",
+    "src/tg_assistant/admin_api/app.py": "dbdc54c494ba4a5a33fe29e28b6c9741d3ee43da1ee04374a625f1342ce0e6db",
+    "src/tg_assistant/admin_api/auth.py": "a27a37c366acefb6dbdceca55fbbfb3daded53ef2bee23de2e78d67e6e77194e",
+    "src/tg_assistant/admin_api/recovery_routes.py": "43bfcb4b70cb6a594ce2c0f67fc29ff3d33328903a8c9d5b25435fb30a8d33b1",
+    "src/tg_assistant/admin_api/setup.py": "81406efba81932b05228c434180637a3ae66684f448c2e11c1a04b2d3521343a",
+    "src/tg_assistant/admin_api/setup_dashboard.py": "d32c5db5c8cdd2b5a29fa81490bc53de5099d6cf192a5b386cbad34bd78294ff",
+    "src/tg_assistant/ai/vector.py": "5e06f081188b7ecdebaa7abe137675b5f3bb95f53f1794f54f0735c880f28031",
+    "src/tg_assistant/cli.py": "3eec4540e333899518282148ba94a29c653cf8a19d927ab0ac9c036e7e7da488",
+    "src/tg_assistant/config.py": "2d44f83df3fabd1cc9296e309883ef7607071a898e3e9a27dc898d26af30a5d2",
+    "src/tg_assistant/contracts.py": "1f26ffb2015205624deb0b96824b2351f747a4b27328959c2a6e58047fc5f5f0",
+    "src/tg_assistant/db/base.py": "574b78eb32f6fbba3d8b5a18048268fd8e1c841d9403a10b7ff9e2f2a0aee516",
+    "src/tg_assistant/desktop/app.py": "442a5ec085618c42ebf650905a4ad1329330305519e06c3e59d3faa5375b0faa",
+    "src/tg_assistant/desktop/dialogs/__init__.py": "3fb647bc27cc46c5c8530aa27332bc46613d1ac864f338acc3003f89f58a7b90",
+    "src/tg_assistant/desktop/dialogs/provider.py": "545e0ac6a93a856c13032761edc209e895576de49c7f36afc643a3c740df8be4",
+    "src/tg_assistant/desktop/dialogs/telegram.py": "dbc1da91fe10cddfd1ab051f4b4d262502ecd7507b6ff3fc960f53ee55852d6a",
+    "src/tg_assistant/desktop/provider_activation.py": "e2798c30c2a85fb835e283046c73783152aa5c34ca6fa24c95e8a82feba8f7fb",
+    "src/tg_assistant/desktop/provider_context.py": "8aac55c3b7d7b8a6a7e0b18fa1ff5a68614be90c76a1a96ec5e80d863f9be8ba",
+    "src/tg_assistant/desktop/runtime_controller.py": "8b148bf6babbb8f3a1e46a26794f4387310766850f6ce61872197a5b8260dbcd",
+    "src/tg_assistant/desktop/setup_context.py": "2848dd1531adde45aaf93716a01d0740cb442bf88976316c04790ad8e6097716",
+    "src/tg_assistant/desktop/setup_ui.py": "6db70be62828125e9e221b237ffecc743cb3f06d20b562b83c5954a2b66e9209",
+    "src/tg_assistant/desktop/telegram_context.py": "74434387aea8fb0cde994ca2b878a6380e3d5be95fca9174d141622c7ba0416b",
+    "src/tg_assistant/desktop/worker.py": "890608305639bf4fdc06bd520402e7804a486ba2313dbd21eee9f10616fe9778",
+    "src/tg_assistant/runtime.py": "0b98950801ac41c0f66c67fd4183197c3fee51b953c4984f95ce66cde45e588d",
+    "src/tg_assistant/services/actions.py": "a53944f5305b781e267dab2537bbd6558846050cf9478efa5eb5cfb77da7c844",
+    "src/tg_assistant/services/backup.py": "a796be3d1fd0f2b5d0dc8f36b70e46d37c6e1de14bdcba55c21ce57321e9ac36",
+    "src/tg_assistant/services/connections.py": "4dfe6d96e51c83126251a4d6d1a5815c750b8f222db17c0daa293a547611b3ad",
+    "src/tg_assistant/services/jobs.py": "4e9a63a95f70a81058f778d60b4196208fcb51e108ed7dd53200b1952524fb99",
+    "src/tg_assistant/services/native_dialogs.py": "2faeeb44c571df84918e5e361f0535666f8e3d32b785bc68717b3ebe580475f7",
+    "src/tg_assistant/services/ollama.py": "621dec437ac89dc720d672ccbb63b4f8a33812ec742cd449617a570aeb3e06d3",
+    "src/tg_assistant/services/onboarding.py": "c4ff4525b413b82c8f03bf54e80aad97749d2294f7df8629f2d4e4b59c969499",
+    "src/tg_assistant/services/provider_connections.py": "f9ca48b542f82309c05259b1e061ce97b07bda8e0b921acfd4f89f5b9d6ffc7a",
+    "src/tg_assistant/services/storage.py": "0f8cbaae2c64c13ff679581691510852a6d8c6f36a3035c9e24f2770a4c32bc1",
+    "src/tg_assistant/services/telegram_login.py": "4a9b8642b097f791ef03ff08ade22ed1f72f64462d14fa67944a172d519da781",
+    "src/tg_assistant/services/telegram_publication.py": "03e205fad83f543dc5c8adea876c42b4089974929ed7de3e1648c724bee59573",
+    "src/tg_assistant/services/vector_paths.py": "c764bf977c2d2e281b8f6b6aaa11f2db7dc859e5a62535e805f5401193c3ddd5",
+    "src/tg_assistant/services/vector_recovery.py": "e35a312a6f9908149b34cd7f3fe68d1f4b83a3701e0b9d866f135fabb2733372",
+    "src/tg_assistant/services/vector_reliability.py": "2a841df8e48f350168f2df113b1d9345c8544a9aa4dba5549a13ff59678a5d8c",
+    "src/tg_assistant/setup/wizard.py": "5e02422ebef8213b85c93a0f410df3408268d81bf2ba39af7d9120b576da1a90",
+    "src/tg_assistant/telegram/control_bot.py": "6f1ed081ca5439ad78216f62956b14f55c4ca147276913f67c93f1bdb11e83bf",
+    "tests/desktop/test_fixture_cleanup.py": "e2b7a16e6a95c5f25a0432b7813ee0916cf7747e82a8fc2050ac4768a76482f2",
+    "tests/desktop/test_launcher.py": "1a74cd44f25c2bfcd14d75c8ef553b2939b6d14373200d3e42b6e2f74b0a4461",
+    "tests/desktop/test_native_dialogs.py": "da35edc43b538c5a7cb28fc27665e82998ff2ad00c402903dad756de1557921c",
+    "tests/desktop/test_native_handoff.py": "7ff9affddc99d481dcb21c124d77e4663bd7c28fc75c03e95526d063eb6db5d2",
+    "tests/desktop/test_native_relay_integration.py": "87e06ce0783c4be4c7b8776de77d93ad15e28fa743eb413651857740c5d57e8e",
+    "tests/desktop/test_o01_o02_claude_review.py": "65a7857b0e93a65a87fbb7414c2220b9de08e59f946f6f62d302df4ab5cc54b2",
+    "tests/desktop/test_provider_completion.py": "58677f92eb5ce2d38ba6c9e8eb7e114dcd9da42c1a297ac0fa757c16a45b4910",
+    "tests/desktop/test_provider_context.py": "8178ed4d23951e38d0f125bbb38f703ebefcffa338cd3cb8608cfeeaf4301b17",
+    "tests/desktop/test_provider_enrollment.py": "70812d1dea181a3903810845c21690053e92c7439622afa5e50321368c71dc05",
+    "tests/desktop/test_runtime_gateway.py": "2fb7e8e1b0f6d9b1c4ba04eeee8ebb0d0abbec487657628c0d68e4e04ed62537",
+    "tests/desktop/test_setup_completion.py": "5a4768eb878a3140d5ffca49db274f7ed2ca927bfbbb0efe288c764d0a3c5c0e",
+    "tests/desktop/test_setup_context.py": "3d1b769378fa69784bfb6c90d9e601648ccf13fb7256ab8db2f1350425292db9",
+    "tests/desktop/test_setup_dashboard.py": "caa0fc6bf5462f2ffa29107582fc9bc1547e9d3d567412bec81b92e4376daf36",
+    "tests/desktop/test_setup_health.py": "f2f344c40acf177e6942fa21b0d327ef31b66a613bdd018bd2cd2f1fcf4e31f8",
+    "tests/desktop/test_setup_ui.py": "4fef274d05c43a5511601b8171a1db7a94b9eab93b96a09dacc60b34f212237c",
+    "tests/desktop/test_setup_worker.py": "f663f0da2ead6a972896208583356f08318289d7acdcdeed3a7b4e77ddeddaad",
+    "tests/fixtures/u02_native_browser_server.py": "88d8802a98f6e545d0c3cc41fa35d05e038b6d95f458eef679aee9d4d24582a1",
+    "tests/integration/test_backup_restore.py": "d6cffdceef4e2f989ae97d5a26579e6a515a7ecd01abaa5eb027da9c56867c61",
+    "tests/integration/test_budget_migrations.py": "aae486df8d27fd0f8e2e966e4a49b43d6248096402cd196b54b728be66666e76",
+    "tests/integration/test_job_concurrency.py": "5777cb2fcee54ac40a63b3e854305556739f345064f048119a9abe815097ac82",
+    "tests/integration/test_migrations.py": "6cbfb452e5f29bed0c2e2895cfe55cf91f1e4e44b1e63ab1839b700d54bb1a30",
+    "tests/integration/test_telegram_context.py": "664b79d142f4cc25682b3935997c5500ed5fb5d3aa57087e2babded64837aea7",
+    "tests/integration/test_telegram_publication.py": "43b2c4c7fb48cb9ef4d73bfd307fd1a172fe2b05b71700b3a641beef6ce7fde3",
+    "tests/integration/test_telegram_runtime_observation.py": "95de02db1b794a859ffe6ed43d002cf872b4a1ec165213bd61af6a351d84392a",
+    "tests/integration/test_v03_scale_and_live.py": "3aadba644e8971b9dcbdd2ca9ca0392b74c7d30b411c9d54bfde05a83a5cd547",
+    "tests/integration/test_vector_incremental.py": "bcf393fe9c568218e34be913ca7e38ddf91830522425f4f4179732c9c8b718f3",
+    "tests/integration/test_vector_recovery.py": "0219ebf90e148a97e11184495413f5b7257291909fdce84bc1da9554e87bda45",
+    "tests/test_ci_checks.py": "4a0665f83cb17fcbdacd3787a09c6ca6a9175992003807fd1b7de7ac79e0afa1",
+    "tests/test_embedding_profiles.py": "9cd0dcf6f90fdd65da6d5609e4e29cfb3e78eed6b15c01990e560a0e678a0847",
+    "tests/test_onboarding.py": "79e66f945caebf326271cf386afccd03a9018ee6cffe6b62894c0fdfe1e09d19",
+    "tests/test_provider_connection.py": "8508b0dd0f97df5288adba43ecb823958b15744c5a9eb13ffb12008fc66afefe",
+    "tests/test_revocation_jobs.py": "9d507229c21c598cdcc479d3d81e698e9fc61267cdb0e235d211990d9fdd63eb",
+    "tests/test_runtime_embeddings.py": "5b90ba2fb1edfcdcd5278f2938556194894439ab071af0f7a82780f07420a2db",
+    "tests/test_sqlite_only.py": "eb9ac35ff87e3eba8c46c8e6ccc49b5c4f756f00b2fda930d71e10e1731c046a",
+    "tests/test_sqlite_storage_boundaries.py": "1b539aa641de48804f8b0a86ab8af02b07496abedf0fc68306d7d22350de415f",
+    "tests/test_storage_profile.py": "69e30cd4e4b2e12a14ed95e9ebd55bd3f4920b08c1bcbd2a4beb506d7d281112",
+    "tests/test_telegram_login.py": "91852dcbc5e6d6b678296b34070731aabd961c09a2d2e359dcbe06638e888915"
+  },
+  "removed_source_paths": [
+    "src/tg_assistant/setup/mysql.py"
+  ],
+  "reviews": [
+    {
+      "name": "review-root-five-completion.md",
+      "sha256": "35bc0dc6514e9a0f233180301d66dbf791423ace4f40543df1daee32b9c29b21"
+    },
+    {
+      "name": "review-O03-root-glue.md",
+      "sha256": "559aa75b5fa6e07a406b02baabc88eedc40ee4bb9178af1001914829a143e386"
+    },
+    {
+      "name": "review-V03-five-completion.md",
+      "sha256": "11b578f75ab7d5ac5fcc11483efe3713a618aa8f395a2e54b70011a8e18da274"
+    },
+    {
+      "name": "review-Claude-V03.md",
+      "sha256": "8c8a9dfc58806283279de40ab5b6f108995f391c78e1d9fa9916a0869bf4e588"
+    },
+    {
+      "name": "review-Claude-handoff-tests.md",
+      "sha256": "bd374c00920c9c5e08311427874e79eef8b34905cc6931ec0eca158cd91e0393"
+    },
+    {
+      "name": "review-SQLite-root.md",
+      "sha256": "6dba4feecc45bc49d1d906ed0b4971244d4dae2949823a4e72c5e3cbb5363f3c"
+    },
+    {
+      "name": "review-SQLite-entrypoints.md",
+      "sha256": "18dc8a7eedc9ae726f2b043437072386b83dafec7798ad5667e7ca070b22e1c5"
+    },
+    {
+      "name": "review-SQLite-backup-copy.md",
+      "sha256": "1378e6bf8a9a4e077ea9a242df349049e97281534a5e5edaf569071c93aebb14"
+    },
+    {
+      "name": "review-SQLite-V03-adaptation.md",
+      "sha256": "a400caa64a66e1043bdb24e2adf2531fdb4adde8cf4a6ad310c728cfddf47d03"
+    },
+    {
+      "name": "review-SQLite-test-conversion.md",
+      "sha256": "86966b6484ae0020adedb940a5115c8dee9a191b81409408f89655553eb47cbd"
+    },
+    {
+      "name": "review-SQLite-final-controls.md",
+      "sha256": "71342ae6774e8b75b4d0e48cb4db29acd004907c36ca6cb5770b2fc7457b87e4"
+    }
+  ],
+  "python_full": {
+    "summary": {
+      "passed": 1117,
+      "failed": 0,
+      "skipped": 1,
+      "errors": 0,
+      "exit_code": 0
+    },
+    "actual_process_exit": 0,
+    "command": "python scripts/ci_checks.py --report .test-temp/sqlite-final-summary.json -o addopts='' -q --tb=short --basetemp=.test-temp/sqg",
+    "raw_log_sha256": "c9f2580fcca47d29cbf7d34c660ea4667b3940f15603d6121f9e6a1852b63556"
+  },
+  "prior_failed_full": {
+    "passed": 1115,
+    "failed": 2,
+    "skipped": 1,
+    "errors": 0,
+    "actual_process_exit": 1,
+    "reason": "Fresh native guard requires actual profile enrollment before disabled-embedding metadata test.",
+    "raw_log_sha256": "862daee239e42b07f17505819edbfb9220f98909d881dfa072a773708bffe347"
+  },
+  "frontend": {
+    "build": "passed",
+    "sites_preparation": "passed",
+    "lint": "passed",
+    "node_cases": 25,
+    "setup_browser": 15,
+    "art_browser": 11,
+    "real_native_browser": 8,
+    "actual_process_exits": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  "hosted_ci": null,
+  "sqlite_test_conversion": {
+    "literal_retained_AST_bodies": 351,
+    "reviewed_adapters": 23,
+    "additional_explicit_adapters": 7,
+    "removed_mysql_only_tests": 14,
+    "removed_mysql_only_helpers": 3,
+    "immutable_migrations_and_DDL_preserved": 11
+  },
+  "pending": [
+    "O04",
+    "U03",
+    "U04",
+    "P01",
+    "P02",
+    "Q02",
+    "Q03",
+    "R02",
+    "G1-G6",
+    "live Telegram/provider/download QA",
+    "general Credential Manager namespace isolation",
+    "clean Windows install/upgrade",
+    "distribution licenses",
+    "human UAT and soak"
+  ]
+}

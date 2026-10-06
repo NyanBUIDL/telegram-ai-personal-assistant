@@ -71,6 +71,7 @@ from .auth import (
     is_loopback_origin,
     login_code_expires_at,
 )
+from .recovery_routes import create_recovery_preview, install_recovery_routes
 from .schemas import (
     AiEfficiencyUpdate,
     AiRouteUpdate,
@@ -989,44 +990,7 @@ def create_admin_app(context: AdminContext) -> FastAPI:
         chat_id: int,
         _session: AdminSession = Depends(require_write_session),
     ) -> dict:
-        vectors = context.vectors_getter()
-        if vectors is None:
-            raise HTTPException(status_code=503, detail="Local-first vector store is unavailable.")
-        async with context.database.session() as db:
-            if not await db.scalar(
-                select(TelegramChat.chat_id).where(TelegramChat.chat_id == chat_id)
-            ):
-                raise HTTPException(status_code=404, detail="Group/channel not found.")
-            report = await inspect_source_coverage(
-                db, chat_id=chat_id, settings=context.settings_getter(), vectors=vectors
-            )
-            action = await pending.create(
-                db,
-                action_type="recover_source_index",
-                requested_by=context.owner_id,
-                chat_id=chat_id,
-                payload={
-                    "coverage": report,
-                    "execution_guard": "explicit_owner_recovery_required",
-                    "estimated_batches": (report["missing_count"] + 31) // 32,
-                    "estimated_local_tokens": report["missing_count"] * 160,
-                    "rollback_strategy": "No source data is modified. Recovery must be a separately approved, append-only reindex.",
-                },
-                preview=(
-                    f"Preview only: recover {report['missing_count']} missing Local-first references "
-                    f"out of {report['expected_eligible_messages']} eligible messages for source {chat_id}."
-                ),
-                reason="Owner review is required before any source recovery; this pending action cannot execute a reindex.",
-            )
-            db.add(_audit(
-                owner_id=context.owner_id,
-                action="vector_recovery_preview_created",
-                outcome="pending",
-                target_type="knowledge_source",
-                target_id=chat_id,
-                details={"action_id": action.action_id, "missing_count": report["missing_count"]},
-            ))
-        return {"pending_action": _action_json(action), "coverage": report}
+        return await create_recovery_preview(context, pending, chat_id, action_json=_action_json)
 
     @app.post("/api/v1/groups/{chat_id}/actions", status_code=status.HTTP_201_CREATED)
     async def create_group_action(
@@ -2785,6 +2749,7 @@ def create_admin_app(context: AdminContext) -> FastAPI:
             "content": path.read_text(encoding="utf-8"),
         }
 
+    install_recovery_routes(app, context, require_session, require_write_session)
     static_root = settings.resolved_dashboard_dist_path.resolve()
 
     @app.get("/{path:path}", include_in_schema=False)

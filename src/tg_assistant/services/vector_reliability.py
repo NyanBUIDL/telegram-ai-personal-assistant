@@ -21,6 +21,7 @@ from ..db.models import (
     VectorSourceCoverage,
     VectorStore,
 )
+from .vector_paths import active_vector_path
 
 
 def local_store_id(settings: Settings) -> str:
@@ -38,7 +39,7 @@ async def ensure_vector_store_registry(session, settings: Settings) -> VectorSto
     """Register metadata only. Existing vectors are neither read nor modified here."""
     active_id = local_store_id(settings)
     profile = settings.embedding_profile
-    active_path = str(settings.resolved_semantic_vector_path.resolve())
+    active_path = str((await active_vector_path(session, settings)).resolve())
     active = await session.get(VectorStore, active_id)
     previous = await session.scalar(
         select(VectorStore).where(

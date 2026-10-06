@@ -2,30 +2,23 @@
 
 Archives contain no configuration, credential store, raw Telegram sessions or
 vector files. Derived vectors require owner-approved recovery after every restore.
-MySQL restore needs CREATE/DROP DATABASE and RENAME privileges for private staging.
 """
 
 from __future__ import annotations
 
-import base64
 import hashlib
-import json
 import os
 import sqlite3
 from contextlib import closing
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from decimal import Decimal
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from uuid import uuid4
 from zipfile import ZIP_DEFLATED, BadZipFile, ZipFile
 
 import sqlalchemy as sa
-from alembic.config import Config
 from alembic.script import ScriptDirectory
-
-from alembic import command
 
 from ..contracts import BackupManifest, MaintenanceLease
 from ..db.migrations import actual_revision, classify_schema, upgrade_database
@@ -78,30 +71,6 @@ class BackupError(RuntimeError):
         self.needs_maintenance_recovery = not original_preserved
 
 
-def _encode(value):
-    if isinstance(value, datetime):
-        return {"type": "datetime", "value": value.isoformat()}
-    if isinstance(value, Decimal):
-        return {"type": "decimal", "value": str(value)}
-    if isinstance(value, bytes):
-        return {"type": "bytes", "value": base64.b64encode(value).decode("ascii")}
-    return value
-
-
-def _decode(value):
-    if not isinstance(value, dict):
-        return value
-    if set(value) != {"type", "value"}:
-        raise RuntimeError("backup_value_invalid")
-    if value["type"] == "datetime":
-        return datetime.fromisoformat(value["value"])
-    if value["type"] == "decimal":
-        return Decimal(value["value"])
-    if value["type"] == "bytes":
-        return base64.b64decode(value["value"], validate=True)
-    raise RuntimeError("backup_value_invalid")
-
-
 def _scrub_settings(connection):
     table = sa.Table("app_settings", sa.MetaData(), autoload_with=connection)
     # These arbitrary JSON values are not a portable typed settings contract.
@@ -123,7 +92,14 @@ class BackupService:
     def __init__(self, storage):
         self.storage = storage
         self.settings = storage.settings
-        self.url = sa.engine.make_url(storage._url(async_driver=False))
+        if self.settings.storage_backend != "sqlite":
+            raise ValueError("storage_sqlite_required")
+        try:
+            self.url = sa.engine.make_url(storage._url(async_driver=False))
+        except (sa.exc.ArgumentError, TypeError, ValueError):
+            raise ValueError("storage_sqlite_required") from None
+        if self.url.drivername != "sqlite":
+            raise ValueError("storage_sqlite_required")
         self.scripts = resource_path("alembic")
 
     def _lease(self, lease):
@@ -148,33 +124,26 @@ class BackupService:
                 prefix="backup-", dir=self.settings.data_dir / "backups"
             ) as root:
                 root = Path(root)
-                if self.settings.storage_backend == "sqlite":
-                    name = "database.sqlite3"
-                    target = root / name
-                    with (
-                        closing(sqlite3.connect(self.url.database)) as source,
-                        closing(sqlite3.connect(target)) as output,
-                    ):
-                        source.backup(output)
-                        if output.execute("PRAGMA integrity_check").fetchone()[0] != "ok":
-                            raise RuntimeError("backup_integrity_failed")
-                        output.execute("PRAGMA secure_delete=ON")
-                    engine = sa.create_engine(sa.URL.create("sqlite", database=str(target)))
-                    try:
-                        with engine.begin() as connection:
-                            revision = self._validate_db(connection)
-                            _scrub_settings(connection)
-                        with engine.connect() as connection:
-                            connection.exec_driver_sql("VACUUM")
-                    finally:
-                        engine.dispose()
-                    payload = target.read_bytes()
-                else:
-                    name = "database.json"
-                    revision, data = self._mysql_snapshot()
-                    payload = json.dumps(data, ensure_ascii=False, separators=(",", ":")).encode(
-                        "utf-8"
-                    )
+                name = "database.sqlite3"
+                target = root / name
+                with (
+                    closing(sqlite3.connect(self.url.database)) as source,
+                    closing(sqlite3.connect(target)) as output,
+                ):
+                    source.backup(output)
+                    if output.execute("PRAGMA integrity_check").fetchone()[0] != "ok":
+                        raise RuntimeError("backup_integrity_failed")
+                    output.execute("PRAGMA secure_delete=ON")
+                engine = sa.create_engine(sa.URL.create("sqlite", database=str(target)))
+                try:
+                    with engine.begin() as connection:
+                        revision = self._validate_db(connection)
+                        _scrub_settings(connection)
+                    with engine.connect() as connection:
+                        connection.exec_driver_sql("VACUUM")
+                finally:
+                    engine.dispose()
+                payload = target.read_bytes()
                 manifest = BackupManifest(
                     format_version=1,
                     schema_revision=revision,
@@ -193,47 +162,6 @@ class BackupService:
         finally:
             temporary.unlink(missing_ok=True)
 
-    def _mysql_snapshot(self):
-        engine = sa.create_engine(self.url)
-        try:
-            with engine.connect() as connection:
-                tables = connection.exec_driver_sql("SHOW TABLE STATUS").mappings().all()
-                if not tables or any(table["Engine"] != "InnoDB" for table in tables):
-                    raise RuntimeError("backup_requires_innodb")
-                quote = connection.dialect.identifier_preparer.quote
-                names = sorted(table["Name"] for table in tables)
-                # Table READ locks fence raw writers and DDL as well as managed
-                # writers. All tables share one snapshot boundary, never per-table.
-                connection.exec_driver_sql(
-                    "LOCK TABLES " + ",".join(quote(name) + " READ" for name in names)
-                )
-                try:
-                    revision = self._validate_db(connection)
-                    document = {}
-                    for name in names:
-                        result = connection.exec_driver_sql(f"SELECT * FROM {quote(name)}")  # noqa: S608
-                        columns = list(result.keys())
-                        rows = []
-                        for row in result:
-                            if name == "app_settings":
-                                continue
-                            rows.append(
-                                [
-                                    None
-                                    if name == "background_jobs"
-                                    and key
-                                    in {"claim_token", "lease_expires_at", "locked_by", "locked_at"}
-                                    else _encode(value)
-                                    for key, value in zip(columns, row, strict=True)
-                                ]
-                            )
-                        document[name] = {"columns": columns, "rows": rows}
-                    return revision, document
-                finally:
-                    connection.exec_driver_sql("UNLOCK TABLES")
-        finally:
-            engine.dispose()
-
     def _read(self, source):
         try:
             with ZipFile(source) as archive:
@@ -246,7 +174,7 @@ class BackupService:
                 if archive.getinfo("manifest.json").file_size > 65536:
                     raise RuntimeError("backup_manifest_invalid")
                 manifest = BackupManifest.model_validate_json(archive.read("manifest.json"))
-                name = "database.sqlite3" if manifest.backend == "sqlite" else "database.json"
+                name = "database.sqlite3"
                 if manifest.format_version != 1 or manifest.vector_state != "excluded":
                     raise RuntimeError("backup_format_invalid")
                 if manifest.profile_id != self.settings.profile_id:
@@ -418,9 +346,7 @@ class BackupService:
         except Exception as error:
             code = str(error) if isinstance(error, RuntimeError) else "backup_invalid"
             raise BackupError(code, original_preserved=True) from None
-        if self.settings.storage_backend == "sqlite":
-            return self._restore_sqlite(manifest, payload, lease)
-        return self._restore_mysql(manifest, payload, lease)
+        return self._restore_sqlite(manifest, payload, lease)
 
     def _restore_sqlite(self, manifest, payload, lease):
         path = Path(self.url.database)
@@ -480,115 +406,3 @@ class BackupService:
             stage_path.unlink(missing_ok=True)
             for suffix in ("-wal", "-shm"):
                 Path(str(stage_path) + suffix).unlink(missing_ok=True)
-
-    def _restore_mysql(self, manifest, payload, lease):
-        stage_name = self.url.database[:20] + "_restore_" + uuid4().hex[:24]
-        rollback_name = self.url.database[:20] + "_previous_" + uuid4().hex[:24]
-        live = sa.create_engine(self.url)
-        stage = sa.create_engine(self.url.set(database=stage_name))
-        completed = False
-        original_preserved = True
-        created = []
-        quote = live.dialect.identifier_preparer.quote
-        try:
-            document = json.loads(payload)
-            with live.connect() as connection:
-                charset, collation = connection.exec_driver_sql(
-                    "SELECT DEFAULT_CHARACTER_SET_NAME,DEFAULT_COLLATION_NAME "
-                    "FROM information_schema.SCHEMATA WHERE SCHEMA_NAME=DATABASE()"
-                ).one()
-                for name in (stage_name, rollback_name):
-                    connection.exec_driver_sql(
-                        f"CREATE DATABASE {quote(name)} CHARACTER SET {quote(charset)} COLLATE {quote(collation)}"
-                    )  # noqa: S608
-                    created.append(name)
-            # Build trusted migration DDL; archive data cannot execute SQL.
-            config = Config()
-            config.set_main_option("script_location", str(self.scripts))
-            with stage.connect() as connection:
-                config.attributes["connection"] = connection
-                command.upgrade(config, manifest.schema_revision)
-                metadata = sa.MetaData()
-                metadata.reflect(bind=connection)
-                if set(document) != set(metadata.tables):
-                    raise RuntimeError("backup_tables_invalid")
-                connection.commit()
-                with connection.begin():
-                    for table in metadata.sorted_tables:
-                        if table.name == "alembic_version":
-                            if document[table.name] != {
-                                "columns": ["version_num"],
-                                "rows": [[manifest.schema_revision]],
-                            }:
-                                raise RuntimeError("backup_schema_revision_invalid")
-                            continue
-                        item = document[table.name]
-                        if item["columns"] != [column.name for column in table.columns]:
-                            raise RuntimeError("backup_columns_invalid")
-                        rows = [
-                            dict(
-                                zip(item["columns"], [_decode(value) for value in row], strict=True)
-                            )
-                            for row in item["rows"]
-                        ]
-                        # Driver SQL JSON columns arrive as serialized JSON strings.
-                        for row in rows:
-                            for column in table.columns:
-                                if isinstance(column.type, sa.JSON) and isinstance(
-                                    row[column.name], str
-                                ):
-                                    row[column.name] = json.loads(row[column.name])
-                        if rows:
-                            connection.execute(table.insert(), rows)
-            revision = self._prepare(stage, live, manifest)
-            self._lease(lease)
-            prebackup = (
-                self.settings.data_dir / "backups" / ("before-restore-" + uuid4().hex + ".zip")
-            )
-            self.backup(prebackup)
-            with live.connect() as connection:
-                old_tables = sa.inspect(connection).get_table_names()
-            with stage.connect() as connection:
-                new_tables = sa.inspect(connection).get_table_names()
-            stage.dispose()
-            self._lease(lease)
-
-            def rename(reverse=False):
-                moves = []
-                for name in new_tables if reverse else old_tables:
-                    origin = self.url.database
-                    target = stage_name if reverse else rollback_name
-                    moves.append(f"{quote(origin)}.{quote(name)} TO {quote(target)}.{quote(name)}")
-                for name in old_tables if reverse else new_tables:
-                    origin = rollback_name if reverse else stage_name
-                    moves.append(
-                        f"{quote(origin)}.{quote(name)} TO {quote(self.url.database)}.{quote(name)}"
-                    )
-                with live.connect() as connection:
-                    connection.exec_driver_sql("RENAME TABLE " + ",".join(moves))
-
-            rename()
-            original_preserved = False
-            try:
-                self._lease(lease)
-                with live.connect() as connection:
-                    self._validate_db(connection, revision)
-            except BaseException:
-                rename(reverse=True)
-                original_preserved = True
-                raise
-            completed = True
-            return RestoreReport(
-                "restored_recovery_required", "mysql", self.settings.profile_id, revision, prebackup
-            )
-        except Exception as error:
-            code = str(error) if isinstance(error, RuntimeError) else "restore_failed"
-            raise BackupError(code, original_preserved=original_preserved) from None
-        finally:
-            stage.dispose()
-            # If rollback itself fails, retain the old schema for manual recovery.
-            cleanup = created if original_preserved or completed else [stage_name]
-            with live.connect() as connection:
-                for name in cleanup:
-                    connection.exec_driver_sql(f"DROP DATABASE {quote(name)}")  # noqa: S608
-            live.dispose()

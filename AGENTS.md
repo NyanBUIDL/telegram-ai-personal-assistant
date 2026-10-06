@@ -14,8 +14,11 @@ artifacts without final review and explicit authorization.
 - The normal flow must work without installing Python, Node, MySQL, or using a
   terminal. Package the runtime, use PySide6 Qt Widgets and the default browser;
   do not add QtWebEngine.
-- Default new installs to SQLite. Preserve existing/advanced MySQL configuration,
-  drivers, and migrations; never silently migrate or switch the storage backend.
+- The owner confirmed SQLite-only on 06/10/2026; apply
+  `docs/superpowers/specs/2026-10-06-sqlite-only-amendment.md` instead of the earlier
+  advanced-MySQL requirement. Never connect to, migrate, reset or delete existing
+  MySQL data. A new installation starts with an empty SQLite profile; it does not
+  authorize erasing an existing user's profile. Keep migration history immutable.
 - Mutable data belongs under `%LOCALAPPDATA%/TelegramAIPersonalAssistant`, outside
   the install directory. Keep config, DB, Telegram session, vectors, logs and backups
   separate. Do not default the SQLite DB to a cloud-synced folder.

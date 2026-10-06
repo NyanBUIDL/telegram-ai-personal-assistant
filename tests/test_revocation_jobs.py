@@ -18,6 +18,7 @@ from tg_assistant.db.models import (
     TelegramChatPolicy,
     TelegramMessage,
 )
+from tg_assistant.paths import ensure_runtime_dirs
 from tg_assistant.policy import PolicyEngine, SlidingWindowLimiter
 from tg_assistant.runtime import Application, recover_interrupted_learning_jobs
 from tg_assistant.services.actions import PendingActionService
@@ -27,25 +28,6 @@ from tg_assistant.services.revocation import (
     require_authorization,
     source_epoch,
 )
-
-
-def mysql_fixture_url():
-    import os
-    import re
-
-    from sqlalchemy.engine import make_url
-
-    value = os.environ.get("TG_TEST_F01_MYSQL_URL")
-    if not value:
-        return None
-    url = make_url(value)
-    if (
-        url.drivername != "mysql+asyncmy"
-        or url.host not in {"localhost", "127.0.0.1", "::1"}
-        or not re.fullmatch(r"codex_(?:f01_[a-z0-9_]+|ci_revocation)", url.database or "")
-    ):
-        raise ValueError("F01 MySQL fixture requires an isolated local test schema")
-    return value
 
 
 class Database:
@@ -195,6 +177,7 @@ async def test_revoke_during_embedding_prevents_upsert(session, tmp_path):
     await session.commit()
     app = application(session)
     app.settings = app.settings.model_copy(update={"data_dir": tmp_path / "profile"})
+    ensure_runtime_dirs(app.settings.data_dir, profile_id=app.settings.profile_id)
     app.rag.vectors = LocalVectorStore(
         app.settings.resolved_semantic_vector_path,
         vector_size=1,
@@ -334,16 +317,12 @@ async def test_permission_revocation_fences_old_epoch(session, permission):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("backend", ["sqlite", "mysql"])
+@pytest.mark.parametrize("backend", ["sqlite"])
 async def test_committed_revoke_during_embedding_from_another_transaction(tmp_path, backend):
     from tg_assistant.db.base import Base
     from tg_assistant.db.base import Database as RealDatabase
 
     url = f"sqlite+aiosqlite:///{(tmp_path / 'race.sqlite').as_posix()}"
-    if backend == "mysql":
-        url = mysql_fixture_url()
-        if not url:
-            pytest.skip("TG_TEST_F01_MYSQL_URL separate disposable MySQL schema not configured")
     database = RealDatabase(url)
     async with database.engine.begin() as connection:
         await connection.run_sync(Base.metadata.create_all)
@@ -351,6 +330,7 @@ async def test_committed_revoke_during_embedding_from_another_transaction(tmp_pa
     release = asyncio.Event()
     app = application(None)
     app.settings = app.settings.model_copy(update={"data_dir": tmp_path / "profile"})
+    ensure_runtime_dirs(app.settings.data_dir, profile_id=app.settings.profile_id)
     app.database = database
     app.rag.vectors = LocalVectorStore(
         app.settings.resolved_semantic_vector_path,
@@ -537,46 +517,11 @@ async def test_disable_auto_moderation_during_role_lookup_prevents_delete(sessio
 
 
 @pytest.mark.asyncio
-async def test_mysql_repeatable_read_epoch_recheck_observes_committed_revoke():
+async def test_grant_releases_policy_locks_before_completion_notice(tmp_path):
     from tg_assistant.db.base import Base
     from tg_assistant.db.base import Database as RealDatabase
 
-    url = mysql_fixture_url()
-    if not url:
-        pytest.skip("TG_TEST_F01_MYSQL_URL separate disposable MySQL schema not configured")
-    database = RealDatabase(url)
-    try:
-        async with database.engine.begin() as connection:
-            await connection.run_sync(Base.metadata.drop_all)
-            await connection.run_sync(Base.metadata.create_all)
-        async with database.session() as setup:
-            await authorize(setup)
-        async with database.session() as stale:
-            # A consistent read starts a MySQL REPEATABLE READ snapshot.
-            assert await stale.scalar(select(TelegramChatPolicy.authorization_epoch)) == 0
-            await RevocationService(database, 1).revoke_source(100, 1, "keep")
-            with pytest.raises(AuthorizationRevoked):
-                await require_authorization(stale, 100, PermissionName.SEARCH_MESSAGES, 0)
-        async with database.session() as grant:
-            with pytest.raises(AuthorizationRevoked):
-                await PolicyEngine().set_allowed(grant, 100, True, expected_epoch=0)
-        async with database.session() as current:
-            assert await current.scalar(select(TelegramChatPolicy.allowed)) is False
-            assert await current.scalar(select(TelegramChatPolicy.authorization_epoch)) == 1
-    finally:
-        async with database.engine.begin() as connection:
-            await connection.run_sync(Base.metadata.drop_all)
-        await database.close()
-
-
-@pytest.mark.asyncio
-async def test_mysql_grant_releases_policy_locks_before_completion_notice():
-    from tg_assistant.db.base import Base
-    from tg_assistant.db.base import Database as RealDatabase
-
-    url = mysql_fixture_url()
-    if not url:
-        pytest.skip("TG_TEST_F01_MYSQL_URL separate disposable MySQL schema not configured")
+    url = f"sqlite+aiosqlite:///{(tmp_path / 'grant-notice.sqlite').as_posix()}"
     database = RealDatabase(url)
     revoked_during_notice = []
     try:
@@ -706,20 +651,6 @@ def test_epoch_migration_marks_legacy_running_delete_uncertain():
             assert connection.scalar(text("SELECT status FROM pending_actions")) == "cancelled"
     finally:
         engine.dispose()
-
-
-@pytest.mark.parametrize(
-    "unsafe_url",
-    [
-        "mysql+asyncmy://127.0.0.1/production",
-        "mysql+asyncmy://example.com/codex_f01_epoch",
-        "mysql+asyncmy://127.0.0.1/codex_migration_test",
-    ],
-)
-def test_mysql_fixture_rejects_unsafe_schema_before_metadata_writes(monkeypatch, unsafe_url):
-    monkeypatch.setenv("TG_TEST_F01_MYSQL_URL", unsafe_url)
-    with pytest.raises(ValueError, match="isolated local"):
-        mysql_fixture_url()
 
 
 @pytest.mark.asyncio

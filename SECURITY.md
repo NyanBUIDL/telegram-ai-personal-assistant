@@ -3,8 +3,9 @@
 ## Secret
 
 Secret được lưu trong Windows Credential Manager với service
-`TelegramAIPersonalAssistant`. `.env` chỉ chứa cấu hình không bí mật. Không gửi API hash,
-bot token, OTP, 2FA, MySQL password, OpenAI key hay session qua Telegram.
+`TelegramAIPersonalAssistant`. Cấu hình không bí mật nằm trong `config/settings.json`
+của profile; ứng dụng không tự đọc `.env` từ thư mục cài đặt. Không gửi API hash,
+bot token, OTP, 2FA, OpenAI key hay session qua Telegram.
 
 Logging dùng processor redaction trước khi ghi JSON. Không bật debug payload của Telethon,
 aiogram hoặc OpenAI trên dữ liệu thật.

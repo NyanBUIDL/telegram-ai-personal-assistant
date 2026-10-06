@@ -31,12 +31,16 @@ class OllamaModel:
     quantization_level: str | None = None
 
 
+@dataclass(frozen=True, slots=True)
+class OllamaDownloadPreview:
+    model: str
+    size_bytes: int
+
+
 def validate_model_name(value: str) -> str:
     name = value.strip()
     if not MODEL_NAME_RE.fullmatch(name):
-        raise OllamaError(
-            "Tên model không hợp lệ. Ví dụ hợp lệ: qwen3:8b hoặc hf.co/user/model."
-        )
+        raise OllamaError("Tên model không hợp lệ. Ví dụ hợp lệ: qwen3:8b hoặc hf.co/user/model.")
     return name
 
 
@@ -68,7 +72,47 @@ class OllamaService:
             timeout=30,
             transport=transport,
             headers={"Accept": "application/json"},
+            trust_env=False,
         )
+
+    async def preview_download(self, model: str) -> OllamaDownloadPreview:
+        """Read only official library manifest sizes, never start a model pull."""
+        name = validate_model_name(model)
+        base, _, tag = name.partition(":")
+        tag = tag or "latest"
+        if "/" in base or ".." in name or tag.lower().endswith("cloud"):
+            raise OllamaError("Chưa có dung lượng model local từ thư viện chính thức.")
+        try:
+            response = await self.client.get(
+                f"https://registry.ollama.ai/v2/library/{base}/manifests/{tag}",
+                timeout=8,
+                follow_redirects=False,
+            )
+            if response.status_code != 200 or len(response.content) > 1024 * 1024:
+                raise ValueError
+            manifest = response.json()
+            layers = manifest.get("layers")
+            config = manifest.get("config")
+            if not isinstance(layers, list) or not layers or not isinstance(config, dict):
+                raise ValueError
+            size = 0
+            for layer in [config, *layers]:
+                if (
+                    not isinstance(layer, dict)
+                    or type(layer.get("size")) is not int
+                    or layer["size"] < 0
+                ):
+                    raise ValueError
+                if "remote" in str(layer.get("mediaType", "")):
+                    raise ValueError
+                size += layer["size"]
+            if size <= 0:
+                raise ValueError
+            return OllamaDownloadPreview(name, size)
+        except (httpx.HTTPError, ValueError, AttributeError, TypeError):
+            raise OllamaError(
+                "Không xác minh được dung lượng model local; chưa bắt đầu tải."
+            ) from None
 
     async def _request(
         self,
@@ -139,6 +183,9 @@ class OllamaService:
         should_cancel: Callable[[], Awaitable[bool]] | None = None,
     ) -> None:
         name = validate_model_name(model)
+        if should_cancel and await should_cancel():
+            raise OllamaPullCancelled("Owner đã hủy tải model.")
+        success = False
         try:
             async with self.client.stream(
                 "POST",
@@ -147,13 +194,7 @@ class OllamaService:
                 timeout=6 * 60 * 60,
             ) as response:
                 if response.is_error:
-                    body = await response.aread()
-                    try:
-                        detail = str(json.loads(body).get("error", "")).strip()
-                    except (ValueError, AttributeError):
-                        detail = ""
-                    message = detail[:300] or f"HTTP {response.status_code}"
-                    raise OllamaError(f"Ollama từ chối yêu cầu: {message}")
+                    raise OllamaError("Ollama từ chối yêu cầu tải model.")
 
                 async for line in response.aiter_lines():
                     if should_cancel and await should_cancel():
@@ -166,14 +207,15 @@ class OllamaService:
                         continue
                     if not isinstance(event, dict):
                         continue
-                    total = int(event.get("total") or 0)
-                    completed = int(event.get("completed") or 0)
+                    if event.get("error"):
+                        raise OllamaError("Ollama báo lỗi tải model; chưa hoàn tất.")
+                    total = event.get("total") if type(event.get("total")) is int else 0
+                    completed = event.get("completed") if type(event.get("completed")) is int else 0
                     progress = (
-                        min(99, max(0, round((completed / total) * 100)))
-                        if total > 0
-                        else None
+                        min(99, max(0, round((completed / total) * 100))) if total > 0 else None
                     )
                     if event.get("status") == "success":
+                        success = True
                         progress = 100
                     if on_progress:
                         await on_progress(
@@ -187,6 +229,10 @@ class OllamaService:
                         )
                 if should_cancel and await should_cancel():
                     raise OllamaPullCancelled("Owner đã hủy tải model.")
+                if not success:
+                    raise OllamaError(
+                        "Luồng tải model kết thúc trước khi Ollama xác nhận hoàn tất."
+                    )
         except OllamaPullCancelled:
             raise
         except httpx.TimeoutException as exc:

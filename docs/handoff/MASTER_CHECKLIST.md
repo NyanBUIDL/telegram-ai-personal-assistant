@@ -2,6 +2,8 @@
 
 Ngày lập: 02/10/2026. **Thiết kế đã duyệt; implementation đang thực hiện; beta chưa sẵn sàng.** Đây là checklist canonical 26 task. Plan tổng có các bước và acceptance cụ thể; work packages là phụ lục chuyên môn, không tạo thêm danh sách task cạnh tranh.
 
+Điều chỉnh đã được owner duyệt ngày 06/10: [SQLite-only, cài mới dùng profile rỗng](../superpowers/specs/2026-10-06-sqlite-only-amendment.md). Không kết nối hoặc thay đổi MySQL cũ; không tự xóa dữ liệu khi cài lại. Evidence hai backend trước ngày này giữ làm lịch sử.
+
 ## Tài liệu bàn giao
 
 - [x] Spec theo mô hình Windows mỗi người tự cài.
@@ -28,20 +30,20 @@ Ngày lập: 02/10/2026. **Thiết kế đã duyệt; implementation đang thự
 
 ### M2 — Tri thức, bảo mật và desktop
 
-- [ ] **S03 — Backup/restore có kiểm chứng và fence runtime** · Reliability · phụ thuộc: S02, V01 · InReview.
+- [x] **S03 — Backup/restore có kiểm chứng và fence runtime** · Reliability · phụ thuộc: S02, V01 · Verified.
 - [x] **V01 — Profile embedding cloud/local và data boundary theo nguồn** · Reliability · phụ thuộc: S01, F01 · Verified.
-- [ ] **V02 — Incremental index, chỉnh sửa/xóa/dedup và coverage cùng contract** · Reliability · phụ thuộc: S02, V01 · InReview.
-- [ ] **V03 — Recovery từng nguồn thực thi được và có rollback** · Reliability · phụ thuộc: V02, S02 · Planned.
+- [x] **V02 — Incremental index, chỉnh sửa/xóa/dedup và coverage cùng contract** · Reliability · phụ thuộc: S02, V01 · Verified.
+- [ ] **V03 — Recovery từng nguồn thực thi được và có rollback** · Reliability · phụ thuộc: V02, S02 · InReview.
 - [x] **D01 — Native launcher/tray và service lifecycle** · Platform · phụ thuộc: S01, S02 · Verified.
-- [ ] **D02 — Một nút đăng nhập dashboard qua IPC ticket** · Platform · phụ thuộc: D01 · InReview.
+- [x] **D02 — Một nút đăng nhập dashboard qua IPC ticket** · Platform · phụ thuộc: D01 · Verified.
 
 ### M3 — Kết nối và onboarding
 
-- [ ] **O01 — Onboarding coordinator lưu/tiếp tục và health thực** · Platform · phụ thuộc: D02, V01 · Planned.
-- [ ] **O02 — Kết nối API cloud/local qua native dialogs** · Platform · phụ thuộc: O01 · Planned.
-- [ ] **O03 — Đăng nhập tài khoản Telegram bằng QR/OTP/2FA** · Platform · phụ thuộc: O01 · Planned.
+- [ ] **O01 — Onboarding coordinator lưu/tiếp tục và health thực** · Platform · phụ thuộc: D02, V01 · InReview.
+- [ ] **O02 — Kết nối API cloud/local qua native dialogs** · Platform · phụ thuộc: O01 · InReview.
+- [ ] **O03 — Đăng nhập tài khoản Telegram bằng QR/OTP/2FA** · Platform · phụ thuộc: O01 · InReview.
 - [ ] **O04 — Kết nối bot và ghép đúng owner bằng nút Start** · Platform · phụ thuộc: O03 · Planned.
-- [ ] **U02 — Navigation/dashboard setup và connections dễ hiểu** · Experience · phụ thuộc: O01, U01 · Planned.
+- [ ] **U02 — Navigation/dashboard setup và connections dễ hiểu** · Experience · phụ thuộc: O01, U01 · InReview.
 
 ### M4 — Quản trị hoàn chỉnh
 
@@ -64,7 +66,7 @@ Ngày lập: 02/10/2026. **Thiết kế đã duyệt; implementation đang thự
 | Gate | Chỉ đánh Verified khi | Hiện tại |
 |---|---|---|
 | G0 | Review thiết kế xong; B00 checkout thật, baseline và contracts có evidence | Verified |
-| G1 | Migration SQLite/MySQL, BLOCK, atomic claims và art tokens pass; CI chạy baseline | Pending |
+| G1 | Migration SQLite, từ chối MySQL cũ trước kết nối, BLOCK, atomic claims và art tokens pass; CI đúng commit | Pending |
 | G2 | Embedding profiles, LOCAL ONLY, index/recovery, backup/restore và ticket/lifecycle pass | Pending |
 | G3 | Cloud không cần Ollama; QR/OTP/2FA, bot owner pairing, resume và dashboard entry pass | Pending |
 | G4 | Đủ quản trị nguồn/quyền/tri thức/jobs/backup; art và accessibility có kiểm chứng | Pending |

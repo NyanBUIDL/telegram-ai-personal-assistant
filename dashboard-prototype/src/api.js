@@ -1,4 +1,5 @@
 import { canonicalChatId, canonicalChatIds, normalizePreferenceChatIds } from "./chatIds.js";
+import { assertContract } from "./contracts/generated.js";
 
 const API_ROOT = "/api/v1";
 
@@ -78,6 +79,18 @@ async function request(path, options = {}) {
 }
 
 export const api = {
+  setupStatus: async (signal) => assertContract("OnboardingStatus", await request("/setup/status", { signal })),
+  connections: async (signal) => {
+    const rows = await request("/connections", { signal });
+    if (!Array.isArray(rows)) throw new TypeError("Invalid connections contract");
+    return rows.map(row => assertContract("ConnectionStatus", row));
+  },
+  nativeDialogs: (signal) => request("/native/dialogs", { signal }),
+  nativeCommand: async (name, profileId, signal) => {
+    if (!["open_connection_dialog", "open_telegram_login", "open_bot_dialog"].includes(name)) throw new TypeError("Unavailable native dialog");
+    const body = assertContract("NativeCommand", { name, request_id: crypto.randomUUID(), profile_id: profileId, payload_nonsecret: {} });
+    return assertContract("OperationResult", await request("/native/commands", { method: "POST", body, signal }));
+  },
   session: () => request("/auth/session"),
   bootstrapSession: () => window.__tgLaunchSession || request("/auth/session"),
   login: (code) => request("/auth/login", { method: "POST", body: { code } }),

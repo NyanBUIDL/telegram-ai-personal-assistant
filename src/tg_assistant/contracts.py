@@ -34,7 +34,7 @@ from pydantic import (
 )
 from pydantic_core import PydanticSerializationError
 
-CONTRACT_VERSION = 1
+CONTRACT_VERSION = 2
 NATIVE_PAYLOAD_MAX_BYTES = 8192
 NATIVE_PAYLOAD_MAX_DEPTH = 16
 IDENTIFIER_PATTERN = r"^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"
@@ -103,7 +103,6 @@ class ConnectionService(StrEnum):
 
 class StorageBackend(StrEnum):
     SQLITE = "sqlite"
-    MYSQL = "mysql"
 
 
 class OnboardingStage(StrEnum):

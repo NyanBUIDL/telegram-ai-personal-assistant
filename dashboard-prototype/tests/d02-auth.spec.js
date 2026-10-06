@@ -54,8 +54,16 @@ test.afterAll(async () => {
 test('earliest inline scrub precedes fetch/resources and issues protected setup session', async ({ page, context }) => {
   await page.addInitScript(() => {
     window.__tgFetchHashes = [];
+    window.__tgFetchRequests = [];
     const original = window.fetch;
-    window.fetch = (...args) => { window.__tgFetchHashes.push(location.hash); return original(...args); };
+    window.fetch = (...args) => {
+      const [input, options] = args;
+      const url = new URL(input instanceof Request ? input.url : String(input), location.href).href;
+      const method = String(options?.method || (input instanceof Request ? input.method : 'GET')).toUpperCase();
+      window.__tgFetchHashes.push(location.hash);
+      window.__tgFetchRequests.push({ url, method, hash: location.hash });
+      return original(...args);
+    };
     window.__tgResourceHashes = [];
     new PerformanceObserver((entries) => { for (const entry of entries.getEntries()) if (entry.entryType === 'resource') window.__tgResourceHashes.push(location.hash); }).observe({ entryTypes: ['resource'] });
   });
@@ -65,7 +73,14 @@ test('earliest inline scrub precedes fetch/resources and issues protected setup 
   expect((await redeem).status()).toBe(200);
   await expect(page.getByRole('heading', { name: 'Tiếp tục thiết lập trên Windows' })).toBeVisible();
   expect(await page.evaluate(() => location.hash)).toBe('');
-  expect(await page.evaluate(() => window.__tgFetchHashes)).toEqual(['']);
+  // Redemption is the first fetch; setup now follows with sanitized status GETs.
+  const fetchHashes = await page.evaluate(() => window.__tgFetchHashes);
+  expect(fetchHashes[0]).toBe('');
+  expect(fetchHashes.every((hash) => hash === '')).toBe(true);
+  const fetchRequests = await page.evaluate(() => window.__tgFetchRequests);
+  expect(fetchRequests).toBeDefined();
+  expect(fetchRequests[0]).toEqual({ url: `${origin}/api/v1/auth/launch/redeem`, method: 'POST', hash: '' });
+  expect(fetchRequests.slice(1).every(request => request.method === 'GET' && request.hash === '' && ['/api/v1/setup/status', '/api/v1/connections', '/api/v1/native/dialogs'].some(path => request.url === `${origin}${path}`))).toBe(true);
   expect((await page.evaluate(() => window.__tgResourceHashes)).every((hash) => hash === '')).toBe(true);
   expect(await page.evaluate(() => document.cookie)).not.toContain('tg_admin_session');
   const cookie = (await context.cookies()).find((value) => value.name === 'tg_admin_session');

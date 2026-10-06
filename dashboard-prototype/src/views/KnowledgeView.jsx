@@ -313,11 +313,11 @@ export function KnowledgeView({ refreshKey, onCreatedAction, onToast }) {
             đang đóng góp vào bộ não chung.
           </h2>
           <span>
-            “Học” ở đây là đồng bộ nội dung được cấp quyền vào MySQL, làm sạch và tạo
+            “Học” ở đây là đồng bộ nội dung được cấp quyền vào SQLite, làm sạch và tạo
             embedding để tìm kiếm ngữ nghĩa. Hệ thống không tự fine-tune model AI.
           </span>
           <small>
-            Quyền tự học: {formatNumber(summary.auto_knowledge_sources)} nguồn · MySQL:{" "}
+            Quyền tự học: {formatNumber(summary.auto_knowledge_sources)} nguồn · SQLite:{" "}
             {formatNumber(summary.mysql_messages)} tin · Vector: {formatNumber(summary.vectors)} ·
             lần học gần nhất: {formatDate(summary.last_learned_at)}
           </small>
@@ -515,7 +515,7 @@ export function KnowledgeView({ refreshKey, onCreatedAction, onToast }) {
                   </th>
                   <th>Nguồn</th>
                   <th>Trạng thái</th>
-                  <th>MySQL</th>
+                  <th>SQLite</th>
                   <th>Vector</th>
                   <th>Dung lượng</th>
                   <th>Lần học</th>
@@ -606,7 +606,7 @@ export function KnowledgeView({ refreshKey, onCreatedAction, onToast }) {
                     </Badge>
                   </header>
                   <dl>
-                    <div><dt>MySQL</dt><dd>{formatNumber(source.mysql_message_count)}</dd></div>
+                    <div><dt>SQLite</dt><dd>{formatNumber(source.mysql_message_count)}</dd></div>
                     <div><dt>Vector</dt><dd>{formatNumber(source.vector_count)}</dd></div>
                     <div><dt>Dung lượng</dt><dd>{formatBytes(storageBytes)}</dd></div>
                   </dl>

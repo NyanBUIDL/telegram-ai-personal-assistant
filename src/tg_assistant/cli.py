@@ -15,7 +15,7 @@ from sqlalchemy import select
 
 from .admin_api import dashboard_login_code, ensure_dashboard_secret
 from .admin_api.auth import login_code_expires_at
-from .config import get_settings
+from .config import get_settings, validate_settings
 from .db.models import (
     PermissionName,
     TelegramAccount,
@@ -40,8 +40,6 @@ from .runtime import (
 from .security import SecretStore
 from .services.maintenance import FileLock, MaintenanceBusy, profile_writer
 from .services.storage import StorageService
-from .setup.mysql import detect_mysql
-from .setup.wizard import run_setup
 
 
 def _configure_console_utf8() -> None:
@@ -241,13 +239,10 @@ async def _is_paired() -> bool:
 
 
 def _ensure_ready() -> None:
-    store, paths = SecretStore(), ensure_runtime_dirs()
+    settings = validate_settings(get_settings())
+    store = SecretStore()
+    paths = ensure_runtime_dirs(settings.data_dir, profile_id=settings.profile_id)
     prompted_secrets = False
-    settings = get_settings()
-    if settings.storage_backend == "mysql":
-        if not store.get("database_password"):
-            run_setup()
-        settings = get_settings()
     _prepare_sqlite_storage(settings, store)
     required = ("telegram_api_id", "telegram_api_hash", "telegram_phone", "telegram_bot_token")
     if any(not store.get(key) for key in required):
@@ -487,40 +482,24 @@ def logs(lines: int = typer.Option(100, min=1, max=5000)) -> None:
 
 @app.command()
 def doctor() -> None:
-    settings, store, paths = get_settings(), SecretStore(), ensure_runtime_dirs()
+    settings = validate_settings(get_settings())
+    store = SecretStore()
+    paths = ensure_runtime_dirs(settings.data_dir, profile_id=settings.profile_id)
     typer.echo(
         f"Python: {sys.version.split()[0]} {'OK' if sys.version_info >= (3, 12) else 'FAIL'}"
     )
-    if settings.storage_backend == "mysql":
-        detection = detect_mysql(settings.database_host, settings.database_port)
-        typer.echo(f"MySQL version: {detection.version or 'không xác định'}")
-        typer.echo(
-            "MySQL services: "
-            + (
-                ", ".join(f"{name}={state}" for name, state in detection.services)
-                if detection.services
-                else "không phát hiện"
-            )
-        )
-        typer.echo(
-            f"MySQL port: {'OK' if detection.port_open else 'FAIL'}; "
-            f"process: {'OK' if detection.process_found else 'MISSING'}; "
-            f"CLI: {'OK' if detection.cli_found else 'không có'}"
-        )
     required = (
         "telegram_api_id",
         "telegram_api_hash",
         "telegram_phone",
         "telegram_bot_token",
     )
-    if settings.storage_backend == "mysql":
-        required = ("database_password", *required)
     for key in required:
         typer.echo(f"Credential {key}: {'OK' if store.get(key) else 'MISSING'}")
     typer.echo(
         f"Encrypted session: {'OK' if (paths['sessions'] / 'account.session.enc').exists() else 'MISSING'}"
     )
-    if settings.storage_backend == "sqlite" or store.get("database_password"):
+    if settings.storage_backend == "sqlite":
 
         async def ping() -> bool:
             db = make_database(settings, store)
@@ -728,7 +707,7 @@ def reindex() -> None:
 def _portable_storage() -> StorageService:
     """Open the explicit profile without launching writers or prompting secrets."""
     settings = get_settings()
-    storage = StorageService(settings, SecretStore())
+    storage = StorageService(settings)
     from .contracts import PublicProfile
 
     database = storage.open(PublicProfile(
@@ -748,7 +727,7 @@ def _portable_storage() -> StorageService:
 
 @app.command()
 def backup(output: Path | None = None) -> None:
-    """Create a portable SQLite/MySQL snapshot without external SQL tools."""
+    """Create a portable SQLite snapshot without external SQL tools."""
     storage = None
     try:
         storage = _portable_storage()
@@ -933,7 +912,7 @@ def purge() -> None:
         raise typer.Abort()
     shutil.rmtree(root)
     typer.echo(
-        f"Đã xóa dữ liệu cục bộ {root} và credential; database MySQL không bị drop tự động để tránh mất dữ liệu ngoài ý muốn."
+        f"Đã xóa dữ liệu SQLite trong profile {root} và các credential của ứng dụng; database MySQL cũ không bị thay đổi."
     )
 
 

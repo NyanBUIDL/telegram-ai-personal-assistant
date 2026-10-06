@@ -102,6 +102,8 @@ from .services.revocation import (
     validate_answer,
 )
 from .services.tasks import TaskService
+from .services.vector_paths import requires_existing_vector_path, resolve_vector_path
+from .services.vector_recovery import VectorRecoveryService
 from .services.vector_reliability import (
     SourceIndexService,
     ensure_vector_store_registry,
@@ -896,9 +898,11 @@ class Application:
                     source.status = "revoked"
                     source.requested_for_learning = False
 
-    def __init__(self, *, settings: Settings | None = None, admin_app_ready=None) -> None:
+    def __init__(self, *, settings: Settings | None = None, admin_app_ready=None,
+                 runtime_ready=None) -> None:
         self.settings = settings if settings is not None else get_settings()
         self.admin_app_ready = admin_app_ready
+        self.runtime_ready = runtime_ready
         self.store = self.paths = self.database = self.user = None
         self.ai = self.embedding_ai = self.ai_router = None
         self.coingecko = self.ollama = self.rag = None
@@ -925,10 +929,12 @@ class Application:
         vectors = None
         if self.embedding_ai.available and self.settings.enable_embeddings:
             try:
+                selected_path = resolve_vector_path(self.database, self.settings)
                 vectors = LocalVectorStore(
-                    self.settings.resolved_semantic_vector_path,
+                    selected_path,
                     vector_size=self.settings.embedding_profile.dimension,
                     profile=self.settings.embedding_profile,
+                    require_existing=requires_existing_vector_path(self.settings, selected_path),
                 )
             except Exception as exc:
                 log.warning("qdrant_local_unavailable", error_code=type(exc).__name__)
@@ -967,6 +973,12 @@ class Application:
             exception=str(getattr(event, "exception", "") or "") or None,
         )
 
+    def _authenticated_vector_owner(self) -> int:
+        owner_id = getattr(getattr(self, "user", None), "owner_id", None)
+        if type(owner_id) is not int or owner_id <= 0:
+            raise PermissionError("vector_owner_unverified")
+        return owner_id
+
     async def _activate_ollama(
         self,
         chat_model: str,
@@ -984,9 +996,10 @@ class Application:
             }
         )
         async with self._knowledge_lock:
+            owner_id = self._authenticated_vector_owner()
             current_vectors = self.rag.vectors
-            current_path = self.settings.resolved_semantic_vector_path
-            target_path = candidate.resolved_semantic_vector_path
+            current_path = resolve_vector_path(self.database, self.settings, owner_id=owner_id)
+            target_path = resolve_vector_path(self.database, candidate, owner_id=owner_id)
             reuse_vectors = current_vectors is not None and current_path == target_path
             new_vectors = current_vectors if reuse_vectors else None
             if not reuse_vectors and candidate.enable_embeddings:
@@ -994,6 +1007,7 @@ class Application:
                     target_path,
                     vector_size=candidate.embedding_profile.dimension,
                     profile=candidate.embedding_profile,
+                    require_existing=requires_existing_vector_path(candidate, target_path),
                 )
             new_ai = make_ai_engine(candidate, self.store, self.budget)
             new_embedding_ai = make_local_embedding_engine(candidate, self.store, self.budget)
@@ -1052,8 +1066,9 @@ class Application:
                 "Không nhận API key qua Telegram để tránh lộ secret."
             )
         async with self._knowledge_lock:
+            owner_id = self._authenticated_vector_owner()
             current_vectors = self.rag.vectors
-            target_path = candidate.resolved_semantic_vector_path
+            target_path = resolve_vector_path(self.database, candidate, owner_id=owner_id)
             reuse_vectors = bool(current_vectors)
             new_vectors = current_vectors
             if not new_vectors and candidate.enable_embeddings:
@@ -1061,6 +1076,7 @@ class Application:
                     target_path,
                     vector_size=candidate.embedding_profile.dimension,
                     profile=candidate.embedding_profile,
+                    require_existing=requires_existing_vector_path(candidate, target_path),
                 )
             new_ai = make_ai_engine(candidate, self.store, self.budget)
             new_router = make_ai_router(candidate, self.store, self.budget, new_ai)
@@ -2286,7 +2302,7 @@ class Application:
     async def _process_admin_jobs(self) -> None:
         """Run bounded dashboard jobs that must not block an HTTP request."""
         claimed = await claim_runtime_job(
-            self.database, ("ollama_pull", "history_backfill", "history_link_delete")
+            self.database, ("ollama_pull", "history_backfill", "history_link_delete", "vector_recovery")
         )
         if not claimed:
             return
@@ -2300,6 +2316,9 @@ class Application:
 
     async def _dispatch_claimed_admin_job(self, lease, job_type):
         job_id = lease.id
+        if job_type == "vector_recovery":
+            await VectorRecoveryService.for_application(self).run(lease)
+            return
         if job_type == "history_backfill":
             await self._run_history_backfill_job(job_id)
             return
@@ -2860,13 +2879,16 @@ class Application:
                             select(TelegramChat).where(TelegramChat.chat_id == action.chat_id)
                         )
                         if action.action_type == "recover_source_index":
-                            # Confirmation records owner review; it never starts reindexing implicitly.
-                            action.status = "approved_not_executed"
-                            action.error = (
-                                "Recovery remains disabled until the owner starts an explicit "
-                                "source-recovery workflow."
+                            if session.bind.dialect.name == "sqlite":
+                                await session.execute(text("BEGIN IMMEDIATE"))
+                            operation_id = await VectorRecoveryService.for_application(self).enqueue_in_session(
+                                session, str(action.payload.get("plan_id", "")), action.requested_by
                             )
-                            session.add(self._audit_row(action, "warning", action.error))
+                            action.payload = {**action.payload, "operation_id": operation_id}
+                            action.status, action.executed_at = "executed", datetime.now(UTC)
+                            action.error = None
+                            session.add(self._audit_row(action, "queued"))
+                            await session.commit()
                             continue
                         if action.action_type in {
                             "send_message",
@@ -3629,17 +3651,26 @@ class Application:
             if self.admin_app_ready is not None
             else await self.user.authenticate(self.store.get("telegram_phone") or "")
         )
+        if (
+            type(getattr(me, "id", None)) is not int or me.id <= 0
+            or getattr(me, "bot", True) is not False
+            or getattr(me, "deleted", False)
+        ):
+            raise RuntimeError("telegram_reconnect_required")
+        if self.rag.vectors:
+            try:
+                resolve_vector_path(self.database, self.settings, owner_id=int(me.id))
+            except ValueError:
+                self.rag.vectors.close()
+                self.rag.vectors = None
+                log.warning("vector_generation_owner_unverified")
         async with self.database.session() as session:
             await ensure_vector_store_registry(session, self.settings)
-            paired = list(
-                await session.scalars(
-                    select(TelegramAccount).where(
-                        TelegramAccount.is_owner_paired.is_(True),
-                        TelegramAccount.is_active.is_(True),
-                    )
-                )
-            )
-            if len(paired) != 1 or paired[0].telegram_user_id != int(me.id):
+            accounts = list(await session.scalars(select(TelegramAccount).limit(2)))
+            if (
+                len(accounts) != 1 or not accounts[0].is_owner_paired
+                or not accounts[0].is_active or accounts[0].telegram_user_id != me.id
+            ):
                 raise RuntimeError("owner_pairing_required")
             await self.user.discover_dialogs(session)
             recovered_jobs = await recover_interrupted_learning_jobs(session)
@@ -3744,6 +3775,10 @@ class Application:
                 self.admin_app_ready(admin_app)
             else:
                 self._start_admin_server(admin_app)
+        if self.runtime_ready is not None:
+            # Private owning-loop reference, delivered only after actual SDK
+            # authentication and durable paired-owner checks above.
+            self.runtime_ready(self)
         stopped = asyncio.create_task(self.stopping.wait())
         self._tasks.append(stopped)
         completed, _ = await asyncio.wait(self._tasks, return_when=asyncio.FIRST_COMPLETED)
@@ -3825,6 +3860,15 @@ class Application:
             self.user,
             self.database,
         )
+        owned = {id(resource) for resource in resources if resource is not None}
+        if self.ai_router is not None:
+            owned.update(id(engine) for engine in self.ai_router.engines.values())
+        retired = []
+        for resource in getattr(self, "_native_provider_retired", ()):
+            if id(resource) not in owned:
+                retired.append(resource)
+                owned.add(id(resource))
+        resources = (*resources, *retired)
         for resource in resources:
             if resource:
                 try:
@@ -3836,11 +3880,13 @@ class Application:
         log.info("application_stopped")
 
 
-async def run_application(*, settings: Settings | None = None, admin_app_ready=None) -> None:
+async def run_application(*, settings: Settings | None = None, admin_app_ready=None,
+                          runtime_ready=None) -> None:
     settings = settings if settings is not None else get_settings()
     paths = ensure_runtime_dirs(settings.data_dir, profile_id=settings.profile_id)
     with MaintenanceService(paths["config"], profile_id=settings.profile_id).operation():
-        app = Application(settings=settings, admin_app_ready=admin_app_ready)
+        app = Application(settings=settings, admin_app_ready=admin_app_ready,
+                          runtime_ready=runtime_ready)
         loop = asyncio.get_running_loop()
         for sig in (signal.SIGINT, signal.SIGTERM):
             try:

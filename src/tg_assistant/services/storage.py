@@ -40,13 +40,7 @@ class StorageService:
         return database
 
     def _url(self, *, async_driver: bool) -> str:
-        if self.settings.storage_backend == "sqlite":
-            return self.settings.database_url("", async_driver=async_driver)
-        store = self.store if self.store is not None else SecretStore()
-        password = store.get("database_password")
-        if not password:
-            raise RuntimeError("Chưa cấu hình MySQL. Chạy tg-assistant reconfigure hoặc start.bat.")
-        return self.settings.database_url(password, async_driver=async_driver)
+        return self.settings.database_url("", async_driver=async_driver)
 
     def migrate(self) -> MigrationReport:
         """Run the reviewed preflight/migration path before application writers start."""

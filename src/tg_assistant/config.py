@@ -8,7 +8,7 @@ from functools import lru_cache
 from hashlib import sha256
 from pathlib import Path
 from typing import Any, Literal
-from urllib.parse import quote_plus, urlparse
+from urllib.parse import urlparse
 
 from pydantic import Field, ValidationError, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -16,7 +16,6 @@ from sqlalchemy import URL
 
 from .paths import (
     ensure_runtime_dirs,
-    project_root,
     resolve_data_path,
     resource_path,
     user_data_root,
@@ -47,40 +46,14 @@ def _read_config(path: Path) -> dict[str, Any]:
             or not set(value["settings"]) <= set(Settings.model_fields)
         ):
             raise ValueError
+        if value["settings"].get("storage_backend", "sqlite") != "sqlite":
+            # Reject the stored legacy choice even when an init/env override
+            # requests SQLite. Changing backend does not authorize adopting a
+            # human profile; explicit migration/import is outside this product.
+            raise ValueError
         return value["settings"]
     except (OSError, ValueError):
         raise ValueError("Unsupported or invalid per-user config") from None
-
-
-def _legacy_config(path: Path | str | None) -> dict[str, str]:
-    """Read known non-secret legacy fields only, without dotenv interpolation."""
-    if path is None or not Path(path).is_file():
-        return {}
-    legacy_parent = Path(path).resolve().parent
-    path_fields = {"data_dir", "qdrant_path", "ollama_qdrant_path", "dashboard_dist_path"}
-    values = {}
-    keys = {f"TG_ASSISTANT_{name.upper()}": name for name in Settings.model_fields}
-    for line in Path(path).read_text(encoding="utf-8-sig").splitlines():
-        key, separator, value = line.removeprefix("export ").partition("=")
-        field = keys.get(key.strip())
-        if separator and field:
-            value = value.strip()
-            if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
-                value = value[1:-1]
-            if field in path_fields and not Path(value).is_absolute():
-                # Legacy files were launched from their installation directory.
-                # Preserve that location without rebasing modern init/env overrides.
-                value = str((legacy_parent / value).resolve())
-            values[field] = value
-    return values
-
-
-def _infer_mysql(values: dict[str, Any]) -> dict[str, Any]:
-    # An explicit legacy connection is a backend choice; untouched defaults are not.
-    connection_fields = {"database_host", "database_port", "database_name", "database_user"}
-    if "storage_backend" not in values and set(values) & connection_fields:
-        values["storage_backend"] = "mysql"
-    return values
 
 
 def validate_settings(settings: Settings) -> Settings:
@@ -126,7 +99,7 @@ class Settings(BaseSettings):
     timezone: str = "Asia/Ho_Chi_Minh"
     log_level: str = "INFO"
     data_dir: Path = Field(default_factory=user_data_root)
-    storage_backend: Literal["sqlite", "mysql"] = "sqlite"
+    storage_backend: Literal["sqlite"] = "sqlite"
     profile_id: str = Field(default="default", pattern=r"^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$")
     admin_api_enabled: bool = True
     admin_api_host: str = "127.0.0.1"
@@ -134,6 +107,8 @@ class Settings(BaseSettings):
     admin_session_minutes: int = Field(default=480, ge=5, le=1440)
     dashboard_dist_path: Path | None = None
 
+    # Deprecated v1 config fields remain readable but never select a backend,
+    # connection, credential or migration target.
     database_host: str = "127.0.0.1"
     database_port: int = 3306
     database_name: str = "telegram_ai_assistant"
@@ -192,11 +167,6 @@ class Settings(BaseSettings):
     short_memory_turns: int = 12
     short_memory_token_limit: int = 8_000
 
-    def __init__(self, **values: Any) -> None:
-        # Compatibility imports use the installation location, never a launch cwd.
-        values.setdefault("_env_file", project_root() / ".env")
-        super().__init__(**values)
-
     @classmethod
     def settings_customise_sources(
         cls, settings_cls, init_settings, env_settings, dotenv_settings, file_secret_settings
@@ -207,25 +177,15 @@ class Settings(BaseSettings):
             return _read_config(config_path(Path(root) if root is not None else None))
 
         return (
-            lambda: _infer_mysql(init_settings()),
-            lambda: _infer_mysql(env_settings()),
+            init_settings,
+            env_settings,
             profile_settings,
-            lambda: _infer_mysql(_legacy_config(dotenv_settings.env_file)),
         )
 
     @field_validator("data_dir", mode="before")
     @classmethod
     def absolute_data_dir(cls, value: Any) -> Path:
         return resolve_data_path(Path(value))
-
-    @field_validator("database_host")
-    @classmethod
-    def local_database_only(cls, value: str) -> str:
-        if value not in {"127.0.0.1", "localhost", "::1"}:
-            raise ValueError(
-                "Mặc định chỉ cho phép MySQL cục bộ; sửa validator có chủ đích nếu cần."
-            )
-        return value
 
     @field_validator("admin_api_host")
     @classmethod
@@ -269,26 +229,15 @@ class Settings(BaseSettings):
 
     @property
     def database_url_without_password(self) -> str:
-        if self.storage_backend == "sqlite":
-            return self.database_url("")
-        return (
-            f"mysql+asyncmy://{quote_plus(self.database_user)}@"
-            f"{self.database_host}:{self.database_port}/{self.database_name}"
-            "?charset=utf8mb4"
-        )
+        return self.database_url("")
 
     def database_url(self, password: str, *, async_driver: bool = True) -> str:
-        if self.storage_backend == "sqlite":
-            return URL.create(
-                "sqlite+aiosqlite" if async_driver else "sqlite",
-                database=str(self.data_dir / "db" / "assistant.sqlite3"),
-            ).render_as_string(hide_password=False)
-        driver = "mysql+asyncmy" if async_driver else "mysql+pymysql"
-        return (
-            f"{driver}://{quote_plus(self.database_user)}:{quote_plus(password)}@"
-            f"{self.database_host}:{self.database_port}/{self.database_name}"
-            "?charset=utf8mb4"
-        )
+        if self.storage_backend != "sqlite":
+            raise ValueError("storage_backend_unsupported")
+        return URL.create(
+            "sqlite+aiosqlite" if async_driver else "sqlite",
+            database=str(self.data_dir / "db" / "assistant.sqlite3"),
+        ).render_as_string(hide_password=False)
 
     @property
     def resolved_qdrant_path(self) -> Path:

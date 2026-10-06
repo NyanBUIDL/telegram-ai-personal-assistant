@@ -159,7 +159,7 @@ Trong flow quản lý group, “Bật thành viên hỏi AI” cho phép thành 
 chỉ kèm nguồn khi câu hỏi mang tính tin tức hoặc cập nhật mới. Câu hỏi như
 “nhóm này đang thảo luận gì?” chỉ đọc hội thoại của chính group đang gọi.
 Câu “@a_member đã nói về chủ đề gì?” phân giải đúng tài khoản và truy cứu tối đa
-100 tin gần nhất của riêng tài khoản đó trong group, đồng thời lưu vào MySQL.
+100 tin gần nhất của riêng tài khoản đó trong group, đồng thời lưu vào SQLite.
 
 “AI mode, fallback & quota” cho phép cấu hình riêng từng group:
 inherit, LOCAL ONLY, local→cloud, cloud only, cloud→local hoặc tắt AI group.
@@ -182,7 +182,7 @@ vẫn dùng đúng ngày lịch theo giờ Việt Nam.
 /ai_budget — ngân sách AI
 /ai_model — model hiện tại
 /ai_on — bật lớp AI
-/ai_off — tắt toàn bộ AI; tìm kiếm local/MySQL vẫn hoạt động
+/ai_off — tắt toàn bộ AI; tìm kiếm local/SQLite vẫn hoạt động
 
 Trong menu AI, chỉ cần bấm nút để hỏi AI, tìm local, tóm tắt hôm nay/hôm qua,
 học từ nhiều group/channel, xem ngân sách hoặc bật/tắt AI. “Học từ group/channel”
@@ -247,7 +247,7 @@ Ollama xử lý suy luận/embedding trên máy và không cần API key.
 Trong “Nhà cung cấp AI” → “Quản lý Ollama local”, owner có thể xem, tải,
 xóa, chọn model chat/embedding và kích hoạt Ollama hoàn toàn bằng nút Telegram.
 “Tắt toàn bộ AI” dừng OpenAI, OpenRouter, Ollama, suy luận và embedding nhưng
-không dừng MySQL, tìm kiếm local, CoinGecko, đồng bộ hoặc chống spam.
+không dừng SQLite, tìm kiếm local, CoinGecko, đồng bộ hoặc chống spam.
 
 QUY ƯỚC
 <...> là giá trị bắt buộc; [...] là tùy chọn. Không nhập nguyên dấu < > hoặc [ ].
@@ -2189,8 +2189,8 @@ class ControlBot:
                 f"XEM TRƯỚC HỌC TỪ NHIỀU GROUP/CHANNEL\n\n"
                 f"Đã chọn: {len(chats)} nguồn\n{shown}{extra}\n\n"
                 f"Mỗi group/channel sẽ được xếp vào hàng đợi riêng, bật allowlist + quyền knowledge, "
-                f"đồng bộ tối đa 1.000 tin mới nhất vào MySQL và commit trước. Sau đó worker "
-                f"đọc lại từ MySQL để tạo embedding. Secret được bỏ qua; phần chữ hợp lệ "
+                f"đồng bộ tối đa 1.000 tin mới nhất vào SQLite và commit trước. Sau đó worker "
+                f"đọc lại từ SQLite để tạo embedding. Secret được bỏ qua; phần chữ hợp lệ "
                 f"dùng để tạo embedding sẽ được gửi tới provider AI đang chọn; "
                 f"nếu dùng Ollama thì phần này được xử lý hoàn toàn trên máy. "
                 f"Tất cả vector được upsert vào cùng một kho Qdrant trên máy; học tiếp chỉ "
@@ -2254,7 +2254,7 @@ class ControlBot:
                         f"Tối đa {len(valid_ids) * 1000:,} tin trong đợt đồng bộ đầu\n"
                         "Xử lý từng nguồn bằng hàng đợi nền\n"
                         "Bật allowlist + quyền knowledge cho từng nguồn\n"
-                        "Ghi và commit dữ liệu nguồn vào MySQL trước khi tạo embedding\n"
+                        "Ghi và commit dữ liệu nguồn vào SQLite trước khi tạo embedding\n"
                         "Upsert tất cả nguồn vào một kho Qdrant hợp nhất; học tiếp chỉ bổ sung tin mới\n"
                         "Nội dung hợp lệ dùng để tạo embedding sẽ được gửi tới provider đang chọn; "
                         "với Ollama, dữ liệu được xử lý trên máy."
@@ -2366,8 +2366,8 @@ class ControlBot:
                     f"Đang chờ: {counts['queued']} • Lỗi: {counts['failed']}\n"
                     f"Tạm dừng: {counts['paused']} • "
                     f"Đang dừng an toàn: {counts['pause_requested']}\n"
-                    f"Tin mới đồng bộ MySQL: {synced}\n"
-                    f"Bản ghi MySQL khả dụng: {mysql_messages}\n"
+                    f"Tin mới đồng bộ SQLite: {synced}\n"
+                    f"Bản ghi SQLite khả dụng: {mysql_messages}\n"
                     f"Tổng embedding: {indexed} tin"
                 )
                 if jobs:
@@ -2491,7 +2491,7 @@ class ControlBot:
                 "• can_hoc: điền CO cho nguồn cần học hoặc học lại; để trống/KHONG nếu bỏ qua.\n"
                 "• ghi_chu: ghi yêu cầu hoặc lưu ý của bạn.\n\n"
                 "Sau đó gửi lại chính file CSV vào đây. Bot sẽ kiểm tra file, lưu ghi chú "
-                "vào MySQL và tạo bản xem trước để bạn xác nhận trước khi học.",
+                "vào SQLite và tạo bản xem trước để bạn xác nhận trước khi học.",
                 reply_markup=InlineKeyboardMarkup(
                     inline_keyboard=[
                         [
@@ -2601,7 +2601,7 @@ class ControlBot:
             invalid_count = len(edit_by_chat) - len(valid_ids)
             if not action:
                 await message.answer(
-                    f"Đã lưu ghi chú cho {len(valid_ids)} nguồn vào MySQL. "
+                    f"Đã lưu ghi chú cho {len(valid_ids)} nguồn vào SQLite. "
                     "Không có nguồn nào được đánh dấu CO nên chưa tạo hàng đợi học."
                 )
                 return
@@ -2876,7 +2876,7 @@ class ControlBot:
                 "và dữ liệu trong 7×24 giờ gần nhất tính từ lúc bạn hỏi.\n"
                 "  Câu trả lời có mã [S1], [S2] và phần dẫn chứng: link bài Telegram nếu có; "
                 "nếu không có link thì ghi tên group/channel cùng thời gian đăng.\n"
-                "• Tìm trong Telegram: mặc định tìm 7 ngày gần nhất trong MySQL local, "
+                "• Tìm trong Telegram: mặc định tìm 7 ngày gần nhất trong SQLite local, "
                 "không gọi AI. Có thể dùng after:/before: để chọn khoảng ngày khác.\n"
                 "• Tổng hợp toàn bộ ngày: rà mọi tin đã đồng bộ từ group/channel có quyền, "
                 "lọc nội dung không phù hợp, loại tin trùng, phân loại, dẫn chứng và liệt kê "
@@ -3256,7 +3256,7 @@ class ControlBot:
                 callback.from_user.id,
                 "XÁC NHẬN XÓA MODEL OLLAMA\n\n"
                 f"Model: {model}\n\n"
-                "File model sẽ bị xóa khỏi máy. Dữ liệu Telegram/MySQL không bị xóa "
+                "File model sẽ bị xóa khỏi máy. Dữ liệu Telegram/SQLite không bị xóa "
                 "và model có thể được tải lại sau.",
                 reply_markup=InlineKeyboardMarkup(
                     inline_keyboard=[
@@ -3853,7 +3853,7 @@ class ControlBot:
                             "Nếu hỏi “nhóm này đang thảo luận gì?”, AI chỉ đọc tối đa "
                             "100 tin gần nhất trong 7 ngày của chính group này.\n"
                             "Nếu hỏi “@username đã nói về chủ đề gì?”, Telegram Client "
-                            "truy cứu và đồng bộ MySQL tối đa 100 tin gần nhất của riêng "
+                            "truy cứu và đồng bộ SQLite tối đa 100 tin gần nhất của riêng "
                             "tài khoản đó trong group.\n"
                             "Lưu ý: nội dung tổng hợp từ các nguồn đã học có thể xuất hiện "
                             "trong group này. Câu hỏi tin tức/cập nhật sẽ kèm nguồn; "

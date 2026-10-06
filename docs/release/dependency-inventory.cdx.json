@@ -26,7 +26,7 @@
       },
       {
         "name": "inventory:python-manifest-sha256",
-        "value": "45d07653458ef5429074e06ac90c16c5eaad8ef452c5f193323dcadc3c44e65a"
+        "value": "0566f5c4197109d28c3c167f0f7ccc4f7d237889709d8b8dbce703b9bacdc174"
       },
       {
         "name": "inventory:npm-lock-sha256",
@@ -57,6 +57,33 @@
       "licenses": [
         {
           "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "aiosqlite",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "inventory:ecosystem",
+          "value": "python"
+        },
+        {
+          "name": "inventory:declared",
+          "value": "aiosqlite>=0.20,<1"
+        },
+        {
+          "name": "inventory:evidence",
+          "value": "installed development distribution METADATA; not artifact attestation"
+        }
+      ],
+      "version": "0.22.1",
+      "licenses": [
+        {
+          "license": {
+            "name": "MIT License"
+          }
         }
       ]
     },
@@ -114,31 +141,6 @@
     },
     {
       "type": "library",
-      "name": "asyncmy",
-      "scope": "required",
-      "properties": [
-        {
-          "name": "inventory:ecosystem",
-          "value": "python"
-        },
-        {
-          "name": "inventory:declared",
-          "value": "asyncmy>=0.2.10,<1"
-        },
-        {
-          "name": "inventory:evidence",
-          "value": "installed development distribution METADATA; not artifact attestation"
-        }
-      ],
-      "version": "0.2.15",
-      "licenses": [
-        {
-          "expression": "Apache-2.0"
-        }
-      ]
-    },
-    {
-      "type": "library",
       "name": "cryptography",
       "scope": "required",
       "properties": [
@@ -155,7 +157,7 @@
           "value": "installed development distribution METADATA; not artifact attestation"
         }
       ],
-      "version": "50.0.1",
+      "version": "46.0.7",
       "licenses": [
         {
           "expression": "Apache-2.0 OR BSD-3-Clause"
@@ -318,31 +320,6 @@
     },
     {
       "type": "library",
-      "name": "pymysql",
-      "scope": "required",
-      "properties": [
-        {
-          "name": "inventory:ecosystem",
-          "value": "python"
-        },
-        {
-          "name": "inventory:declared",
-          "value": "pymysql>=1.1,<2"
-        },
-        {
-          "name": "inventory:evidence",
-          "value": "installed development distribution METADATA; not artifact attestation"
-        }
-      ],
-      "version": "1.2.3",
-      "licenses": [
-        {
-          "expression": "MIT"
-        }
-      ]
-    },
-    {
-      "type": "library",
       "name": "psutil",
       "scope": "required",
       "properties": [
@@ -413,7 +390,7 @@
           "value": "installed development distribution METADATA; not artifact attestation"
         }
       ],
-      "version": "2.1.2",
+      "version": "2.1.3",
       "licenses": [
         {
           "expression": "MIT"
@@ -456,7 +433,7 @@
         },
         {
           "name": "inventory:declared",
-          "value": "telethon>=1.38,<2"
+          "value": "telethon==1.45.0"
         },
         {
           "name": "inventory:evidence",
@@ -549,8 +526,9 @@
     },
     {
       "type": "library",
-      "name": "aiosqlite",
+      "name": "qrcode",
       "scope": "optional",
+      "version": "8.2",
       "properties": [
         {
           "name": "inventory:ecosystem",
@@ -558,18 +536,17 @@
         },
         {
           "name": "inventory:declared",
-          "value": "aiosqlite>=0.20,<1"
+          "value": "qrcode==8.2"
         },
         {
           "name": "inventory:evidence",
           "value": "installed development distribution METADATA; not artifact attestation"
         }
       ],
-      "version": "0.22.1",
       "licenses": [
         {
           "license": {
-            "name": "MIT License"
+            "name": "BSD"
           }
         }
       ]

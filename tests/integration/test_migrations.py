@@ -2,10 +2,8 @@
 
 from __future__ import annotations
 
-import os
 import re
 from pathlib import Path
-from uuid import uuid4
 
 import pytest
 import sqlalchemy as sa
@@ -36,32 +34,15 @@ def config(connection, *, backups=None, unchecked=False):
     return value
 
 
-@pytest.fixture(params=["sqlite", "mysql"])
+@pytest.fixture(params=["sqlite"])
 def connection(tmp_path, request):
-    admin = None
-    if request.param == "mysql":
-        value = os.environ.get("TG_TEST_MYSQL_URL")
-        if not value:
-            pytest.skip("TG_TEST_MYSQL_URL disposable MySQL schema not configured")
-        url = sa.engine.make_url(value)
-        assert (url.database or "").startswith("codex_"), "Disposable fixture URL required"
-        admin = sa.create_engine(url.set(database=None))
-        name = "codex_f02_" + uuid4().hex
-        with admin.connect() as setup:
-            setup.exec_driver_sql(f"CREATE DATABASE `{name}` CHARACTER SET utf8mb4")
-        engine = sa.create_engine(url.set(database=name).update_query_dict({"charset": "utf8mb4"}))
-    else:
-        engine = sa.create_engine(f"sqlite:///{tmp_path / 'app.db'}")
+    engine = sa.create_engine(f"sqlite:///{tmp_path / 'app.db'}")
     with engine.connect() as connection:
         if request.param == "sqlite":
             connection.exec_driver_sql("PRAGMA foreign_keys=ON")
             connection.commit()
         yield connection
     engine.dispose()
-    if admin:
-        with admin.connect() as cleanup:
-            cleanup.exec_driver_sql(f"DROP DATABASE `{name}`")
-        admin.dispose()
 
 
 def revision(connection):
@@ -329,121 +310,6 @@ def test_sqlite_revision_table_semantics_refused_untouched(tmp_path, alteration)
         engine.dispose()
 
 
-def mysql_schema_definition(connection):
-    quote = connection.dialect.identifier_preparer.quote
-    return {
-        table: connection.exec_driver_sql(f"SHOW CREATE TABLE {quote(table)}").one()[1]
-        for table in sa.inspect(connection).get_table_names()
-    }
-
-
-@pytest.mark.parametrize("connection", ["mysql"], indirect=True)
-@pytest.mark.parametrize(
-    "alteration",
-    [
-        "key_collation",
-        "column_charset",
-        "table_collation",
-        "prefix",
-        "descending",
-        "invisible",
-        "expression",
-        "unique_prefix",
-    ],
-)
-def test_mysql_effective_collation_and_index_semantics_refused_untouched(
-    connection, tmp_path, alteration
-):
-    original_create_all(connection)
-    if alteration == "key_collation":
-        fk = "fk_ai_conversation_messages_conversation_id_ai_conversations"
-        connection.exec_driver_sql(f"ALTER TABLE ai_conversation_messages DROP FOREIGN KEY {fk}")
-        for table, column in (
-            ("ai_conversations", "id"),
-            ("ai_conversation_messages", "conversation_id"),
-        ):
-            connection.exec_driver_sql(
-                f"ALTER TABLE {table} MODIFY {column} VARCHAR(36) CHARACTER SET utf8mb4 "
-                "COLLATE utf8mb4_bin NOT NULL"
-            )
-        connection.exec_driver_sql(
-            f"ALTER TABLE ai_conversation_messages ADD CONSTRAINT {fk} FOREIGN KEY "
-            "(conversation_id) REFERENCES ai_conversations(id) ON DELETE CASCADE"
-        )
-    elif alteration == "column_charset":
-        connection.exec_driver_sql(
-            "ALTER TABLE ai_memories MODIFY scope_id VARCHAR(64) CHARACTER SET ascii COLLATE ascii_bin"
-        )
-    elif alteration == "table_collation":
-        connection.exec_driver_sql(
-            "ALTER TABLE ai_memories DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_bin"
-        )
-    elif alteration == "invisible":
-        connection.exec_driver_sql(
-            "ALTER TABLE ai_memories ALTER INDEX ix_ai_memories_scope_id INVISIBLE"
-        )
-    elif alteration == "unique_prefix":
-        connection.exec_driver_sql(
-            "ALTER TABLE tags DROP INDEX uq_tags_name, ADD UNIQUE INDEX uq_tags_name (name(1))"
-        )
-    else:
-        connection.exec_driver_sql("DROP INDEX ix_ai_memories_scope_id ON ai_memories")
-        key = {
-            "prefix": "scope_id(1)",
-            "descending": "scope_id DESC",
-            "expression": "(lower(scope_id))",
-        }[alteration]
-        connection.exec_driver_sql(f"CREATE INDEX ix_ai_memories_scope_id ON ai_memories ({key})")
-    connection.exec_driver_sql("INSERT INTO ai_conversations (id, owner_id) VALUES ('ABC', 1)")
-    connection.commit()
-    before = mysql_schema_definition(connection)
-    with pytest.raises(RuntimeError, match="unknown_schema"):
-        command.upgrade(config(connection, backups=tmp_path / "backups"), "head")
-    assert mysql_schema_definition(connection) == before
-    assert connection.exec_driver_sql("SELECT id, owner_id FROM ai_conversations").all() == [
-        ("ABC", 1)
-    ]
-    assert "alembic_version" not in sa.inspect(connection).get_table_names()
-    assert not (tmp_path / "backups").exists()
-
-
-@pytest.mark.parametrize("connection", ["mysql"], indirect=True)
-def test_mysql_version_collation_refused_untouched(connection, tmp_path):
-    original_create_all(connection, stamped=True)
-    connection.exec_driver_sql(
-        "ALTER TABLE alembic_version MODIFY version_num VARCHAR(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL"
-    )
-    connection.commit()
-    before = mysql_schema_definition(connection)
-    with pytest.raises(RuntimeError, match="unknown_schema"):
-        command.upgrade(config(connection, backups=tmp_path / "backups"), "head")
-    assert mysql_schema_definition(connection) == before
-    assert revision(connection) == "0001"
-    assert not (tmp_path / "backups").exists()
-
-
-@pytest.mark.parametrize("connection", ["mysql"], indirect=True)
-def test_mysql_legitimate_alternate_database_default_preserved(connection, tmp_path):
-    quote = connection.dialect.identifier_preparer.quote
-    database = connection.exec_driver_sql("SELECT DATABASE()").scalar_one()
-    connection.exec_driver_sql(
-        f"ALTER DATABASE {quote(database)} CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
-    )
-    original_create_all(connection)
-    insert_chat(connection)
-    command.upgrade(config(connection, backups=tmp_path / "backups"), "head")
-    assert revision(connection) == head(connection)
-    assert (
-        connection.exec_driver_sql("SELECT title FROM telegram_chats").scalar_one() == "Tiếng Việt"
-    )
-    assert (
-        connection.exec_driver_sql(
-            "SELECT TABLE_COLLATION FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='ai_conversations'"
-        ).scalar_one()
-        == "utf8mb4_unicode_ci"
-    )
-
-
 def test_unverified_snapshot_aborts_before_repair(connection, tmp_path):
     from tg_assistant.db.migrations import fingerprint
 
@@ -455,24 +321,6 @@ def test_unverified_snapshot_aborts_before_repair(connection, tmp_path):
         command.upgrade(value, "head")
     assert fingerprint(connection) == before
     assert revision(connection) == "0001"
-
-
-@pytest.mark.parametrize("alteration", ["unsigned", "fulltext", "engine"])
-def test_mysql_changed_type_index_or_engine_refused(connection, tmp_path, alteration):
-    if connection.dialect.name != "mysql":
-        pytest.skip("MySQL type, index and engine semantics")
-    original_create_all(connection)
-    statement = {
-        "unsigned": "ALTER TABLE ai_conversations MODIFY owner_id BIGINT UNSIGNED NOT NULL",
-        "fulltext": "ALTER TABLE telegram_messages DROP INDEX ft_messages_text, ADD INDEX ft_messages_text (text(100))",
-        "engine": "ALTER TABLE runtime_metrics ENGINE=MyISAM",
-    }[alteration]
-    connection.exec_driver_sql(statement)
-    connection.commit()
-    with pytest.raises(RuntimeError, match="unknown_schema"):
-        command.upgrade(config(connection, backups=tmp_path / "backups"), "head")
-    assert "alembic_version" not in sa.inspect(connection).get_table_names()
-    assert not (tmp_path / "backups").exists()
 
 
 @pytest.mark.parametrize("version", ["unknown", "0006", "malformed"])
@@ -538,48 +386,6 @@ def test_original_expanded_schema_snapshot_before_repair(connection, tmp_path, s
     extension = "sqlite3" if connection.dialect.name == "sqlite" else "sql"
     snapshots = list((tmp_path / "backups").glob(f"*.{extension}"))
     assert len(snapshots) == 1
-    if connection.dialect.name == "mysql":
-        dump = snapshots[0].read_text(encoding="utf-8")
-        assert "-1009007199254740993" in dump and "Tiếng Việt" in dump
-        assert "authorization_epoch" not in dump
-        assert "database_password" not in dump
-        from pymysql.constants import CLIENT
-
-        restored_name = "codex_f02_restore_" + uuid4().hex
-        connection.exec_driver_sql(f"CREATE DATABASE `{restored_name}` CHARACTER SET utf8mb4")
-        restored = sa.create_engine(
-            connection.engine.url.set(database=restored_name),
-            connect_args={"client_flag": CLIENT.MULTI_STATEMENTS},
-        )
-        try:
-            with restored.connect() as saved:
-                cursor = saved.connection.driver_connection.cursor()
-                try:
-                    cursor.execute(dump)
-                    while cursor.nextset():
-                        pass
-                finally:
-                    cursor.close()
-                saved.commit()
-                assert fingerprint(saved) == before
-                assert (
-                    saved.execute(sa.text("SELECT summary FROM ai_conversations")).scalar()
-                    == preserved_text
-                )
-                assert (
-                    saved.execute(sa.text("SELECT chat_id FROM telegram_chats")).scalar()
-                    == -1009007199254740993
-                )
-                if stamped:
-                    assert revision(saved) == stamped
-                else:
-                    assert "alembic_version" not in sa.inspect(saved).get_table_names()
-        finally:
-            restored.dispose()
-            connection.exec_driver_sql(f"DROP DATABASE `{restored_name}`")
-        command.upgrade(config(connection, backups=tmp_path / "backups"), "head")
-        assert len(list((tmp_path / "backups").glob("*.sql"))) == 1
-        return
     backup = sa.create_engine(f"sqlite:///{snapshots[0]}")
     with backup.connect() as saved:
         assert fingerprint(saved) == before
@@ -623,10 +429,7 @@ def test_repair_requires_snapshot_and_refuses_tampered_known_schema(connection, 
     with pytest.raises(RuntimeError, match="snapshot_required"):
         command.upgrade(config(connection), "head")
     assert "alembic_version" not in sa.inspect(connection).get_table_names()
-    if connection.dialect.name == "mysql":
-        connection.exec_driver_sql("DROP INDEX ix_messages_chat_date ON telegram_messages")
-    else:
-        connection.exec_driver_sql("DROP INDEX ix_messages_chat_date")
+    connection.exec_driver_sql("DROP INDEX ix_messages_chat_date")
     connection.commit()
     with pytest.raises(RuntimeError, match="unknown_schema"):
         command.upgrade(config(connection, backups=tmp_path / "backups"), "head")

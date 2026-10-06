@@ -7,7 +7,7 @@ if (!['chrome', 'chromium'].includes(channel)) {
 
 export default defineConfig({
   testDir: './tests',
-  testMatch: 'd02-auth.spec.js',
+  testMatch: ['d02-auth.spec.js', 'u02-native.spec.js'],
   workers: 1,
   retries: 0,
   forbidOnly: true,

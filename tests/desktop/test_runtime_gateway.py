@@ -44,7 +44,7 @@ class MemoryStore:
 class TelegramTransport:
     def __init__(self, *args):
         self.authorized = True
-        self.me = SimpleNamespace(id=123, username="synthetic_owner")
+        self.me = SimpleNamespace(id=123, username="synthetic_owner", bot=False, deleted=False)
         self.connected = asyncio.Event()
         self.closed = 0
 
@@ -169,7 +169,17 @@ async def test_native_resume_attaches_protected_api_to_existing_gateway(native_c
 
 
 @pytest.mark.parametrize(
-    "reason", ["expired", "missing_identity", "foreign", "inactive", "ambiguous"]
+    "reason",
+    [
+        "expired",
+        "missing_identity",
+        "foreign",
+        "inactive",
+        "ambiguous",
+        "bot",
+        "deleted",
+        "ambiguous_unpaired",
+    ],
 )
 async def test_native_unverified_identity_refuses_management_and_cleans_session(
     native_case, monkeypatch, reason
@@ -185,10 +195,14 @@ async def test_native_unverified_identity_refuses_management_and_cleans_session(
             item.me = None
         if reason == "foreign":
             item.me.id = 999
+        if reason == "bot":
+            item.me.bot = True
+        if reason == "deleted":
+            item.me.deleted = True
         return item
 
     monkeypatch.setattr(user_client, "TelegramClient", transport)
-    if reason in {"inactive", "ambiguous"}:
+    if reason in {"inactive", "ambiguous", "ambiguous_unpaired"}:
         db = runtime.make_database(selected, store)
         async with db.session() as session:
             account = await session.get(TelegramAccount, 1)
@@ -196,7 +210,11 @@ async def test_native_unverified_identity_refuses_management_and_cleans_session(
                 account.is_active = False
             else:
                 session.add(
-                    TelegramAccount(telegram_user_id=999, is_owner_paired=True, is_active=True)
+                    TelegramAccount(
+                        telegram_user_id=999,
+                        is_owner_paired=reason != "ambiguous_unpaired",
+                        is_active=True,
+                    )
                 )
         await db.close()
     application = runtime.Application(
@@ -209,6 +227,29 @@ async def test_native_unverified_identity_refuses_management_and_cleans_session(
     assert not (paths["sessions"] / "account.session").exists()
     assert application.ollama.client.is_closed
     assert application.coingecko.client.is_closed
+
+
+async def test_gateway_withdraws_management_when_actual_runtime_begins_closing(native_case):
+    selected, _, _, _ = native_case
+    gateway = RuntimeGateway(selected.admin_api_port, "1" * 32)
+
+    def attach(admin):
+        gateway.admin = admin
+        application.stopping.set()
+
+    def attach_runtime(actual):
+        gateway.runtime_owner = actual
+
+    application = runtime.Application(
+        settings=selected, admin_app_ready=attach, runtime_ready=attach_runtime
+    )
+    await application.run()
+    assert gateway.admin is None, "Closed SDK/application must not keep management authority"
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=gateway), base_url="http://127.0.0.1:18765"
+    ) as client:
+        measured = (await client.get("/api/v1/runtime/readiness")).json()
+        assert measured["capabilities"] == ["setup"]
 
 
 async def test_explicit_runtime_profile_obeys_maintenance_before_resources(
@@ -489,13 +530,13 @@ async def test_completed_assistant_removes_management_from_live_gateway(native_c
     servers = []
 
     class StoppingApplication(original_application):
-        def __init__(self, *, settings, admin_app_ready):
+        def __init__(self, *, settings, admin_app_ready, runtime_ready=None):
             def attach(admin):
                 admin_app_ready(admin)
                 attached.set()
                 self.stopping.set()
 
-            super().__init__(settings=settings, admin_app_ready=attach)
+            super().__init__(settings=settings, admin_app_ready=attach, runtime_ready=runtime_ready)
 
     def server(*args):
         assert not servers, "Native runtime opened a second listener"
@@ -518,7 +559,12 @@ async def test_completed_assistant_removes_management_from_live_gateway(native_c
                 status = None
                 while asyncio.get_running_loop().time() < deadline:
                     status = (await client.get("/api/v1/runtime/readiness")).json()
-                    if status["capabilities"] == ["setup"]:
+                    # Management is withdrawn as soon as shutdown starts;
+                    # wait for the owning assistant finalizer before checking
+                    # its durable state-file transition and reconnect code.
+                    if status["capabilities"] == ["setup"] and (
+                        status["code"] == "telegram_reconnect_required"
+                    ):
                         break
                     await asyncio.sleep(0.05)
                 assert status["capabilities"] == ["setup"]
@@ -531,3 +577,18 @@ async def test_completed_assistant_removes_management_from_live_gateway(native_c
             await asyncio.wait_for(serving, timeout=5)
             await database.close()
     assert transports[0].closed == 1 and len(servers) == 1
+
+
+async def test_runtime_shutdown_attempts_retired_provider_cleanup_once(native_case):
+    selected, _, _, _ = native_case
+    application = runtime.Application(settings=selected, admin_app_ready=lambda _: None)
+    application._initialize()
+    calls = []
+
+    async def close():
+        calls.append(True)
+
+    retired = SimpleNamespace(close=close)
+    application._native_provider_retired = [retired, retired, application.ollama]
+    await application.close()
+    assert calls == [True], "Retained clients must be drained once by the actual owning runtime"

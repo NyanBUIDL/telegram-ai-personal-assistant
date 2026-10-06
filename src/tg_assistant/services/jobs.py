@@ -9,7 +9,7 @@ from secrets import token_hex
 
 from sqlalchemy import create_engine, event, or_, select, text, update
 from sqlalchemy.engine import URL, make_url
-from sqlalchemy.exc import OperationalError
+from sqlalchemy.exc import ArgumentError, OperationalError
 from sqlalchemy.orm import Session
 
 from ..contracts import JobLease, OperationResult
@@ -165,19 +165,19 @@ def utc(value: datetime) -> datetime:
 
 class JobRepository:
     def __init__(self, url: str | URL, *, profile_id: str, fence=None):
-        value = make_url(url)
-        if value.get_backend_name() == "sqlite":
-            value = value.set(drivername="sqlite")
-            self.engine = create_engine(value, connect_args={"timeout": 0.2})
+        try:
+            value = make_url(url)
+        except (ArgumentError, TypeError, ValueError):
+            raise ValueError("storage_sqlite_required") from None
+        if value.drivername not in {"sqlite", "sqlite+aiosqlite"}:
+            raise ValueError("storage_sqlite_required")
+        value = value.set(drivername="sqlite")
+        self.engine = create_engine(value, connect_args={"timeout": 0.2})
 
-            @event.listens_for(self.engine, "connect")
-            def configure(connection, record):
-                configure_sqlite(connection, record, busy_timeout=200)
-        else:
-            self.engine = create_engine(
-                value.set(drivername="mysql+pymysql"),
-                connect_args={"init_command": "SET time_zone = '+00:00'"},
-            )
+        @event.listens_for(self.engine, "connect")
+        def configure(connection, record):
+            configure_sqlite(connection, record, busy_timeout=200)
+
         self.profile_id, self.fence = profile_id, fence
 
     @contextmanager

@@ -39,6 +39,7 @@ import {
   WorkersView,
 } from "./views/OperationsViews.jsx";
 import { OverviewView } from "./views/OverviewView.jsx";
+import { SetupDashboard, SetupReadiness, primaryNavigation } from "./views/OnboardingView.jsx";
 import {
   ConnectionsView,
   DocumentationView,
@@ -48,7 +49,7 @@ import {
 } from "./views/SystemViews.jsx";
 import { Badge, IconButton, Toast } from "./ui.jsx";
 
-const navigation = [
+const featureNavigation = [
   { id: "overview", label: "Tổng quan", icon: ChartBar, section: "VẬN HÀNH" },
   { id: "connections", label: "Kết nối", icon: RadioButton },
   { id: "groups", label: "Nhóm Telegram", icon: UsersThree },
@@ -70,6 +71,8 @@ const navigation = [
   },
 ];
 
+const navigation = primaryNavigation.map(item => ({ ...item, icon: featureNavigation.find(feature => feature.id === item.id).icon }));
+const advancedNavigation = featureNavigation.filter(item => !navigation.some(primary => primary.id === item.id));
 const ACTION_LABELS = {
   set_chat_allowed: "Thay đổi trạng thái nguồn",
   set_chat_permission: "Thay đổi quyền nguồn",
@@ -377,16 +380,12 @@ export function App() {
 
   const activeLabel = useMemo(() => {
     if (activePage === "group-detail") return "Chi tiết nhóm";
-    return navigation.find((item) => item.id === activePage)?.label || "Tổng quan";
+    return [...navigation, ...advancedNavigation].find((item) => item.id === activePage)?.label || "Tổng quan";
   }, [activePage]);
 
   if (authState === "checking") return <SessionLoading />;
   if (authState === "authenticated" && session?.authority === "setup_only") {
-    return <main className="login-shell"><section className="login-panel"><div className="login-form">
-      <h1 style={{ fontFamily: "var(--font-display)" }}>Telegram AI</h1><h2>Tiếp tục thiết lập trên Windows</h2>
-      <p>Phiên thiết lập đã xác thực. Kết nối và ghép owner trong ứng dụng trước khi quản lý nguồn.</p>
-      <button className="button button--primary" onClick={handleLogout}>Đăng xuất</button>
-    </div></section></main>;
+    return <SetupDashboard session={session} onLogout={handleLogout} />;
   }
   if (authState !== "authenticated") return <LoginScreen error={launchError} />;
 
@@ -425,6 +424,7 @@ export function App() {
             );
           })}
         </nav>
+        <details className="advanced-navigation"><summary>Chức năng nâng cao</summary><nav aria-label="Điều hướng nâng cao">{advancedNavigation.map(item => <button key={item.id} className={activePage === item.id ? "is-active" : ""} onClick={() => switchPage(item.id)}>{item.label}</button>)}</nav></details>
         <div className="sidebar-rule" />
         <div className="owner-card">
           <div className="owner-avatar">OW</div>
@@ -541,6 +541,7 @@ export function App() {
         ) : null}
 
         <div className="content">
+          {["overview", "connections"].includes(activePage) ? <SetupReadiness session={session} /> : null}
           {activePage === "overview" ? (
             <OverviewView
               refreshKey={refreshKey}

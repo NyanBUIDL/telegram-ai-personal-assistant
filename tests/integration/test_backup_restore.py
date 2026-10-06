@@ -10,7 +10,6 @@ import traceback
 from contextlib import closing
 from datetime import UTC, datetime, timedelta
 from threading import Event, Thread
-from uuid import uuid4
 from zipfile import ZIP_STORED, ZipFile
 
 import pytest
@@ -240,121 +239,6 @@ def test_wrong_profile_manifest_no_mutation(service, tmp_path):
     service.fence.release(lease)
 
 
-@pytest.fixture
-def mysql_service(tmp_path, monkeypatch):
-    value = os.environ.get("TG_TEST_MYSQL_URL")
-    if not value:
-        pytest.skip("Disposable MySQL S03 fixture is explicitly opt-in")
-    try:
-        url = sa.engine.make_url(value)
-    except (TypeError, ValueError, sa.exc.ArgumentError):
-        pytest.skip("Disposable MySQL S03 fixture URL is invalid")
-    if (
-        url.drivername != "mysql+pymysql"
-        or url.host not in {"127.0.0.1", "localhost"}
-        or url.port not in {3306, 13307}
-        or not (url.database or "").startswith("codex_")
-        or not url.username
-        or not url.password
-    ):
-        pytest.skip("Disposable loopback MySQL S03 fixture is required")
-    password = url.password
-    for key in list(os.environ):
-        if key.startswith("TG_ASSISTANT_"):
-            monkeypatch.delenv(key)
-    schema = "codex_s03_" + uuid4().hex
-    admin = sa.create_engine(url.set(database=""))
-    with admin.connect() as connection:
-        connection.exec_driver_sql(f"CREATE DATABASE `{schema}` CHARACTER SET utf8mb4")
-
-    class FixtureStore:
-        def get(self, key):
-            assert key == "database_password"
-            return password
-
-    settings = Settings(
-        _env_file=None,
-        data_dir=tmp_path / "mysql-profile",
-        storage_backend="mysql",
-        database_host=url.host,
-        database_port=url.port,
-        database_user=url.username,
-        database_name=schema,
-    )
-    instance = StorageService(settings, FixtureStore())
-    instance.open(
-        PublicProfile(
-            profile_id="default",
-            owner_id=None,
-            storage_backend="mysql",
-            setup_stage="welcome",
-            version=1,
-        )
-    )
-    try:
-        instance.migrate()
-        engine = sa.create_engine(instance._url(async_driver=False))
-        with engine.begin() as connection:
-            connection.execute(
-                sa.insert(TelegramChat).values(chat_id=-123, title="drill", chat_type="group")
-            )
-            connection.execute(
-                sa.insert(TelegramMessage).values(
-                    chat_id=-123,
-                    message_id=1,
-                    text="first",
-                    sent_at=datetime.now(UTC),
-                    vector_status="indexed",
-                )
-            )
-        engine.dispose()
-        yield instance
-    finally:
-        instance.fence.close()
-        assert schema.startswith("codex_s03_")
-        with admin.connect() as connection:
-            connection.exec_driver_sql(f"DROP DATABASE `{schema}`")
-        admin.dispose()
-
-
-def test_mysql_snapshot_consistent(mysql_service, tmp_path):
-    engine = sa.create_engine(mysql_service._url(async_driver=False))
-    with engine.begin() as connection:
-        connection.execute(
-            sa.insert(TelegramMessage).values(
-                chat_id=-123, message_id=2, text="first", sent_at=datetime.now(UTC)
-            )
-        )
-    stop, started = Event(), Event()
-
-    def writer():
-        count = 0
-        while not stop.is_set():
-            with engine.begin() as connection:
-                connection.execute(sa.update(TelegramMessage).values(text=str(count)))
-            started.set()
-            count += 1
-
-    thread = Thread(target=writer)
-    thread.start()
-    started.wait(5)
-    try:
-        manifest = mysql_service.backup(tmp_path / "mysql.zip")
-    finally:
-        stop.set()
-        thread.join(5)
-        engine.dispose()
-    with ZipFile(tmp_path / "mysql.zip") as archive:
-        payload = archive.read("database.json")
-        document = json.loads(payload)
-        item = document["telegram_messages"]
-        index = item["columns"].index("text")
-        assert len({row[index] for row in item["rows"]}) == 1
-        assert manifest.checksums == {"database.json": hashlib.sha256(payload).hexdigest()}
-        assert manifest.backend == "mysql"
-        assert document["alembic_version"]["rows"] == [[manifest.schema_revision]]
-
-
 def _security_restore_drill(instance, tmp_path):
     engine = sa.create_engine(instance._url(async_driver=False))
     now = datetime.now(UTC)
@@ -462,17 +346,6 @@ def _security_restore_drill(instance, tmp_path):
     report = instance.restore(archive, lease)
     assert report.recovery_required and report.prebackup_path.is_file()
     with engine.connect() as connection:
-        if instance.settings.storage_backend == "mysql":
-            assert (
-                connection.scalar(
-                    sa.text(
-                        "SELECT COUNT(*) FROM information_schema.KEY_COLUMN_USAGE "
-                        "WHERE TABLE_SCHEMA=DATABASE() AND REFERENCED_TABLE_SCHEMA IS NOT NULL "
-                        "AND REFERENCED_TABLE_SCHEMA<>DATABASE()"
-                    )
-                )
-                == 0
-            )
         assert connection.scalar(sa.select(TelegramChatPolicy.allowed)) is False
         assert connection.scalar(sa.select(TelegramChatPolicy.authorization_epoch)) > 8
         assert connection.scalar(sa.select(TelegramChatPermission.enabled)) is False
@@ -509,10 +382,6 @@ def _security_restore_drill(instance, tmp_path):
 
 def test_sqlite_restore_preserves_revocation_budget_consent_identity(service, tmp_path):
     _security_restore_drill(service, tmp_path)
-
-
-def test_mysql_restore_preserves_revocation_budget_consent_identity(mysql_service, tmp_path):
-    _security_restore_drill(mysql_service, tmp_path)
 
 
 def test_restore_retains_live_uncertain_work(service, tmp_path):
@@ -558,7 +427,7 @@ def test_restore_retains_live_uncertain_work(service, tmp_path):
     service.fence.release(lease)
 
 
-@pytest.mark.parametrize("backend", ["sqlite", "mysql"])
+@pytest.mark.parametrize("backend", ["sqlite"])
 def test_post_swap_failure_rolls_back_original(backend, request, tmp_path, monkeypatch):
     instance = request.getfixturevalue("service" if backend == "sqlite" else "mysql_service")
     archive = tmp_path / "saved.zip"
@@ -744,7 +613,7 @@ def test_historical_revision_migrates_only_in_stage(service, tmp_path):
     service.fence.release(lease)
 
 
-@pytest.mark.parametrize("backend", ["sqlite", "mysql"])
+@pytest.mark.parametrize("backend", ["sqlite"])
 def test_portable_backup_excludes_live_job_claim_authority(backend, request, tmp_path):
     service = request.getfixturevalue("service" if backend == "sqlite" else "mysql_service")
     engine = sa.create_engine(service._url(async_driver=False))

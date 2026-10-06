@@ -306,7 +306,8 @@ class DashboardTicketService(AdminAuth):
             return super().get_session(token) if self._available else None
 
 
-def install_native_auth_routes(app, tickets, *, command_handler=None):
+def install_native_auth_routes(app, tickets, *, command_handler=None,
+                               session_command_handler=None, dialog_availability=None):
     """Routes shared by setup and assistant gateway; no HTTP mint endpoint."""
     from fastapi.responses import JSONResponse
 
@@ -354,6 +355,11 @@ def install_native_auth_routes(app, tickets, *, command_handler=None):
         if not session:
             return JSONResponse({"code": "native_reopen_required"}, status_code=401)
         if request.method == "GET":
+            if path == "/api/v1/native/dialogs":
+                return JSONResponse({
+                    "profile_id": tickets.profile_id,
+                    "commands": list(dialog_availability()) if dialog_availability else [],
+                })
             return JSONResponse(output(session))
         if not hmac.compare_digest(request.headers.get("x-csrf-token", ""), session.csrf_token):
             return JSONResponse({"code": "csrf_denied"}, status_code=403)
@@ -374,6 +380,8 @@ def install_native_auth_routes(app, tickets, *, command_handler=None):
             command.model_dump_json()  # Revalidate nested mutable values.
         except (ValueError, TypeError):
             return JSONResponse({"code": "native_command_denied"}, status_code=403)
+        if session_command_handler is not None:
+            return JSONResponse(session_command_handler(command, session))
         if command_handler is None:
             return JSONResponse({"code": "native_dialog_unavailable"}, status_code=409)
         return JSONResponse(command_handler(command))
@@ -382,5 +390,6 @@ def install_native_auth_routes(app, tickets, *, command_handler=None):
         ("/api/v1/auth/launch/redeem", ["POST"]), ("/api/v1/auth/login", ["POST"]),
         ("/api/v1/auth/session", ["GET"]), ("/api/v1/auth/logout", ["POST"]),
         ("/api/v1/native/commands", ["POST"]),
+        ("/api/v1/native/dialogs", ["GET"]),
     ):
         app.add_api_route(path, auth_route, methods=methods)

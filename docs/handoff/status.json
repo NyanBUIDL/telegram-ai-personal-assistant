@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-10-04",
+  "updated_at": "2026-10-06",
   "scope": "Windows per-user local application",
   "baseline_commit": "7429fcffd61860e9502f066e0b6a921df72fe176",
   "documents_ready": true,
@@ -19,7 +19,8 @@
       "dependencies": [],
       "status": "Verified",
       "evidence": [
-        "docs/handoff/evidence/task-B00.md"
+        "docs/handoff/evidence/task-B00.md",
+        "docs/handoff/evidence/sqlite-only-amendment.md"
       ],
       "acceptance": "Có Git checkout/branch rõ, baseline evidence và contracts versioned; không có product task tự đổi schema."
     },
@@ -49,9 +50,10 @@
       "status": "Verified",
       "evidence": [
         "docs/handoff/evidence/task-F02.md",
-        "docs/handoff/evidence/review-F02.md"
+        "docs/handoff/evidence/review-F02.md",
+        "docs/handoff/evidence/sqlite-only-amendment.md"
       ],
-      "acceptance": "Fresh install + legacy upgrade thực đạt cả hai dialect; không dùng Base.metadata.create_all để thay migration test."
+      "acceptance": "Fresh SQLite install và legacy SQLite upgrade đạt; migrations immutable; MySQL cũ bị từ chối trước kết nối theo amendment 06/10."
     },
     {
       "id": "S01",
@@ -64,7 +66,8 @@
       "status": "Verified",
       "evidence": [
         "docs/handoff/evidence/task-S01.md",
-        "docs/handoff/evidence/review-S01.md"
+        "docs/handoff/evidence/review-S01.md",
+        "docs/handoff/evidence/sqlite-only-amendment.md"
       ],
       "acceptance": "Ứng dụng mở được storage từ bất kỳ cwd và chuẩn bị empty/new/legacy profile có bằng chứng."
     },
@@ -80,9 +83,10 @@
       "status": "Verified",
       "evidence": [
         "docs/handoff/evidence/task-S02.md",
-        "docs/handoff/evidence/review-S02.md"
+        "docs/handoff/evidence/review-S02.md",
+        "docs/handoff/evidence/sqlite-only-amendment.md"
       ],
-      "acceptance": "Nhiều connection thật cùng DB file SQLite/MySQL đạt, không chỉ test session memory đơn."
+      "acceptance": "Nhiều connection thật cùng DB file SQLite đạt; CAS/lease/revocation/maintenance giữ nguyên theo amendment 06/10."
     },
     {
       "id": "S03",
@@ -93,9 +97,10 @@
         "S02",
         "V01"
       ],
-      "status": "InReview",
+      "status": "Verified",
       "evidence": [
-        "docs/handoff/evidence/review-S03.md"
+        "docs/handoff/evidence/review-S03.md",
+        "docs/handoff/evidence/sqlite-only-amendment.md"
       ],
       "acceptance": "Có restore drill evidence, retrieval sau restore hoặc degraded+recovery thực, không success chỉ vì import SQL."
     },
@@ -123,7 +128,7 @@
         "S02",
         "V01"
       ],
-      "status": "InReview",
+      "status": "Verified",
       "evidence": [
         "docs/handoff/evidence/review-V02.md"
       ],
@@ -138,8 +143,12 @@
         "V02",
         "S02"
       ],
-      "status": "Planned",
-      "evidence": [],
+      "status": "InReview",
+      "evidence": [
+        "docs/handoff/evidence/task-V03.md",
+        "docs/handoff/evidence/review-five-completion.md",
+        "docs/handoff/evidence/five-completion.json"
+      ],
       "acceptance": "Người dùng bấm preview->confirm->job->verified được, không còn recovery UI chỉ ghi audit."
     },
     {
@@ -166,7 +175,7 @@
       "dependencies": [
         "D01"
       ],
-      "status": "InReview",
+      "status": "Verified",
       "evidence": [
         "docs/handoff/evidence/review-D02.md"
       ],
@@ -181,8 +190,12 @@
         "D02",
         "V01"
       ],
-      "status": "Planned",
-      "evidence": [],
+      "status": "InReview",
+      "evidence": [
+        "docs/handoff/evidence/task-O01.md",
+        "docs/handoff/evidence/review-five-completion.md",
+        "docs/handoff/evidence/five-completion.json"
+      ],
       "acceptance": "Wizard complete/resume/error states UI lẫn backend phản ánh cùng contract."
     },
     {
@@ -193,8 +206,12 @@
       "dependencies": [
         "O01"
       ],
-      "status": "Planned",
-      "evidence": [],
+      "status": "InReview",
+      "evidence": [
+        "docs/handoff/evidence/task-O02.md",
+        "docs/handoff/evidence/review-five-completion.md",
+        "docs/handoff/evidence/five-completion.json"
+      ],
       "acceptance": "Connect/test/change/disconnect OpenAI/OpenRouter/Ollama supported thật; không cần terminal hoặc hidden Ollama."
     },
     {
@@ -205,8 +222,12 @@
       "dependencies": [
         "O01"
       ],
-      "status": "Planned",
-      "evidence": [],
+      "status": "InReview",
+      "evidence": [
+        "docs/handoff/evidence/task-O03.md",
+        "docs/handoff/evidence/review-five-completion.md",
+        "docs/handoff/evidence/five-completion.json"
+      ],
       "acceptance": "GUI đủ QR và fallback; không claim autoAPIregistration hoặc email/OTP auto-read."
     },
     {
@@ -245,8 +266,12 @@
         "O01",
         "U01"
       ],
-      "status": "Planned",
-      "evidence": [],
+      "status": "InReview",
+      "evidence": [
+        "docs/handoff/evidence/task-U02.md",
+        "docs/handoff/evidence/review-five-completion.md",
+        "docs/handoff/evidence/five-completion.json"
+      ],
       "acceptance": "Người mới hiểu thiếu gì và sửa ở đâu mà không mở docs dài/terminal."
     },
     {
@@ -315,7 +340,8 @@
       "evidence": [
         "docs/handoff/evidence/task-Q01.md",
         "docs/handoff/evidence/review-Q01.md",
-        "docs/handoff/evidence/q01-github-ci.json"
+        "docs/handoff/evidence/q01-github-ci.json",
+        "docs/handoff/evidence/sqlite-only-amendment.md"
       ],
       "acceptance": "MandatoryCI on featurebranch and finalcandidate; dependencygraph success không được coi CItest."
     },
@@ -361,7 +387,8 @@
       "status": "Verified",
       "evidence": [
         "docs/handoff/evidence/task-R01.md",
-        "docs/handoff/evidence/review-R01.md"
+        "docs/handoff/evidence/review-R01.md",
+        "docs/handoff/evidence/sqlite-only-amendment.md"
       ],
       "acceptance": "Cleanrelease tree; licensing unresolved blockedpublicrelease; no forcepush/publicvisibilitychange."
     },
@@ -425,5 +452,8 @@
       "evidence": []
     }
   ],
-  "completion_notification": "Báo người dùng beta-ready chỉ khi G0–G6 Verified; nêu commit, installer/hash, test evidence, limitations. Nếu bị chặn, báo điều kiện cụ thể; không coi hết lượt hoặc docs xong là product xong."
+  "completion_notification": "Báo người dùng beta-ready chỉ khi G0–G6 Verified; nêu commit, installer/hash, test evidence, limitations. Nếu bị chặn, báo điều kiện cụ thể; không coi hết lượt hoặc docs xong là product xong.",
+  "source_amendments": [
+    "docs/superpowers/specs/2026-10-06-sqlite-only-amendment.md"
+  ]
 }

@@ -1,7 +1,6 @@
 """Real, independent connections: a lease must prevent duplicate work."""
 
 import asyncio
-import os
 import subprocess
 import sys
 import time
@@ -12,7 +11,6 @@ from importlib.util import find_spec
 from pathlib import Path
 from threading import Barrier, Event
 from types import SimpleNamespace
-from uuid import uuid4
 
 import pytest
 import sqlalchemy as sa
@@ -33,22 +31,9 @@ from tg_assistant.db.models import (
 )
 
 
-@pytest.fixture(params=["sqlite", "mysql"])
+@pytest.fixture(params=["sqlite"])
 def storage(tmp_path, request):
-    admin = None
-    if request.param == "mysql":
-        value = os.environ.get("TG_TEST_MYSQL_URL")
-        if not value:
-            pytest.skip("Disposable MySQL not configured")
-        url = sa.engine.make_url(value)
-        assert url.host in {"127.0.0.1", "localhost"} and (url.database or "").startswith("codex_")
-        name = "codex_s02_" + uuid4().hex
-        admin = sa.create_engine(url.set(database=None))
-        with admin.begin() as connection:
-            connection.exec_driver_sql(f"CREATE DATABASE `{name}` CHARACTER SET utf8mb4")
-        engine = sa.create_engine(url.set(database=name))
-    else:
-        engine = sa.create_engine(sa.URL.create("sqlite", database=str(tmp_path / "jobs.sqlite3")))
+    engine = sa.create_engine(sa.URL.create("sqlite", database=str(tmp_path / "jobs.sqlite3")))
     try:
         with engine.connect() as connection:
             upgrade_database(
@@ -57,10 +42,6 @@ def storage(tmp_path, request):
         yield engine
     finally:
         engine.dispose()
-        if admin:
-            with admin.begin() as connection:
-                connection.exec_driver_sql(f"DROP DATABASE `{name}`")
-            admin.dispose()
 
 
 def queue(engine, *, job_type="history_backfill", payload=None):
@@ -691,12 +672,12 @@ def test_start_running_instance_skips_migration_and_setup(tmp_path, monkeypatch)
     cli.start()
 
 
-def test_legacy_mysql_setup_cannot_bypass_maintenance(tmp_path, monkeypatch):
+def test_sqlite_setup_cannot_bypass_maintenance(tmp_path):
     from tg_assistant.config import Settings
     from tg_assistant.contracts import PublicProfile
+    from tg_assistant.desktop.setup_context import open_setup_context
     from tg_assistant.services.maintenance import MaintenanceBusy
     from tg_assistant.services.storage import StorageService
-    from tg_assistant.setup import wizard
 
     settings = Settings(_env_file=None, data_dir=tmp_path / "owned")
     service = StorageService(settings)
@@ -709,16 +690,16 @@ def test_legacy_mysql_setup_cannot_bypass_maintenance(tmp_path, monkeypatch):
             version=1,
         )
     )
-    monkeypatch.setattr(wizard, "get_settings", lambda: settings)
 
     def forbidden_credentials():
         pytest.fail("Provisioner bypassed maintenance admission")
 
-    monkeypatch.setattr(wizard, "SecretStore", forbidden_credentials)
+    asyncio.run(database.close())
+    service.migrate()
     lease = service.fence.acquire("restore-test", lease_seconds=30)
     try:
         with pytest.raises(MaintenanceBusy):
-            wizard.run_setup()
+            open_setup_context(settings, secret_store_factory=forbidden_credentials)
     finally:
         service.fence.release(lease)
         asyncio.run(database.close())

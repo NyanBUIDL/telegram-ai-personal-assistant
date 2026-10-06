@@ -5,7 +5,7 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..db.models import PendingAction
+from ..db.models import AppSetting, PendingAction
 from ..security import contains_secret, redact
 from .revocation import source_epoch, source_ids, validate_action_epoch
 
@@ -78,6 +78,7 @@ class PendingActionService:
                 "enable_group_learning",
                 "leave_telegram_chat",
                 "delete_learned_data",
+                "recover_source_index",
             }
             and chat_id is None
         ):
@@ -116,8 +117,15 @@ class PendingActionService:
                 raise ValueError("Phạm vi xóa dữ liệu học không hợp lệ.")
             if not preview:
                 raise ValueError("Xóa dữ liệu học bắt buộc phải có preview.")
-        if action_type == "recover_source_index" and not preview:
-            raise ValueError("Recovery index requires a preview.")
+        if action_type == "recover_source_index":
+            if not preview or set(payload) != {"plan_id"} or not isinstance(payload.get("plan_id"), str):
+                raise ValueError("Recovery requires a server-issued preview.")
+            private = await session.get(AppSetting, f"recovery_plan:{payload['plan_id']}")
+            if (private is None or not isinstance(private.value, dict)
+                    or private.value.get("owner_id") != requested_by
+                    or private.value.get("state") != "preview"
+                    or (private.value.get("plan") or {}).get("chat_id") != str(chat_id)):
+                raise ValueError("Recovery requires a server-issued preview.")
         if action_type == "leave_telegram_chat" and not preview:
             raise ValueError("Rời group/channel bắt buộc phải có preview.")
         if action_type == "create_memory":

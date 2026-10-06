@@ -6,6 +6,8 @@ from contextlib import asynccontextmanager, nullcontext
 from datetime import datetime
 
 from sqlalchemy import DateTime, MetaData, event, func
+from sqlalchemy.engine import make_url
+from sqlalchemy.exc import ArgumentError
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -38,17 +40,14 @@ class TimestampMixin:
 
 class Database:
     def __init__(self, url: str, *, echo: bool = False, pool_size: int = 5) -> None:
-        kwargs: dict = {"echo": echo, "pool_pre_ping": True}
-        if not url.startswith("sqlite"):
-            kwargs.update(
-                pool_size=pool_size,
-                max_overflow=5,
-                pool_recycle=1800,
-                connect_args={"init_command": "SET time_zone = '+00:00'"},
-            )
-        self.engine: AsyncEngine = create_async_engine(url, **kwargs)
-        if self.engine.dialect.name == "sqlite":
-            event.listen(self.engine.sync_engine, "connect", configure_sqlite)
+        try:
+            value = make_url(url)
+        except (ArgumentError, TypeError, ValueError):
+            raise ValueError("storage_sqlite_required") from None
+        if value.drivername != "sqlite+aiosqlite":
+            raise ValueError("storage_sqlite_required")
+        self.engine: AsyncEngine = create_async_engine(value, echo=echo, pool_pre_ping=True)
+        event.listen(self.engine.sync_engine, "connect", configure_sqlite)
         self.sessions = async_sessionmaker(self.engine, expire_on_commit=False)
         self.fence = None
 

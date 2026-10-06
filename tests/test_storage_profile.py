@@ -10,10 +10,8 @@ import tomllib
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from threading import Barrier
-from uuid import uuid4
 
 import pytest
-import sqlalchemy as sa
 from sqlalchemy import text
 
 from tg_assistant import config
@@ -22,6 +20,9 @@ from tg_assistant.config import Settings, get_settings, save_settings_env
 from tg_assistant.contracts import PublicProfile
 from tg_assistant.db.base import Database
 from tg_assistant.paths import ensure_runtime_dirs
+
+# Assigned by the isolated profile fixture; does not redirect production resources.
+installed_root = Path()
 
 
 @pytest.fixture(autouse=True)
@@ -32,7 +33,7 @@ def isolated_profile(tmp_path, monkeypatch):
     monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "Local AppData"))
     install = tmp_path / "installed"
     install.mkdir()
-    monkeypatch.setattr(config, "project_root", lambda: install)
+    monkeypatch.setattr(sys.modules[__name__], "installed_root", install, raising=False)
     monkeypatch.setattr(
         app_paths, "current_user_sid", lambda: "S-1-5-21-100-100-100-1001", raising=False
     )
@@ -76,11 +77,11 @@ async def test_new_install_uses_sqlite(tmp_path):
     finally:
         await db.close()
     assert (settings.data_dir / "config" / "settings.json").is_file()
-    assert not (config.project_root() / ".env").exists()
+    assert not (installed_root / ".env").exists()
 
 
-def test_existing_mysql_preserved(tmp_path):
-    legacy = config.project_root() / ".env"
+def test_legacy_dotenv_connection_fields_are_ignored_without_adoption(tmp_path):
+    legacy = installed_root / ".env"
     legacy.write_text(
         "TG_ASSISTANT_DATABASE_HOST=127.0.0.1\n"
         "TG_ASSISTANT_DATABASE_PORT=13307\n"
@@ -89,17 +90,12 @@ def test_existing_mysql_preserved(tmp_path):
         "TG_ASSISTANT_DATABASE_PASSWORD=never-import-this\n",
         encoding="utf-8",
     )
+    before = legacy.read_bytes()
     settings = Settings()
-    assert getattr(settings, "storage_backend", None) == "mysql"
-    assert settings.database_name == "codex_s01_legacy"
-    assert settings.database_port == 13307
-    save_settings_env({"TG_ASSISTANT_LOG_LEVEL": "DEBUG"})
-    persisted = (settings.data_dir / "config" / "settings.json").read_text(encoding="utf-8")
-    assert "never-import-this" not in persisted
-    assert "password" not in persisted.casefold()
-    assert Settings().storage_backend == "mysql"
-    assert Settings().database_name == "codex_s01_legacy"
-    assert "never-import-this" in legacy.read_text(encoding="utf-8")
+    assert settings.storage_backend == "sqlite"
+    assert settings.database_name != "codex_s01_legacy"
+    assert not settings.data_dir.exists()
+    assert legacy.read_bytes() == before
 
 
 def test_config_independent_of_cwd(tmp_path, monkeypatch):
@@ -109,7 +105,7 @@ def test_config_independent_of_cwd(tmp_path, monkeypatch):
     (elsewhere / ".env").write_text("TG_ASSISTANT_AI_PROVIDER=openrouter\n", encoding="utf-8")
     monkeypatch.chdir(elsewhere)
     assert Settings().ai_provider == "off"
-    assert not (config.project_root() / ".env").exists()
+    assert not (installed_root / ".env").exists()
     document = json.loads((Settings().data_dir / "config" / "settings.json").read_text())
     assert document["version"] == 1
 
@@ -167,19 +163,13 @@ def test_secret_config_rejected_without_creating_file(key):
     with pytest.raises(ValueError, match="non-secret"):
         save_settings_env({key: "sensitive-do-not-write"})
     assert not (Settings(_env_file=None).data_dir / "config" / "settings.json").exists()
-    assert not (config.project_root() / ".env").exists()
+    assert not (installed_root / ".env").exists()
 
 
 def test_explicit_no_env_skips_legacy():
-    (config.project_root() / ".env").write_text("TG_ASSISTANT_DATABASE_NAME=legacy\n")
+    (installed_root / ".env").write_text("TG_ASSISTANT_DATABASE_NAME=legacy\n")
     settings = Settings(_env_file=None)
     assert getattr(settings, "storage_backend", None) == "sqlite"
-
-
-def test_explicit_mysql_settings_preserved():
-    settings = Settings(_env_file=None, database_name="codex_s01_explicit")
-    assert getattr(settings, "storage_backend", None) == "mysql"
-    assert settings.database_url("fixture-only").startswith("mysql+asyncmy://")
 
 
 def test_unknown_config_version_refused():
@@ -331,25 +321,31 @@ def test_resource_resolver_rejects_drive_relative_path():
         app_paths.resource_path("C:asset")
 
 
-def test_runtime_dirs_follow_legacy_selected_data_root(tmp_path):
+def test_runtime_dirs_follow_selected_json_data_root(tmp_path):
     selected = tmp_path / "Hồ sơ cũ"
-    legacy = config.project_root() / ".env"
-    legacy.write_text(
-        f"TG_ASSISTANT_DATA_DIR={selected}\nTG_ASSISTANT_DATABASE_NAME=legacy\n", encoding="utf-8"
-    )
+    path = config.config_path()
+    path.parent.mkdir(parents=True)
+    path.write_text(json.dumps({"version": 1, "settings": {"data_dir": str(selected)}}))
     assert get_settings().data_dir == selected
     assert ensure_runtime_dirs()["data"] == selected
 
 
-def test_relative_legacy_paths_preserved_across_launch_cwd(tmp_path, monkeypatch):
-    installed = config.project_root()
-    legacy = installed / ".env"
+def test_selected_json_paths_preserved_across_launch_cwd(tmp_path, monkeypatch):
+    installed = installed_root
+    legacy = config.config_path()
+    legacy.parent.mkdir(parents=True)
     legacy.write_text(
-        "TG_ASSISTANT_DATABASE_NAME=codex_s01_legacy\n"
-        "TG_ASSISTANT_DATA_DIR=legacy-data\n"
-        "TG_ASSISTANT_QDRANT_PATH=legacy-vectors\n"
-        "TG_ASSISTANT_OLLAMA_QDRANT_PATH=legacy-local-vectors\n"
-        "TG_ASSISTANT_DASHBOARD_DIST_PATH=legacy-dashboard\n",
+        json.dumps(
+            {
+                "version": 1,
+                "settings": {
+                    "data_dir": str(installed / "legacy-data"),
+                    "qdrant_path": str(installed / "legacy-vectors"),
+                    "ollama_qdrant_path": str(installed / "legacy-local-vectors"),
+                    "dashboard_dist_path": str(installed / "legacy-dashboard"),
+                },
+            }
+        ),
         encoding="utf-8",
     )
     data = installed / "legacy-data"
@@ -369,7 +365,7 @@ def test_relative_legacy_paths_preserved_across_launch_cwd(tmp_path, monkeypatch
     for cwd in (installed, elsewhere):
         monkeypatch.chdir(cwd)
         settings = Settings()
-        assert settings.storage_backend == "mysql"
+        assert settings.storage_backend == "sqlite"
         assert settings.data_dir == data
         assert settings.resolved_qdrant_path == vectors
         assert settings.ollama_qdrant_path == installed / "legacy-local-vectors"
@@ -385,7 +381,7 @@ def test_relative_legacy_paths_preserved_across_launch_cwd(tmp_path, monkeypatch
 
 @pytest.mark.parametrize("source", ["init", "environment"])
 def test_modern_relative_data_override_not_rebased_to_legacy_install(tmp_path, monkeypatch, source):
-    legacy = config.project_root() / ".env"
+    legacy = installed_root / ".env"
     legacy.write_text("TG_ASSISTANT_DATA_DIR=legacy-data\n", encoding="utf-8")
     selected_vectors = tmp_path / "Modern vectors"
     if source == "init":
@@ -399,10 +395,17 @@ def test_modern_relative_data_override_not_rebased_to_legacy_install(tmp_path, m
     assert not settings.data_dir.exists()
 
 
-def test_absolute_legacy_paths_not_rebased(tmp_path):
+def test_absolute_json_paths_not_rebased(tmp_path):
     selected = tmp_path / "Existing data có dấu"
-    (config.project_root() / ".env").write_text(
-        f"TG_ASSISTANT_DATA_DIR={selected}\nTG_ASSISTANT_QDRANT_PATH={selected / 'vectors'}\n",
+    path = config.config_path()
+    path.parent.mkdir(parents=True)
+    path.write_text(
+        json.dumps(
+            {
+                "version": 1,
+                "settings": {"data_dir": str(selected), "qdrant_path": str(selected / "vectors")},
+            }
+        ),
         encoding="utf-8",
     )
     settings = Settings()
@@ -454,23 +457,6 @@ def test_concurrent_profiles_cannot_overwrite_winning_ownership(tmp_path, monkey
     assert json.loads((root / ".tg-assistant-data").read_text())["profile_id"] == winners[0]
 
 
-def test_mysql_wizard_adapter_writes_per_user_json():
-    from tg_assistant.setup.wizard import _save_database_config
-
-    _save_database_config(
-        config.project_root() / ".env",
-        host="127.0.0.1",
-        port=13307,
-        database="codex_s01_wizard",
-        app_user="fixture",
-    )
-    settings = Settings()
-    assert settings.storage_backend == "mysql"
-    assert settings.database_port == 13307
-    assert settings.database_name == "codex_s01_wizard"
-    assert not (config.project_root() / ".env").exists()
-
-
 def test_doctor_default_does_not_require_mysql(monkeypatch, capsys):
     from tg_assistant import cli
 
@@ -482,12 +468,8 @@ def test_doctor_default_does_not_require_mysql(monkeypatch, capsys):
                 raise AssertionError("SQLite doctor must not request a database password")
             return None
 
-    def unexpected_mysql(*args, **kwargs):
-        raise AssertionError("SQLite doctor must not inspect a MySQL service")
-
     monkeypatch.setattr(cli, "get_settings", lambda: settings)
     monkeypatch.setattr(cli, "SecretStore", AvailabilityStore)
-    monkeypatch.setattr(cli, "detect_mysql", unexpected_mysql)
     cli.doctor()
     output = capsys.readouterr().out
     assert "Database (sqlite): OK" in output
@@ -561,63 +543,3 @@ def test_relative_data_override_does_not_follow_cwd(tmp_path, monkeypatch):
 
 def test_pool_tuning_does_not_select_mysql():
     assert Settings(_env_file=None, database_pool_size=8).storage_backend == "sqlite"
-
-
-async def test_existing_mysql_real_data_remains_mysql(tmp_path):
-    raw = os.environ.get("TG_TEST_MYSQL_URL")
-    if not raw:
-        pytest.skip("TG_TEST_MYSQL_URL disposable MySQL schema not configured")
-    url = sa.engine.make_url(raw)
-    assert url.host == "127.0.0.1" and url.port == 13307
-    name = "codex_s01_" + uuid4().hex
-    admin = sa.create_engine(url.set(database=None))
-    with admin.begin() as connection:
-        connection.exec_driver_sql(f"CREATE DATABASE `{name}` CHARACTER SET utf8mb4")
-
-    class FixtureStore:
-        def get(self, key):
-            assert key == "database_password"
-            return url.password
-
-    db = None
-    try:
-        settings = Settings(
-            _env_file=None,
-            data_dir=tmp_path / "mysql-profile",
-            database_host=url.host,
-            database_port=url.port,
-            database_user=url.username,
-            database_name=name,
-        )
-        assert settings.storage_backend == "mysql"
-        service = storage(settings, FixtureStore())
-        db = service.open(profile("mysql"))
-        assert db.engine.url.database == name
-        assert db.engine.dialect.name == "mysql"
-        service.migrate()
-        async with db.session() as session:
-            await session.execute(
-                text(
-                    "INSERT INTO runtime_metrics (collected_at, process_id, process_name) "
-                    "VALUES (CURRENT_TIMESTAMP, 123, 'Giữ dữ liệu')"
-                )
-            )
-        await db.close()
-        db = None
-        reopened_settings = Settings(_env_file=None, data_dir=settings.data_dir)
-        assert reopened_settings.storage_backend == "mysql"
-        reopened = storage(reopened_settings, FixtureStore())
-        db = reopened.open(profile("mysql"))
-        assert reopened.migrate().changed is False
-        async with db.session() as session:
-            assert (
-                await session.scalar(text("SELECT process_name FROM runtime_metrics"))
-                == "Giữ dữ liệu"
-            )
-        assert not (settings.data_dir / "db" / "assistant.sqlite3").exists()
-    finally:
-        if db is not None:
-            await db.close()
-        with admin.begin() as connection:
-            connection.exec_driver_sql(f"DROP DATABASE `{name}`")
-        admin.dispose()

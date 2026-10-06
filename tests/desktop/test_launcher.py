@@ -11,7 +11,11 @@ import subprocess
 import sys
 import time
 import types
+from concurrent.futures import Future
 from concurrent.futures import TimeoutError as FutureTimeoutError
+from contextlib import nullcontext
+from pathlib import Path
+from threading import Lock
 
 import pytest
 from PySide6.QtTest import QTest
@@ -41,14 +45,24 @@ def settings(tmp_path, monkeypatch):
 
 def track_fixture_starts(runtime):
     runtime.fixture_starts = []
-    original_start = runtime.start
+    runtime.fixture_closing = False
+    runtime.fixture_producer_lock = Lock()
 
-    def start():
-        future = original_start()
-        runtime.fixture_starts.append(future)
-        return future
+    def tracked(producer):
+        def start():
+            with runtime.fixture_producer_lock:
+                if runtime.fixture_closing:
+                    future = Future()
+                    future.cancel()
+                    return future
+                future = producer()
+                runtime.fixture_starts.append(future)
+                return future
 
-    runtime.start = start
+        return start
+
+    runtime.start = tracked(runtime.start)
+    runtime.resume_after_handoff = tracked(runtime.resume_after_handoff)
     return runtime
 
 
@@ -102,11 +116,11 @@ def observe_fixture_readiness(runtime):
                 raise
             parsed["value"] = measured
             facts.update(
-                body="valid", service_matches=measured.service.value == "runtime",
+                body="valid",
+                service_matches=measured.service.value == "runtime",
                 measured_ready=measured.state.value == "ready",
-                capabilities_match=measured.capabilities == (
-                    ["setup"] if saved.get("mode") == "setup" else ["management"]
-                ),
+                capabilities_match=measured.capabilities
+                == (["setup"] if saved.get("mode") == "setup" else ["management"]),
             )
             if measured.checked_at is None:
                 facts["age"] = "absent"
@@ -142,7 +156,9 @@ def observe_fixture_readiness(runtime):
                     # Passive metadata cannot replace the original outcome.
                     try:
                         status = self.value.status_code
-                        facts["http_status"] = status if type(status) is int and 100 <= status <= 599 else None
+                        facts["http_status"] = (
+                            status if type(status) is int and 100 <= status <= 599 else None
+                        )
                     except Exception:
                         facts["status_observation"] = "unavailable"
 
@@ -190,8 +206,11 @@ def observe_fixture_readiness(runtime):
             datetime=types.SimpleNamespace(now=now),
         )
         probe = types.FunctionType(
-            original_refresh.__code__, globals_copy, original_refresh.__name__,
-            original_refresh.__defaults__, original_refresh.__closure__,
+            original_refresh.__code__,
+            globals_copy,
+            original_refresh.__name__,
+            original_refresh.__defaults__,
+            original_refresh.__closure__,
         )
         return probe(Probe())
 
@@ -209,7 +228,9 @@ def fixture_readiness_diagnostics(runtime, began):
         if future.done() and not future.cancelled():
             error = future.exception()
             if error is not None:
-                errors.append(type(error).__name__ if type(error).__name__ in error_types else "other")
+                errors.append(
+                    type(error).__name__ if type(error).__name__ in error_types else "other"
+                )
     diagnostics.update(
         elapsed_ms=round((time.monotonic() - began) * 1000),
         start_done=all(future.done() for future in starts),
@@ -241,17 +262,26 @@ def controller(settings, tmp_path):
         "\n with (Path(sys.argv[1]).parent/'synthetic-worker-error.log').open('w',encoding='utf-8') as log: traceback.print_exc(file=log)"
         "\n raise"
     )
-    return observe_fixture_readiness(track_fixture_starts(lifecycle.RuntimeController(
-        settings,
-        worker_command=[
-            sys.executable,
-            "-c",
-            code,
-            str(settings.data_dir),
-            str(tmp_path / "sid-instance"),
-            str(settings.admin_api_port),
-        ],
-    )))
+    runtime = observe_fixture_readiness(
+        track_fixture_starts(
+            lifecycle.RuntimeController(
+                settings,
+                worker_command=[
+                    sys.executable,
+                    "-c",
+                    code,
+                    str(settings.data_dir),
+                    str(tmp_path / "sid-instance"),
+                    str(settings.admin_api_port),
+                ],
+            )
+        )
+    )
+    from tg_assistant.paths import current_user_sid
+
+    runtime.fixture_worker_command = tuple(runtime.worker_command)
+    runtime.fixture_owner_sid = current_user_sid()
+    return runtime
 
 
 def ready(runtime, *, timeout=15):
@@ -270,32 +300,111 @@ def ready(runtime, *, timeout=15):
             pytest.fail(f"Synthetic worker failed: {state.code}")
         time.sleep(min(0.05, max(0, deadline - time.monotonic())))
     diagnostics = json.dumps(fixture_readiness_diagnostics(runtime, began), sort_keys=True)
-    pytest.fail(f"Worker did not reach readiness: {runtime.snapshot.code}; diagnostics={diagnostics}")
+    pytest.fail(
+        f"Worker did not reach readiness: {runtime.snapshot.code}; diagnostics={diagnostics}"
+    )
 
 
-def stop(runtime):
-    deadline = time.monotonic() + 15
+def force_fixture_worker_exit(runtime, *, timeout=3):
+    """Force only the original fixture Popen and its verified recorded worker."""
+    import psutil
+
+    from tg_assistant.desktop.instance import process_matches_owner
+    from tg_assistant.paths import current_user_sid
+
+    process = runtime.process
+    expected = getattr(runtime, "fixture_worker_command", ())
+    allowed = {Path(sys.executable).resolve(), Path(sys._base_executable).resolve()}
+    if (
+        not isinstance(process, subprocess.Popen)
+        or not expected
+        or Path(expected[0]).resolve() not in allowed
+        or tuple(process.args) != expected
+        or getattr(runtime, "fixture_owner_sid", None) != current_user_sid()
+    ):
+        return ["fixture_parent_not_owned"]
+    deadline = time.monotonic() + timeout
+    errors = []
+    child = None
+    recorded = getattr(runtime, "attached_process", None)
+    if recorded is None:
+        errors.append("fixture_worker_identity_unavailable")
+    elif recorded[0] != process.pid:
+        try:
+            child = psutil.Process(recorded[0])
+            if (
+                not process_matches_owner(*recorded)
+                or abs(child.create_time() - recorded[1]) >= 0.001
+                or Path(child.exe()).resolve() not in allowed
+                or child.cmdline()[1:] != list(expected[1:])
+                or child.ppid() != process.pid
+            ):
+                errors.append("fixture_child_not_owned")
+                child = None
+            else:
+                # Same captured Process retains psutil's incarnation checks.
+                child.kill()
+        except psutil.NoSuchProcess:
+            child = None
+        except psutil.Error:
+            errors.append("fixture_child_cleanup_failed")
+            child = None
+    try:
+        if process.poll() is None:
+            process.kill()  # Windows uses the original Popen kernel handle.
+        process.wait(timeout=max(0, deadline - time.monotonic()))
+    except (OSError, subprocess.TimeoutExpired):
+        errors.append("fixture_parent_cleanup_failed")
+    if child is not None:
+        try:
+            child.wait(timeout=max(0, deadline - time.monotonic()))
+        except psutil.NoSuchProcess:
+            pass
+        except psutil.Error:
+            errors.append("fixture_child_exit_unconfirmed")
+    return errors
+
+
+def stop(runtime, *, timeout=15):
+    deadline = time.monotonic() + timeout
+    failures = []
+    with getattr(runtime, "fixture_producer_lock", nullcontext()):
+        runtime.fixture_closing = True
+        producers = tuple(getattr(runtime, "fixture_starts", ()))
     try:
         runtime.stop()
         # A running start can assign Popen after stop(). Wait for fixture-owned
         # starts; cancel queued ones before claiming cleanup is complete.
-        for future in getattr(runtime, "fixture_starts", ()):
+        for future in producers:
             if not future.cancel():
-                future.result(timeout=max(0, deadline - time.monotonic()))
+                try:
+                    future.result(timeout=max(0, deadline - time.monotonic()))
+                except Exception as error:
+                    failures.append(type(error).__name__)
+                    # A running producer cannot be cancelled. Do not return
+                    # while it can still assign a Popen after cleanup.
+                    runtime.executor.shutdown(wait=True, cancel_futures=True)
+        runtime.stop()
         while runtime.process and runtime.process.poll() is None:
-            remaining = deadline - time.monotonic()
-            if remaining <= 0:
-                pytest.fail("Owned synthetic worker did not stop")
-            # The original executor may already be closed after launcher reopen.
-            # Real refresh verifies this profile/SID/incarnation before shutdown.
+            # Refresh may record a venv-launcher's actual worker child after
+            # a slow producer completes. Only that verified identity may be forced.
             runtime._refresh()
             runtime.stop()
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                failures.append("Owned synthetic worker did not stop")
+                failures.extend(force_fixture_worker_exit(runtime))
+                break
+            # The original executor may already be closed after launcher reopen.
+            # Real refresh verifies this profile/SID/incarnation before shutdown.
             try:
                 runtime.process.wait(timeout=min(0.1, remaining))
             except subprocess.TimeoutExpired:
                 pass
     finally:
         runtime.close()
+    if failures:
+        pytest.fail("Fixture cleanup failed: " + "; ".join(failures))
 
 
 def held_start(settings, tmp_path, monkeypatch):
@@ -755,7 +864,9 @@ def test_reopened_launcher_tray_stop_finishes(app, settings, tmp_path):
         first = ready(runtime)
         # Closing and reopening the launcher retains the owned worker.
         runtime.close()
-        detached = track_fixture_starts(module("tg_assistant.desktop.runtime_controller").RuntimeController(settings))
+        detached = track_fixture_starts(
+            module("tg_assistant.desktop.runtime_controller").RuntimeController(settings)
+        )
         window = module("tg_assistant.desktop.app").LauncherWindow(detached)
         window.show()
         QTest.qWait(50)

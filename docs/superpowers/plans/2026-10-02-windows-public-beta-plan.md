@@ -1,10 +1,12 @@
 # Windows Public Beta Implementation Plan
 
+> **Amendment 06/10/2026:** The owner approved [SQLite-only and an empty new profile](../specs/2026-10-06-sqlite-only-amendment.md). It supersedes advanced MySQL support, MySQL connection/provisioning and dual-backend gates below. Existing MySQL data stays untouched. Earlier steps/results are historical; current execution/status is tracked in `docs/handoff/status.json`.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development to implement this plan task-by-task. User selected agent-assisted execution. Steps use checkbox syntax for tracking.
 
 **Goal:** Phát hành beta Windows mỗi người tự cài, tự kết nối API/Telegram/bot, mở dashboard dễ dàng và giữ art hiện tại.
-**Architecture:** Native PySide6 launcher + React browser dashboard + local Python worker. SQLite mặc định cài mới; MySQL hiện hữu được giữ; secret trong Credential Manager, dashboard loopback qua SID-authenticated IPC one-use ticket.
-**Tech Stack:** Python 3.12/3.13 verified; PySide6 Qt Widgets; SQLAlchemy/Alembic/aiosqlite/asyncmy; Telethon/aiogram; FastAPI; Qdrant local; React/Vite; PyInstaller onedir/Inno Setup; pytest/Playwright.
+**Architecture:** Native PySide6 launcher + React browser dashboard + local Python worker. SQLite-only; MySQL hiện hữu không được kết nối hoặc thay đổi; secret trong Credential Manager, dashboard loopback qua SID-authenticated IPC one-use ticket.
+**Tech Stack:** Python 3.12/3.13 verified; PySide6 Qt Widgets; SQLAlchemy/Alembic/aiosqlite; Telethon/aiogram; FastAPI; Qdrant local; React/Vite; PyInstaller onedir/Inno Setup; pytest/Playwright.
 **Spec:** ../specs/2026-10-02-windows-public-beta-design.md
 **State:** Plan ready for review/handoff, product implementation NOT STARTED. Baseline repo commit 7429fcffd61860e9502f066e0b6a921df72fe176. Root workspace is NOT a Git checkout; audit-snapshot is a partial read-only audit copy.
 
@@ -12,7 +14,7 @@
 
 - V1 Windows 10/11 x64, mỗi Windows SID có một active owner/profile; không SaaS/LAN/remote dashboard.
 - Luồng chuẩn không yêu cầu tự cài Python/Node/MySQL hoặc terminal.
-- SQLite mặc định cài mới; MySQL hiện hữu/advanced giữ nguyên; không tự chuyển dữ liệu.
+- SQLite-only; cài mới bắt đầu rỗng, cài lại không tự reset; không kết nối/chuyển/xóa MySQL cũ.
 - API key/token/API hash/OTP/2FA native write-only; không browser/bot/log/query/analytics.
 - Dashboard loopback, ticket 256 bit, TTL 30 giây, one-use, profile-bound; HttpOnly/SameSite/CSRF và Host/Origin guard.
 - Pair nonce TTL 300 giây, one-use, verified Telegram owner_id; start payload <=64 ký tự.

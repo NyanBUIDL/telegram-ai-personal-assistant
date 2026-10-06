@@ -2423,3 +2423,23 @@ textarea:focus-visible {
     grid-column: 1 / -1;
   }
 }
+
+/* Setup flow reuses the approved paper/panel, border, shadow and type roles. */
+.setup-dashboard { max-width: 1440px; margin: auto; padding: 24px; }
+.setup-dashboard header { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; margin-bottom: 24px; }
+.setup-dashboard header h1 { font-family: var(--font-display); margin-right: auto; }
+.setup-navigation { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 24px; }
+.setup-navigation p, .setup-dialog-actions p { font-size: 14px; }
+.setup-readiness { padding: 20px; margin-bottom: 24px; overflow-wrap: anywhere; }
+.setup-dialog-actions { display: flex; flex-wrap: wrap; gap: 12px; margin: 20px 0; }
+.setup-dialog-actions > div { flex: 1 1 220px; }
+.setup-dialog-actions button { width: 100%; white-space: normal; }
+.setup-services { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
+.setup-service { border: 3px solid var(--ink); padding: 16px; background: var(--panel); }
+.setup-service h3 { font-family: var(--font-ui); }
+.advanced-navigation summary { min-height: 44px; cursor: pointer; padding: 12px 0; }
+.advanced-navigation button { min-height: 44px; }
+.setup-navigation button, .setup-readiness button { min-height: 44px; }
+@media (max-width: 600px) { .setup-dashboard { padding: 12px; } .setup-readiness { padding: 12px; } .setup-services { grid-template-columns: 1fr; } .setup-readiness .panel-heading { flex-wrap: wrap; gap: 12px; } }
+
+.setup-dashboard { background: var(--paper); min-height: 100vh; }

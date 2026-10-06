@@ -5,10 +5,12 @@
 Cài Python 3.12/3.13 từ python.org và bật tùy chọn thêm Python vào PATH. Xóa `.venv` lỗi
 chỉ khi chắc chắn nó nằm trong thư mục dự án, rồi chạy lại `start.bat`.
 
-## MySQL port FAIL
+## Profile database không mở được
 
-Chạy `tg-assistant doctor`, kiểm tra Windows service MySQL và cổng cấu hình. Ứng dụng
-không tự bật service hay sửa firewall. Dùng `127.0.0.1`, không mở MySQL ra Internet.
+Chạy `tg-assistant doctor`, kiểm tra quyền truy cập profile và dung lượng ổ đĩa.
+Ứng dụng chỉ hỗ trợ SQLite và không cần dịch vụ SQL. Nếu profile cũ khai báo MySQL,
+giữ nguyên dữ liệu cũ và chọn profile mới; không sửa thành SQLite để tự nhập dữ liệu.
+Không xóa file khóa hoặc database khi worker còn chạy.
 
 ## Credential MISSING
 

@@ -8,6 +8,7 @@ import os
 import re
 import subprocess
 import sys
+import time
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -16,7 +17,7 @@ from uuid import UUID, uuid4
 import httpx
 import psutil
 
-from ..contracts import ConnectionStatus
+from ..contracts import ConnectionStatus, OnboardingStatus
 from ..paths import ensure_runtime_dirs, resource_path
 from .instance import process_incarnation_exists, process_matches_owner
 
@@ -48,6 +49,10 @@ class RuntimeController:
         self.launch_id = None
         self.start_failed = False
         self.attached_process = None
+        self.handoff_active = False
+        self._handoff_failed = False
+        self._handoff_process = None
+        self._native_handoff_context = None
 
     @property
     def state_file(self):
@@ -122,6 +127,8 @@ class RuntimeController:
         return state
 
     def start(self):
+        if self.handoff_active:
+            return self.executor.submit(lambda: False)
         self.stop_requested = False
         self.start_failed = False
         return self.executor.submit(self._start_safely)
@@ -134,6 +141,8 @@ class RuntimeController:
             self.snapshot = RuntimeSnapshot("error", "runtime_start_failed")
 
     def _start(self):
+        if self.handoff_active:
+            return
         if self.process and self.process.poll() is None:
             return
         if self.process is None and self._refresh().phase == "ready":
@@ -166,8 +175,118 @@ class RuntimeController:
     def refresh(self):
         return self.executor.submit(self._refresh)
 
+    def quiesce(self, *, timeout=20.0):
+        """Gracefully release the verified worker before native session ownership.
+
+        This is a lifecycle prerequisite, not proof of a writer fence. The
+        native publisher must still acquire the actual SID InstanceGuard.
+        """
+        if type(timeout) not in {int, float} or not 0 < timeout <= 60:
+            raise ValueError("runtime_handoff_timeout_invalid")
+        self.handoff_active = True
+        return self.executor.submit(self._quiesce, timeout)
+
+    def _quiesce(self, timeout):
+        self._handoff_failed = False
+        state = self._refresh()
+        if state.phase != "ready":
+            self.handoff_active = False
+            return False
+        try:
+            actual = self._read_state()
+            if actual["run_id"] != state.run_id or not process_matches_owner(
+                actual["pid"], actual["process_started_at"]
+            ):
+                self.handoff_active = False
+                return False
+            self.stop()
+            self._handoff_process = (actual["pid"], actual["process_started_at"])
+            deadline = time.monotonic() + timeout
+            while time.monotonic() < deadline:
+                if not process_incarnation_exists(actual["pid"], actual["process_started_at"]):
+                    if self.process is not None and self.process.poll() is None:
+                        time.sleep(0.05)
+                        continue
+                    self.snapshot = RuntimeSnapshot("stopped", "runtime_stopped")
+                    return True
+                time.sleep(0.05)
+        except (OSError, ValueError, KeyError, psutil.Error):
+            self._handoff_failed = True
+            return False
+        self._handoff_failed = True
+        return False
+
+    def resume_after_handoff(self):
+        """Only call after the native context has drained and released its guard."""
+        return self.executor.submit(self._resume_after_handoff)
+
+    def _resume_after_handoff(self):
+        self.handoff_active = False
+        self._handoff_failed = False
+        self._handoff_process = None
+        self.stop_requested = False
+        self._start_safely()
+        deadline = time.monotonic() + 20
+        while time.monotonic() < deadline:
+            state = self._refresh()
+            if state.phase == "ready":
+                return state
+            if state.phase == "error":
+                raise RuntimeError("runtime_start_failed")
+            time.sleep(0.05)
+        raise RuntimeError("runtime_start_pending")
+
     def open_dashboard(self):
         return self.executor.submit(self._dashboard_url)
+
+    def setup_status(self):
+        return self.executor.submit(self._setup_status)
+
+    def _setup_status(self):
+        state = self._refresh()
+        if state.phase != "ready" or self.handoff_active:
+            return None
+        try:
+            response = httpx.get(
+                state.url + "/api/v1/setup/status", timeout=5, trust_env=False,
+                follow_redirects=False,
+            )
+            response.raise_for_status()
+            return OnboardingStatus.model_validate(response.json())
+        except (httpx.HTTPError, ValueError):
+            return None
+
+    def claim_native_dialogs(self, available):
+        return self.executor.submit(self._claim_native_dialogs, tuple(available))
+
+    def _claim_native_dialogs(self, available):
+        from ..contracts import NativeCommand
+        from .ipc import native_request
+
+        names = {"open_connection_dialog", "open_telegram_login", "open_bot_dialog"}
+        if any(type(name) is not str for name in available) or not set(available) <= names:
+            raise ValueError("native_command_denied")
+        state = self._refresh()
+        if state.phase != "ready" or self.stop_requested or self.handoff_active:
+            return None
+        result = native_request(self.settings.profile_id, state.run_id, {
+            "name": "open_connection_dialog", "request_id": uuid4().hex,
+            "profile_id": self.settings.profile_id,
+            "payload_nonsecret": {"delivery": "claim", "available": list(available)},
+        }, server_pid=state.pid)
+        if not isinstance(result, dict) or set(result) != {"command"}:
+            raise ValueError("native_command_denied")
+        if result["command"] is None:
+            return None
+        command = NativeCommand.model_validate(result["command"])
+        command.model_dump_json()
+        if (
+            command.profile_id != self.settings.profile_id
+            or command.name.value not in available
+            or command.payload_nonsecret
+        ):
+            raise ValueError("native_command_denied")
+        return command
 
     def _dashboard_url(self):
         from .ipc import native_request
@@ -185,6 +304,18 @@ class RuntimeController:
         return state.url + "#launch_ticket=" + ticket
 
     def _refresh(self):
+        if self.handoff_active and self._handoff_failed and self._handoff_process:
+            try:
+                if not process_incarnation_exists(*self._handoff_process) and (
+                    self.process is None or self.process.poll() is not None
+                ):
+                    # No publisher was opened for a failed quiesce. Only the
+                    # actual completed process stop permits an explicit retry.
+                    self.handoff_active = False
+                    self._handoff_failed = False
+                    self._handoff_process = None
+            except psutil.Error:
+                pass
         if self.start_failed:
             return self.snapshot
         if self.process and self.process.poll() is not None:

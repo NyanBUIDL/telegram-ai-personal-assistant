@@ -100,7 +100,7 @@
  * @property {(string|null)} operation_id
  */
 
-/** @typedef {"sqlite"|"mysql"} StorageBackend */
+/** @typedef {"sqlite"} StorageBackend */
 
 export const contractSchema = {
   "contracts": {
@@ -108,8 +108,7 @@ export const contractSchema = {
       "$defs": {
         "StorageBackend": {
           "enum": [
-            "sqlite",
-            "mysql"
+            "sqlite"
           ],
           "title": "StorageBackend",
           "type": "string"
@@ -556,8 +555,7 @@ export const contractSchema = {
         },
         "StorageBackend": {
           "enum": [
-            "sqlite",
-            "mysql"
+            "sqlite"
           ],
           "title": "StorageBackend",
           "type": "string"
@@ -710,8 +708,7 @@ export const contractSchema = {
         },
         "StorageBackend": {
           "enum": [
-            "sqlite",
-            "mysql"
+            "sqlite"
           ],
           "title": "StorageBackend",
           "type": "string"
@@ -889,7 +886,7 @@ export const contractSchema = {
     "storage_ready",
     "ai_configured"
   ],
-  "version": 1
+  "version": 2
 }
 
 const own = (value, key) => Object.prototype.hasOwnProperty.call(value, key)

@@ -2,15 +2,12 @@ from __future__ import annotations
 
 import asyncio
 import json
-import os
 from datetime import UTC, datetime
 from decimal import Decimal
-from uuid import uuid4
 
 import httpx
 import pytest
 import pytest_asyncio
-import sqlalchemy as sa
 from sqlalchemy import func, select
 
 from tg_assistant.ai import budget as budget_module
@@ -23,6 +20,7 @@ from tg_assistant.ai.vector import LocalVectorStore
 from tg_assistant.config import Settings
 from tg_assistant.db.base import Base, Database
 from tg_assistant.db.models import AiUsage, TelegramChat, TelegramMessage
+from tg_assistant.paths import ensure_runtime_dirs
 from tg_assistant.policy import PolicyEngine
 from tg_assistant.services.vector_reliability import ensure_vector_store_registry
 
@@ -381,6 +379,7 @@ async def test_secret_and_unknown_source_denied_before_transport(session):
 @pytest.mark.asyncio
 async def test_existing_store_is_not_relabelled_or_candidate_promoted(tmp_path, session):
     selected = settings(tmp_path)
+    ensure_runtime_dirs(selected.data_dir, profile_id=selected.profile_id)
     first = await ensure_vector_store_registry(session, selected)
     await session.flush()
     assert first.state == "active"
@@ -503,52 +502,3 @@ async def test_budget_concurrent_reservations(tmp_path):
         assert await session.scalar(select(func.count(AiUsage.id))) == 1
         assert (await budgets[0].state(session)).daily_spend == pytest.approx(0.00023)
     await database.engine.dispose()
-
-
-@pytest.mark.asyncio
-async def test_mysql_budget_reservations_are_atomic_across_independent_services():
-    raw = os.environ.get("TG_TEST_MYSQL_URL")
-    if not raw:
-        pytest.skip("Disposable loopback MySQL fixture not configured")
-    url = sa.engine.make_url(raw)
-    assert url.host in {"127.0.0.1", "localhost"} and url.port in {3306, 13307}
-    assert (url.database or "").startswith("codex_")
-    name = "codex_v01_" + uuid4().hex
-    admin = sa.create_engine(url.set(drivername="mysql+pymysql", database=None))
-    database = None
-    with admin.begin() as connection:
-        connection.exec_driver_sql(f"CREATE DATABASE `{name}` CHARACTER SET utf8mb4")
-    try:
-        database = Database(
-            url.set(drivername="mysql+asyncmy", database=name).render_as_string(hide_password=False)
-        )
-        async with database.engine.begin() as connection:
-            await connection.run_sync(Base.metadata.create_all)
-
-        async def reserve(index):
-            service = BudgetService(0.005, 1)
-            async with database.sessions() as session:
-                return await service.reserve(
-                    session,
-                    request_id=f"mysql-{index}",
-                    provider="openai",
-                    model="gpt-5.6-terra",
-                    input_tokens=1000,
-                    output_tokens=100,
-                    operation="answer",
-                    feature="normal_ask",
-                )
-
-        results = await asyncio.gather(reserve(0), reserve(1), return_exceptions=True)
-        assert len([item for item in results if not isinstance(item, Exception)]) == 1
-        assert len([item for item in results if isinstance(item, RuntimeError)]) == 1
-        async with database.sessions() as session:
-            assert (await BudgetService(0.005, 1).state(session)).daily_spend == pytest.approx(
-                0.0037
-            )
-    finally:
-        if database is not None:
-            await database.engine.dispose()
-        with admin.begin() as connection:
-            connection.exec_driver_sql(f"DROP DATABASE `{name}`")
-        admin.dispose()
