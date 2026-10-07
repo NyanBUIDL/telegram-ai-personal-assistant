@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import importlib
 import json
 import os
@@ -70,7 +71,8 @@ def observe_fixture_readiness(runtime):
     """Observe original calls only; each refresh owns an independent fact set."""
     original_refresh = runtime._refresh.__func__
     original_globals = original_refresh.__globals__
-    original_httpx = original_globals["httpx"]
+    original_response = original_globals["_readiness_response"]
+    protocol_error = original_globals["HTTPException"]
     original_owner = original_globals["process_matches_owner"]
     original_status = original_globals["ConnectionStatus"]
     original_datetime = original_globals["datetime"]
@@ -133,61 +135,32 @@ def observe_fixture_readiness(runtime):
             facts["age"] = "future" if age < 0 else "fresh" if age < 5 else "stale"
             return measured_now
 
-        class Headers:
-            def __init__(self, value):
-                self.value = value
-
-            def get(self, *args, **kwargs):
-                result = self.value.get(*args, **kwargs)
-                facts["header_matches"] = result == saved.get("run_id")
-                return result
-
-        class Response:
-            def __init__(self, value):
-                self.value = value
-
-            def raise_for_status(self):
-                try:
-                    return self.value.raise_for_status()
-                except Exception:
-                    facts["http"] = "status_rejected"
-                    raise
-                finally:
-                    # Passive metadata cannot replace the original outcome.
-                    try:
-                        status = self.value.status_code
-                        facts["http_status"] = (
-                            status if type(status) is int and 100 <= status <= 599 else None
-                        )
-                    except Exception:
-                        facts["status_observation"] = "unavailable"
-
-            @property
-            def headers(self):
-                return Headers(self.value.headers)
-
-            def json(self):
-                try:
-                    return self.value.json()
-                except Exception:
-                    facts["body"] = "decode_error"
-                    raise
-
-        def get(*args, **kwargs):
+        def response(*args, **kwargs):
             began = time.monotonic()
             facts["http"] = "pending"
             try:
-                response = original_httpx.get(*args, **kwargs)
-            except original_httpx.TimeoutException:
+                header, body = original_response(*args, **kwargs)
+            except TimeoutError:
                 facts["http"] = "timeout"
                 raise
-            except original_httpx.HTTPError:
+            except protocol_error:
+                facts["http"] = "protocol_error"
+                raise
+            except OSError:
                 facts["http"] = "transport_error"
+                raise
+            except ValueError as error:
+                facts["http"] = {
+                    "runtime_readiness_status_rejected": "status_rejected",
+                    "runtime_readiness_body_oversized": "body_oversized",
+                    "runtime_readiness_port_invalid": "port_invalid",
+                }.get(str(error), "body_invalid")
                 raise
             finally:
                 facts["http_elapsed_ms"] = round((time.monotonic() - began) * 1000)
             facts["http"] = "response"
-            return Response(response)
+            facts["header_matches"] = header == saved.get("run_id")
+            return header, body
 
         class Probe:
             # Only the cloned refresh receives this self proxy. Stop and all
@@ -200,7 +173,7 @@ def observe_fixture_readiness(runtime):
 
         globals_copy = dict(original_globals)
         globals_copy.update(
-            httpx=types.SimpleNamespace(get=get, HTTPError=original_httpx.HTTPError),
+            _readiness_response=response,
             process_matches_owner=owner,
             ConnectionStatus=types.SimpleNamespace(model_validate=validate),
             datetime=types.SimpleNamespace(now=now),
@@ -247,29 +220,87 @@ def fixture_readiness_diagnostics(runtime, began):
         diagnostics["state_file_available"] = False
     if hasattr(runtime, "fixture_collision_occupied"):
         diagnostics["collision_occupied"] = runtime.fixture_collision_occupied()
+    diagnostics.update(fixture_bootstrap_diagnostics(runtime))
     return diagnostics
+
+
+def fixture_bootstrap_diagnostics(runtime):
+    """Project only fixed stages/durations bound to this fixture launch."""
+    path = getattr(runtime, "fixture_phase_file", None)
+    if path is None or not path.exists():
+        return {"bootstrap": "unavailable"}
+    phases = {
+        "imports_started", "imports_ready", "directories_started", "directories_ready",
+        "security_started", "security_ready", "storage_open_started", "storage_open_ready",
+        "migration_started", "migration_ready", "context_started", "context_ready",
+        "server_starting", "health_started", "health_ready", "resume_started", "resume_ready",
+        "state_write_started", "state_published",
+    }
+    try:
+        if path.is_symlink() or path.stat().st_size > 8192:
+            return {"bootstrap": "invalid"}
+        with open_fixture_diagnostic(path) as stream:
+            value = json.loads(stream.read(8193))
+        expected = hashlib.sha256((runtime.launch_id or "").encode()).hexdigest()
+        if not isinstance(value, dict) or value.get("run_fingerprint") != expected:
+            return {"bootstrap": "stale", "bootstrap_run_matches": False}
+        steps = value.get("steps")
+        if not isinstance(steps, list) or not 1 <= len(steps) <= 32:
+            return {"bootstrap": "invalid"}
+        projected = []
+        for step in steps:
+            if (
+                not isinstance(step, dict) or step.get("phase") not in phases
+                or type(step.get("elapsed_ms")) is not int
+                or not 0 <= step["elapsed_ms"] <= 86_400_000
+            ):
+                return {"bootstrap": "invalid"}
+            projected.append({"phase": step["phase"], "elapsed_ms": step["elapsed_ms"]})
+        terminal = value.get("terminal")
+        if terminal not in {"running", "stopped", "worker_bootstrap_failed"}:
+            return {"bootstrap": "invalid"}
+        return {
+            "bootstrap": "observed", "bootstrap_run_matches": True,
+            "bootstrap_steps": projected, "bootstrap_terminal": terminal,
+        }
+    except (OSError, ValueError, TypeError):
+        return {"bootstrap": "unavailable"}
+
+
+def open_fixture_diagnostic(path):
+    if os.name != "nt":
+        return path.open("rb")
+    import ctypes
+    import msvcrt
+    from ctypes import wintypes
+
+    kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel.CreateFileW.argtypes = [
+        wintypes.LPCWSTR, wintypes.DWORD, wintypes.DWORD, ctypes.c_void_p,
+        wintypes.DWORD, wintypes.DWORD, wintypes.HANDLE,
+    ]
+    kernel.CreateFileW.restype = wintypes.HANDLE
+    kernel.CloseHandle.argtypes = [wintypes.HANDLE]
+    handle = kernel.CreateFileW(str(path), 0x80000000, 7, None, 3, 0, None)
+    if handle == ctypes.c_void_p(-1).value:
+        raise OSError("fixture_diagnostic_unavailable")
+    try:
+        descriptor = msvcrt.open_osfhandle(handle, os.O_RDONLY | os.O_BINARY)
+    except OSError:
+        kernel.CloseHandle(handle)
+        raise
+    return os.fdopen(descriptor, "rb")
 
 
 def controller(settings, tmp_path):
     lifecycle = module("tg_assistant.desktop.runtime_controller")
-    code = (
-        "from pathlib import Path; import sys, traceback; "
-        "from tg_assistant.config import Settings; "
-        "from tg_assistant.desktop.worker import serve_worker; "
-        "\ntry: serve_worker(Settings(_env_file=None,data_dir=Path(sys.argv[1]),"
-        "admin_api_port=int(sys.argv[3])),instance_directory=Path(sys.argv[2]))"
-        "\nexcept Exception:"
-        "\n with (Path(sys.argv[1]).parent/'synthetic-worker-error.log').open('w',encoding='utf-8') as log: traceback.print_exc(file=log)"
-        "\n raise"
-    )
     runtime = observe_fixture_readiness(
         track_fixture_starts(
             lifecycle.RuntimeController(
                 settings,
                 worker_command=[
                     sys.executable,
-                    "-c",
-                    code,
+                    str(Path(__file__).resolve().parents[1] / "fixtures/launcher_worker.py"),
                     str(settings.data_dir),
                     str(tmp_path / "sid-instance"),
                     str(settings.admin_api_port),
@@ -281,6 +312,7 @@ def controller(settings, tmp_path):
 
     runtime.fixture_worker_command = tuple(runtime.worker_command)
     runtime.fixture_owner_sid = current_user_sid()
+    runtime.fixture_phase_file = settings.data_dir.parent / "synthetic-worker-phases.json"
     return runtime
 
 
@@ -289,6 +321,7 @@ def ready(runtime, *, timeout=15):
     deadline = began + timeout
     while time.monotonic() < deadline:
         future = runtime.refresh()
+        runtime.fixture_ready_future = future
         try:
             state = future.result(timeout=max(0, deadline - time.monotonic()))
         except FutureTimeoutError:
@@ -297,9 +330,11 @@ def ready(runtime, *, timeout=15):
         if state.phase == "ready":
             return state
         if state.phase == "error":
+            runtime.fixture_failed_readiness = True
             pytest.fail(f"Synthetic worker failed: {state.code}")
         time.sleep(min(0.05, max(0, deadline - time.monotonic())))
     diagnostics = json.dumps(fixture_readiness_diagnostics(runtime, began), sort_keys=True)
+    runtime.fixture_failed_readiness = True
     pytest.fail(
         f"Worker did not reach readiness: {runtime.snapshot.code}; diagnostics={diagnostics}"
     )
@@ -380,7 +415,11 @@ def stop(runtime, *, timeout=15):
                 try:
                     future.result(timeout=max(0, deadline - time.monotonic()))
                 except Exception as error:
-                    failures.append(type(error).__name__)
+                    failures.append(
+                        type(error).__name__ if type(error).__name__ in {
+                            "OSError", "ValueError", "RuntimeError", "TimeoutError",
+                        } else "fixture_start_failed"
+                    )
                     # A running producer cannot be cancelled. Do not return
                     # while it can still assign a Popen after cleanup.
                     runtime.executor.shutdown(wait=True, cancel_futures=True)
@@ -403,8 +442,32 @@ def stop(runtime, *, timeout=15):
                 pass
     finally:
         runtime.close()
+        if getattr(runtime, "fixture_failed_readiness", False):
+            late = getattr(runtime, "fixture_ready_future", None)
+            terminal = fixture_bootstrap_diagnostics(runtime)
+            terminal.update(
+                late_refresh_done=late is not None and late.done(),
+                late_refresh_cancelled=late is not None and late.cancelled(),
+                owned_process_alive=runtime.process is not None and runtime.process.poll() is None,
+                cleanup_failed=bool(failures),
+            )
+            if late is not None and late.done() and not late.cancelled():
+                try:
+                    measured = late.result()
+                    terminal["late_refresh_phase"] = (
+                        measured.phase if measured.phase in {
+                            "unknown", "starting", "ready", "stopping", "stopped", "error",
+                        } else "other"
+                    )
+                except BaseException:
+                    terminal["late_refresh_phase"] = "failed"
+            print("Fixture terminal: " + json.dumps(terminal, sort_keys=True))
     if failures:
-        pytest.fail("Fixture cleanup failed: " + "; ".join(failures))
+        cleanup = pytest.fail.Exception("Fixture cleanup failed: " + "; ".join(failures))
+        primary = sys.exception()
+        if primary is not None:
+            raise BaseExceptionGroup("Fixture body and cleanup failed", [primary, cleanup])
+        raise cleanup
 
 
 def held_start(settings, tmp_path, monkeypatch):
@@ -472,6 +535,31 @@ def test_cleanup_running_start_proves_exact_owned_worker_exit(settings, tmp_path
         release.set()
         stop(runtime)
         timer.join()
+
+
+def test_cleanup_failure_preserves_primary_failure_and_owned_exit(settings, tmp_path, monkeypatch):
+    from tg_assistant.desktop.instance import process_incarnation_exists
+
+    runtime = controller(settings, tmp_path)
+    primary = pytest.fail.Exception("fixture_primary_failure")
+    try:
+        runtime.start()
+        ready(runtime)
+        with monkeypatch.context() as patch:
+            # Real owned child stays live until cleanup reaches its forced-exit
+            # fallback; simulate the independently failing stop publication.
+            patch.setattr(runtime, "stop", lambda: None)
+            with pytest.raises(BaseExceptionGroup) as caught:
+                try:
+                    raise primary
+                finally:
+                    stop(runtime, timeout=0.01)
+        assert caught.value.exceptions[0] is primary
+        assert "Fixture cleanup failed" in str(caught.value.exceptions[1])
+        assert runtime.process.returncode is not None
+        assert not process_incarnation_exists(*runtime.attached_process)
+    finally:
+        stop(runtime)
 
 
 def test_first_launch_setup(app, settings, tmp_path):
@@ -752,35 +840,186 @@ def test_foreign_profile_not_overwritten(settings, tmp_path):
         stop(runtime)
 
 
-@pytest.mark.skipif(os.name != "nt", reason="Windows NTFS protected DACL evidence")
-def test_owned_directory_acl_and_inherited_file(tmp_path):
+def _assert_private_acl(path, *, protected):
+    """Inspect the actual OS descriptor/ACEs, independently of SDDL writing."""
+    import ctypes
+    from ctypes import wintypes
+
     from tg_assistant.paths import current_user_sid
 
+    class AclSizeInformation(ctypes.Structure):
+        _fields_ = [
+            ("AceCount", wintypes.DWORD),
+            ("AclBytesInUse", wintypes.DWORD),
+            ("AclBytesFree", wintypes.DWORD),
+        ]
+
+    class AceHeader(ctypes.Structure):
+        _fields_ = [
+            ("AceType", wintypes.BYTE),
+            ("AceFlags", wintypes.BYTE),
+            ("AceSize", wintypes.WORD),
+        ]
+
+    api = ctypes.WinDLL("advapi32", use_last_error=True)
+    kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+    pointer = ctypes.POINTER(ctypes.c_void_p)
+    api.GetNamedSecurityInfoW.argtypes = [
+        wintypes.LPWSTR, ctypes.c_int, wintypes.DWORD,
+        pointer, pointer, pointer, pointer, pointer,
+    ]
+    api.GetNamedSecurityInfoW.restype = wintypes.DWORD
+    api.GetSecurityDescriptorControl.argtypes = [
+        ctypes.c_void_p, ctypes.POINTER(wintypes.WORD), ctypes.POINTER(wintypes.DWORD),
+    ]
+    api.GetSecurityDescriptorControl.restype = wintypes.BOOL
+    api.IsValidAcl.argtypes = [ctypes.c_void_p]
+    api.IsValidAcl.restype = wintypes.BOOL
+    api.GetAclInformation.argtypes = [ctypes.c_void_p, ctypes.c_void_p, wintypes.DWORD, ctypes.c_int]
+    api.GetAclInformation.restype = wintypes.BOOL
+    api.GetAce.argtypes = [ctypes.c_void_p, wintypes.DWORD, pointer]
+    api.GetAce.restype = wintypes.BOOL
+    api.IsValidSid.argtypes = [ctypes.c_void_p]
+    api.IsValidSid.restype = wintypes.BOOL
+    api.GetLengthSid.argtypes = [ctypes.c_void_p]
+    api.GetLengthSid.restype = wintypes.DWORD
+    api.ConvertSidToStringSidW.argtypes = [ctypes.c_void_p, ctypes.POINTER(wintypes.LPWSTR)]
+    api.ConvertSidToStringSidW.restype = wintypes.BOOL
+    kernel.LocalFree.argtypes = [ctypes.c_void_p]
+    kernel.LocalFree.restype = ctypes.c_void_p
+
+    def sid_text(sid):
+        text = wintypes.LPWSTR()
+        try:
+            assert api.IsValidSid(sid), "acl_sid_invalid"
+            assert api.ConvertSidToStringSidW(sid, ctypes.byref(text)), "acl_sid_read"
+            return text.value
+        finally:
+            if text:
+                kernel.LocalFree(ctypes.cast(text, ctypes.c_void_p))
+
+    owner, acl, descriptor = ctypes.c_void_p(), ctypes.c_void_p(), ctypes.c_void_p()
+    result = api.GetNamedSecurityInfoW(
+        str(path), 1, 1 | 4, ctypes.byref(owner), None, ctypes.byref(acl), None,
+        ctypes.byref(descriptor),
+    )
+    try:
+        assert result == 0 and descriptor and owner and acl, "acl_descriptor_read"
+        control, revision = wintypes.WORD(), wintypes.DWORD()
+        assert api.GetSecurityDescriptorControl(
+            descriptor, ctypes.byref(control), ctypes.byref(revision),
+        ), "acl_control_read"
+        assert bool(control.value & 0x1000) is protected, "acl_protection"
+        expected_sid = current_user_sid()
+        assert sid_text(owner) == expected_sid, "acl_owner"
+        assert api.IsValidAcl(acl), "acl_invalid"
+        info = AclSizeInformation()
+        assert api.GetAclInformation(
+            acl, ctypes.byref(info), ctypes.sizeof(info), 2,
+        ), "acl_information_read"
+        assert 8 <= info.AclBytesInUse <= 65535, "acl_bounds"
+        assert 0 < info.AceCount <= (info.AclBytesInUse - 8) // 4, "acl_bounds"
+        entries = []
+        for index in range(info.AceCount):
+            ace = ctypes.c_void_p()
+            assert api.GetAce(acl, index, ctypes.byref(ace)) and ace, "acl_ace_read"
+            assert acl.value + 8 <= ace.value <= acl.value + info.AclBytesInUse - 4, "acl_bounds"
+            header = AceHeader.from_address(ace.value)
+            assert 16 <= header.AceSize <= acl.value + info.AclBytesInUse - ace.value, "acl_bounds"
+            assert header.AceType == 0, "acl_ace_type"  # ACCESS_ALLOWED_ACE only.
+            mask = wintypes.DWORD.from_address(ace.value + 4).value
+            sid = ace.value + 8
+            sid_size = 8 + 4 * wintypes.BYTE.from_address(sid + 1).value
+            assert sid_size <= header.AceSize - 8, "acl_bounds"
+            assert api.IsValidSid(sid) and api.GetLengthSid(sid) == sid_size, "acl_sid_invalid"
+            entries.append((sid_text(sid), mask, header.AceFlags))
+        assert len(entries) == 2 and {entry[0] for entry in entries} == {
+            expected_sid, "S-1-5-18",
+        }, "acl_principals"
+        for _sid, mask, flags in entries:
+            assert mask == 0x001F01FF, "acl_rights"  # FILE_ALL_ACCESS.
+            # Root grants apply here and to children; file grants are inherited.
+            assert flags == (0x03 if path.is_dir() else 0x10), "acl_inheritance"
+    finally:
+        if descriptor:
+            kernel.LocalFree(descriptor)
+
+
+def _replace_test_dacl(path, sddl):
+    """Alter only a disposable negative fixture; never call a product writer."""
+    import ctypes
+    from ctypes import wintypes
+
+    api = ctypes.WinDLL("advapi32", use_last_error=True)
+    kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+    api.ConvertStringSecurityDescriptorToSecurityDescriptorW.argtypes = [
+        wintypes.LPCWSTR, wintypes.DWORD, ctypes.POINTER(ctypes.c_void_p), ctypes.c_void_p,
+    ]
+    api.ConvertStringSecurityDescriptorToSecurityDescriptorW.restype = wintypes.BOOL
+    api.GetSecurityDescriptorDacl.argtypes = [
+        ctypes.c_void_p, ctypes.POINTER(wintypes.BOOL), ctypes.POINTER(ctypes.c_void_p),
+        ctypes.POINTER(wintypes.BOOL),
+    ]
+    api.GetSecurityDescriptorDacl.restype = wintypes.BOOL
+    api.SetNamedSecurityInfoW.argtypes = [
+        wintypes.LPWSTR, ctypes.c_int, wintypes.DWORD, ctypes.c_void_p, ctypes.c_void_p,
+        ctypes.c_void_p, ctypes.c_void_p,
+    ]
+    api.SetNamedSecurityInfoW.restype = wintypes.DWORD
+    kernel.LocalFree.argtypes = [ctypes.c_void_p]
+    kernel.LocalFree.restype = ctypes.c_void_p
+    descriptor = ctypes.c_void_p()
+    assert api.ConvertStringSecurityDescriptorToSecurityDescriptorW(
+        sddl, 1, ctypes.byref(descriptor), None,
+    ), "negative_acl_descriptor"
+    try:
+        present, defaulted, acl = wintypes.BOOL(), wintypes.BOOL(), ctypes.c_void_p()
+        assert api.GetSecurityDescriptorDacl(
+            descriptor, ctypes.byref(present), ctypes.byref(acl), ctypes.byref(defaulted),
+        ) and present and acl, "negative_acl_dacl"
+        assert api.SetNamedSecurityInfoW(
+            str(path), 1, 4 | 0x80000000, None, None, acl, None,
+        ) == 0, "negative_acl_write"
+    finally:
+        kernel.LocalFree(descriptor)
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows NTFS protected DACL evidence")
+def test_owned_directory_acl_and_inherited_file(tmp_path, monkeypatch):
+    def refuse_shell(*_args, **_kwargs):
+        pytest.fail("acl_reader_must_not_spawn_shell")
+
+    monkeypatch.setattr(subprocess, "run", refuse_shell)
     instance = module("tg_assistant.desktop.instance")
     root = tmp_path / "private"
     instance.secure_directory(root)
     sample = root / "sample"
     sample.write_text("synthetic", encoding="utf-8")
     for path, protected in ((root, True), (sample, False)):
-        # Read the real OS descriptor through .NET, independently of the writer.
-        literal = str(path).replace("'", "''")
-        kind = "Directory" if path.is_dir() else "File"
-        command = (
-            "$a=[System.IO." + kind + "]::GetAccessControl('" + literal + "'); "
-            "@{protected=$a.AreAccessRulesProtected; owner=$a.GetOwner([System.Security.Principal.SecurityIdentifier]).Value; "
-            "sids=@($a.Access | ForEach-Object {$_.IdentityReference.Translate([System.Security.Principal.SecurityIdentifier]).Value})} | ConvertTo-Json -Compress"
+        _assert_private_acl(path, protected=protected)
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows real ACL reader negative evidence")
+@pytest.mark.parametrize("changed", ["rights", "inheritance", "principals"])
+def test_acl_reader_rejects_actual_weakened_directory(tmp_path, changed):
+    from tg_assistant.paths import current_user_sid
+
+    instance = module("tg_assistant.desktop.instance")
+    root = tmp_path / "negative-private"
+    instance.secure_directory(root)
+    sid = current_user_sid()
+    rights = "FRWDSD" if changed == "rights" else "FA"
+    inheritance = "" if changed == "inheritance" else "OICI"
+    extra = "(A;OICI;FR;;;WD)" if changed == "principals" else ""
+    try:
+        _replace_test_dacl(
+            root, f"D:P(A;{inheritance};{rights};;;{sid})(A;{inheritance};{rights};;;SY){extra}",
         )
-        response = subprocess.run(
-            [shutil.which("powershell.exe"), "-NoProfile", "-NonInteractive", "-Command", command],
-            capture_output=True,
-            timeout=10,
-            check=False,
-        )
-        assert response.returncode == 0, response.stderr.decode(errors="replace")
-        descriptor = json.loads(response.stdout)
-        assert descriptor["protected"] is protected
-        assert descriptor["owner"] == current_user_sid()
-        assert set(descriptor["sids"]) == {current_user_sid(), "S-1-5-18"}
+        with pytest.raises(AssertionError, match=f"acl_{changed}"):
+            _assert_private_acl(root, protected=True)
+    finally:
+        # Restore cleanup rights using the original, unchanged production writer.
+        instance.secure_directory(root)
 
 
 @pytest.mark.skipif(os.name != "nt", reason="Windows junction refusal")

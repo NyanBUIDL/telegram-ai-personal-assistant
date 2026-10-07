@@ -21,10 +21,65 @@ class AlreadyRunning(RuntimeError):
 def process_incarnation_exists(pid, started_at):
     if type(pid) is not int or pid <= 0 or type(started_at) not in {int, float}:
         return False
+    if os.name == "nt":
+        return _windows_process_incarnation_exists(pid, started_at)
     try:
         return abs(psutil.Process(pid).create_time() - started_at) < 0.001
     except psutil.NoSuchProcess:
         return False
+
+
+def _windows_process_incarnation_exists(pid, started_at):
+    from ctypes import wintypes
+
+    if pid > 0xFFFFFFFF:
+        return False
+    kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+    kernel.OpenProcess.restype = wintypes.HANDLE
+    kernel.GetProcessTimes.argtypes = [wintypes.HANDLE] + [ctypes.POINTER(wintypes.FILETIME)] * 4
+    kernel.GetProcessTimes.restype = wintypes.BOOL
+    kernel.WaitForSingleObject.argtypes = [wintypes.HANDLE, wintypes.DWORD]
+    kernel.WaitForSingleObject.restype = wintypes.DWORD
+    kernel.CloseHandle.argtypes = [wintypes.HANDLE]
+    kernel.CloseHandle.restype = wintypes.BOOL
+    process = kernel.OpenProcess(0x1000 | 0x100000, False, pid)
+    if not process:
+        error = ctypes.get_last_error()
+        if error == 87:  # ERROR_INVALID_PARAMETER: this PID does not exist.
+            return False
+        _raise_process_inspection_error(pid, error)
+    try:
+        created, exited, kernel_time, user_time = (wintypes.FILETIME() for _ in range(4))
+        if not kernel.GetProcessTimes(
+            process,
+            ctypes.byref(created),
+            ctypes.byref(exited),
+            ctypes.byref(kernel_time),
+            ctypes.byref(user_time),
+        ):
+            _raise_process_inspection_error(pid, ctypes.get_last_error())
+        ticks = (created.dwHighDateTime << 32) | created.dwLowDateTime
+        actual_started_at = ticks / 10_000_000 - 11_644_473_600
+        if not abs(actual_started_at - started_at) < 0.001:
+            return False
+        # A process object and its creation time outlive execution while any
+        # handle remains open. Inspect lifetime on the same incarnation handle;
+        # exit code 259 alone is ambiguous with the STILL_ACTIVE sentinel.
+        status = kernel.WaitForSingleObject(process, 0)
+        if status == 0:  # WAIT_OBJECT_0: execution has completed.
+            return False
+        if status == 258:  # WAIT_TIMEOUT: the exact process is still running.
+            return True
+        _raise_process_inspection_error(pid, ctypes.get_last_error())
+    finally:
+        kernel.CloseHandle(process)
+
+
+def _raise_process_inspection_error(pid, error):
+    if error == 5:
+        raise psutil.AccessDenied(pid)
+    raise psutil.Error("process_inspection_unavailable")
 
 
 def process_matches_owner(pid, started_at):

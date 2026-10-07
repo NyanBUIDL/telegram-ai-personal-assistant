@@ -45,7 +45,7 @@
     "src/tg_assistant/desktop/dialogs/telegram.py": "dbc1da91fe10cddfd1ab051f4b4d262502ecd7507b6ff3fc960f53ee55852d6a",
     "src/tg_assistant/desktop/provider_activation.py": "e2798c30c2a85fb835e283046c73783152aa5c34ca6fa24c95e8a82feba8f7fb",
     "src/tg_assistant/desktop/provider_context.py": "8aac55c3b7d7b8a6a7e0b18fa1ff5a68614be90c76a1a96ec5e80d863f9be8ba",
-    "src/tg_assistant/desktop/runtime_controller.py": "e4ef757454b53276dc4581b460f16c2f216b3cf090cc3f261def9e5c14ea8389",
+    "src/tg_assistant/desktop/runtime_controller.py": "03069e1ea7dd8f1d861e31fb2f84edd0333aac4f5c5772a5d21f9e6ee31f7f41",
     "src/tg_assistant/desktop/setup_context.py": "2848dd1531adde45aaf93716a01d0740cb442bf88976316c04790ad8e6097716",
     "src/tg_assistant/desktop/setup_ui.py": "6db70be62828125e9e221b237ffecc743cb3f06d20b562b83c5954a2b66e9209",
     "src/tg_assistant/desktop/telegram_context.py": "74434387aea8fb0cde994ca2b878a6380e3d5be95fca9174d141622c7ba0416b",
@@ -68,7 +68,7 @@
     "src/tg_assistant/setup/wizard.py": "5e02422ebef8213b85c93a0f410df3408268d81bf2ba39af7d9120b576da1a90",
     "src/tg_assistant/telegram/control_bot.py": "6f1ed081ca5439ad78216f62956b14f55c4ca147276913f67c93f1bdb11e83bf",
     "tests/desktop/test_fixture_cleanup.py": "e2b7a16e6a95c5f25a0432b7813ee0916cf7747e82a8fc2050ac4768a76482f2",
-    "tests/desktop/test_launcher.py": "1a74cd44f25c2bfcd14d75c8ef553b2939b6d14373200d3e42b6e2f74b0a4461",
+    "tests/desktop/test_launcher.py": "01a422d08a531d2c048e9903c7ddb21811a2365cf73b82f6b049d00dc029e580",
     "tests/desktop/test_native_dialogs.py": "da35edc43b538c5a7cb28fc27665e82998ff2ad00c402903dad756de1557921c",
     "tests/desktop/test_native_handoff.py": "7ff9affddc99d481dcb21c124d77e4663bd7c28fc75c03e95526d063eb6db5d2",
     "tests/desktop/test_native_relay_integration.py": "87e06ce0783c4be4c7b8776de77d93ad15e28fa743eb413651857740c5d57e8e",
@@ -109,7 +109,11 @@
     "dashboard-prototype/tests/native-fixture.test.mjs": "3d9cf34cd214e379f352a72854f1f29f9fac21d68a2cc47c570e0719af0ae20f",
     "scripts/windows_fixture_owner.py": "2429962673474d1d196eb589dcdb32dfa26f431f56c09658a9f412fee5f8d14d",
     "tests/desktop/test_stop_request_race.py": "44e2831358bbe7982ae5d95f0032ff6274f7a0522ab6f43a05e5860c6cba667a",
-    "tests/test_u02_fixture_bootstrap.py": "a526096b38434e465a351a1d1bcc1b721d131c0c7852f87cfc5df74d8e9018dd"
+    "tests/test_u02_fixture_bootstrap.py": "a526096b38434e465a351a1d1bcc1b721d131c0c7852f87cfc5df74d8e9018dd",
+    "src/tg_assistant/desktop/instance.py": "51a6908cdf12d821aadf27034e3bdfff1cf1cb8af34e10ffb1d3983e19b83638",
+    "tests/desktop/test_process_incarnation.py": "d299283b9a7303dc55045618f035b8205f18265bacf10715fbf996d126bc8c27",
+    "tests/desktop/test_readiness_probe.py": "9f0458a2b0a7f8f84a728ea8c1f1f90091e51a7aab3d0d971a3795f605f732d7",
+    "tests/fixtures/launcher_worker.py": "7c5752eec1413cbf623f4b1d9a0ea968a2efe8afdf416ca8bbd4d10b5acea4f8"
   },
   "removed_source_paths": [
     "src/tg_assistant/setup/mysql.py"
@@ -186,19 +190,47 @@
     {
       "name": "review-CI-native-and-U02-final.md",
       "sha256": "aae34eaab276a5f950910677b7622ba61139dd92daf6c39de164ff90e8758130"
+    },
+    {
+      "name": "review-process-incarnation-liveness.md",
+      "sha256": "77337ba91e674eca21803067cf72c0a5a367a8e2b8079298df15e691bad689c4"
+    },
+    {
+      "name": "review-process-liveness-independent.md",
+      "sha256": "dab2ca0d737496bb4ea50a418e489e6d2a0efe20d1955f4581c7e78a73524a8d"
+    },
+    {
+      "name": "review-ACL-test-reader.md",
+      "sha256": "9714c2449803f1323aea059594cfa9c5a07fb82f7aea15a9a6798b31bbaae75c"
+    },
+    {
+      "name": "review-CI-2274-launcher-readiness-diagnostic.md",
+      "sha256": "97f58f66e390cf8be08acfb949c2403b3df5d2495959f9319545d27a691eb773"
+    },
+    {
+      "name": "review-CI-2274-readiness-candidate.md",
+      "sha256": "8324214e779d9a7f14f0a61a0de3355a644d5813a456e5a9c2ac6a52dc4add31"
+    },
+    {
+      "name": "review-CI-2274-followup-independent.md",
+      "sha256": "5e12b5c1f42894be9a007d5b9226f4a2b7a908d85d1136cff8386425984db120"
+    },
+    {
+      "name": "review-root-2274-followup.md",
+      "sha256": "ea6fdb26ed8994c9587a9d267eedc385b6706a85e27d4705926d91f791957218"
     }
   ],
   "python_full": {
     "summary": {
-      "passed": 1134,
+      "passed": 1183,
       "failed": 0,
       "skipped": 1,
       "errors": 0,
       "exit_code": 0
     },
     "actual_process_exit": 0,
-    "command": "python scripts/ci_checks.py --report .test-temp/sqlite-final-summary.json -o addopts='' -q --tb=short --basetemp=.test-temp/sqk",
-    "raw_log_sha256": "0573ed57cbcd6790cfe11255c2e27970f198809233d4ffe05903e102d298aad8"
+    "command": "python scripts/ci_checks.py --report .test-temp/sqlite-final-summary.json -o addopts='' -q --tb=short --basetemp=.test-temp/sqm",
+    "raw_log_sha256": "105ddb9f5b85ca0ada08c836741eff2241ad8ec4f04759af7b2c07aedcde00ec"
   },
   "prior_failed_full": {
     "passed": 1115,
@@ -250,7 +282,130 @@
       0
     ],
     "node_log_sha256": "7b21b9548f523b3cb395215ad3d548bae47d69ff2984269fc0ce10d4e072e1a2",
-    "native_log_sha256": "4002827be941d8b733d90e0ffecc4e00d35f92ef359bece4d79aa3e92a8d9c7b"
+    "native_log_sha256": "96120bcd07ff66a46dccf38cc4457bf77db24f773c9e8a217352707c3fff1dfd"
+  },
+  "windows_followup_regressions": {
+    "readiness": {
+      "summary": {
+        "passed": 89,
+        "failed": 0,
+        "skipped": 0,
+        "errors": 0,
+        "exit_code": 0
+      },
+      "actual_process_exit": 0,
+      "raw_log_sha256": "9d2ae3ded04360ffc106f93a140d744e62f14c45a8fcac7ca31e5df9aa8ef6a9",
+      "scope": "Final HTTP, real launcher/relay and ticket cases; socket timeout is not a total wall-time bound; original 15-second fixture deadline retained",
+      "retained_failed_attempts": [
+        {
+          "name": "readiness-probe-red3",
+          "summary": {
+            "passed": 18,
+            "failed": 3,
+            "skipped": 0,
+            "errors": 0,
+            "exit_code": 1
+          },
+          "raw_log_sha256": "383fa81c9496ef8ca0eb009f0c2adcc9ac21a12a9c92ec4fb4f7700f182da348"
+        },
+        {
+          "name": "readiness-cleanup-red",
+          "summary": {
+            "passed": 0,
+            "failed": 1,
+            "skipped": 0,
+            "errors": 0,
+            "exit_code": 1
+          },
+          "raw_log_sha256": "ec93c58e0a0675c893952ea1ee38aa6eb9ea04b5e96770c25ef8ba815704e0f0"
+        },
+        {
+          "name": "readiness-sharing-red",
+          "summary": {
+            "passed": 0,
+            "failed": 1,
+            "skipped": 0,
+            "errors": 0,
+            "exit_code": 1
+          },
+          "raw_log_sha256": "bcf65fa9232150e12f556e837f8d8ab7f6e631ed096c8bb689ed522b15e9b40f"
+        },
+        {
+          "name": "readiness-final-freeze",
+          "summary": {
+            "passed": 35,
+            "failed": 1,
+            "skipped": 0,
+            "errors": 0,
+            "exit_code": 1
+          },
+          "raw_log_sha256": "0292a3632aa9528203b1fad6b148cd24c8d32c6ae6909e8248ff65e7d1167518"
+        },
+        {
+          "name": "readiness-sharing-check",
+          "summary": {
+            "passed": 0,
+            "failed": 1,
+            "skipped": 0,
+            "errors": 0,
+            "exit_code": 1
+          },
+          "raw_log_sha256": "a19ab03a27abb92390b90f839e8b342a8ec42ce3b388c7dc820ee2904f9fc7eb"
+        },
+        {
+          "name": "readiness-response-red",
+          "summary": {
+            "passed": 0,
+            "failed": 1,
+            "skipped": 0,
+            "errors": 0,
+            "exit_code": 1
+          },
+          "raw_log_sha256": "9660b961cb9656d6ae4ba52dbe4cb9d4f7336678ad7eb06096134089f2475ecb"
+        },
+        {
+          "name": "readiness-passive-red",
+          "summary": {
+            "passed": 0,
+            "failed": 1,
+            "skipped": 0,
+            "errors": 0,
+            "exit_code": 1
+          },
+          "raw_log_sha256": "07a48d780d0aaf00db821df8a198014a07429341fbbf8870a7a549a56ce754e3"
+        }
+      ]
+    },
+    "process_incarnation": {
+      "summary": {
+        "passed": 26,
+        "failed": 0,
+        "skipped": 0,
+        "errors": 0,
+        "exit_code": 0
+      },
+      "actual_process_exit": 0,
+      "raw_log_sha256": "a4d0ccb05bae8a8ac86d4c7cb38e58fd4d7c0ea6f8a7c06bec4f60798b3d23cd",
+      "scope": "11 real/injected lifetime cases plus original stop, handoff and launcher cases; exact hosted exit-1 cause is unproven"
+    },
+    "acl_reader": {
+      "summary": {
+        "passed": 6,
+        "failed": 0,
+        "skipped": 1,
+        "errors": 0,
+        "exit_code": 0
+      },
+      "actual_process_exit": 0,
+      "raw_log_sha256": "42e8c5e0f623020194245362b673400e86e917e6ae7ee6236cdd88dea1b9280c",
+      "scope": "Actual independent Win32 DACL reading; three weakened real ACL negatives; existing foreign-owner limitation remains skipped"
+    },
+    "native_before_response_cleanup_correction": {
+      "passed": 8,
+      "actual_process_exit": 0,
+      "raw_log_sha256": "cca23ed22849db6f7ebfb1eccfc25ae1921124b0e8b4913e34c7e75422a8dafb",
+      "scope": "Historical pass before the HTTP response lifetime correction; final acceptance uses the later native run"
+    }
   },
   "stop_regression": {
     "summary": {
@@ -377,8 +532,80 @@
       },
       "acceptance": false,
       "reason": "Native-to-browser U02 cases fail after both full Python suites pass; bootstrap omission and failure masking under investigation."
+    },
+    {
+      "head_sha": "2274a22de9e2c2c581c8627573fea65ab7b7040c",
+      "head_binding": "Workflow fetched using exact commit filter; PR head independently observed. Connector run summary omits head_sha.",
+      "run_id": 37573906664,
+      "status": "completed",
+      "conclusion": "failure",
+      "acceptance": false,
+      "jobs": [
+        {
+          "id": 112638412612,
+          "name": "Node 24 / build, lint, Sites and browser art accessibility",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 112638412798,
+          "name": "Windows Python 3.13 / SQLite",
+          "status": "completed",
+          "conclusion": "failure"
+        },
+        {
+          "id": 112638412842,
+          "name": "Windows Python 3.12 / SQLite",
+          "status": "completed",
+          "conclusion": "failure"
+        },
+        {
+          "id": 112645434627,
+          "name": "Required CI",
+          "status": "completed",
+          "conclusion": "failure"
+        }
+      ],
+      "python_full": [
+        {
+          "version": "3.12",
+          "passed": 1132,
+          "failed": 3,
+          "skipped": 0,
+          "seconds": 1539.79,
+          "actual_process_exit": 1,
+          "failed_tests": [
+            "test_first_launch_setup",
+            "test_owned_directory_acl_and_inherited_file",
+            "test_completed_stop_stays_stopped_and_explicit_start_can_attach_new_run"
+          ]
+        },
+        {
+          "version": "3.13",
+          "passed": 1134,
+          "failed": 1,
+          "skipped": 0,
+          "seconds": 1173.25,
+          "actual_process_exit": 1,
+          "failed_tests": [
+            "test_hidden_launcher_opens_real_provider_modal_from_browser"
+          ]
+        }
+      ]
     }
   ],
+  "python_prior_to_2274_followup": {
+    "summary": {
+      "passed": 1134,
+      "failed": 0,
+      "skipped": 1,
+      "errors": 0,
+      "exit_code": 0
+    },
+    "actual_process_exit": 0,
+    "raw_log_sha256": "0573ed57cbcd6790cfe11255c2e27970f198809233d4ffe05903e102d298aad8",
+    "prior_manifest_sha256": "0d3ab12c2159d509985dd1090a20110e624da2b9a2c3ef93703343817c6cc091"
+  },
   "sqlite_test_conversion": {
     "literal_retained_AST_bodies": 351,
     "reviewed_adapters": 23,

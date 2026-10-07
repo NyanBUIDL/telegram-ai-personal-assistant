@@ -12,6 +12,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from http.client import HTTPConnection, HTTPException
 from threading import RLock
 from uuid import UUID, uuid4
 
@@ -21,6 +22,33 @@ import psutil
 from ..contracts import ConnectionStatus, OnboardingStatus
 from ..paths import ensure_runtime_dirs, resource_path
 from .instance import process_incarnation_exists, process_matches_owner
+
+
+def _readiness_response(port, *, timeout=0.5):
+    """Probe the fixed HTTP loopback endpoint without TLS/proxy initialization.
+
+    Timeout bounds socket operations, not total wall time. Readiness callers
+    keep their own overall deadlines and validate identity and public status.
+    """
+    if type(port) is not int or not 1024 <= port <= 65535:
+        raise ValueError("runtime_readiness_port_invalid")
+    connection = HTTPConnection("127.0.0.1", port, timeout=timeout)
+    response = None
+    try:
+        connection.request("GET", "/api/v1/runtime/readiness")
+        response = connection.getresponse()
+        if response.status != 200:
+            raise ValueError("runtime_readiness_status_rejected")
+        body = response.read(8193)
+        if len(body) > 8192:
+            raise ValueError("runtime_readiness_body_oversized")
+        return response.getheader("X-TG-Runtime-ID"), json.loads(body)
+    finally:
+        try:
+            if response is not None:
+                response.close()
+        finally:
+            connection.close()
 
 
 @dataclass(frozen=True)
@@ -392,16 +420,10 @@ class RuntimeController:
             port = state["port"]
             if type(port) is not int or not 1024 <= port <= 65535:
                 return self.snapshot
-            response = httpx.get(
-                f"http://127.0.0.1:{port}/api/v1/runtime/readiness",
-                timeout=0.5,
-                follow_redirects=False,
-                trust_env=False,
-            )
-            response.raise_for_status()
-            if response.headers.get("X-TG-Runtime-ID") != state["run_id"]:
+            runtime_header, body = _readiness_response(port)
+            if runtime_header != state["run_id"]:
                 return self.snapshot
-            measured = ConnectionStatus.model_validate(response.json())
+            measured = ConnectionStatus.model_validate(body)
             age = (
                 (datetime.now(UTC) - measured.checked_at).total_seconds()
                 if measured.checked_at
@@ -438,7 +460,7 @@ class RuntimeController:
                 )
                 if self.stop_requested:
                     self.stop()
-        except (OSError, ValueError, KeyError, TypeError, httpx.HTTPError, psutil.Error):
+        except (OSError, ValueError, KeyError, TypeError, HTTPException, psutil.Error):
             pass
         return self.snapshot
 
