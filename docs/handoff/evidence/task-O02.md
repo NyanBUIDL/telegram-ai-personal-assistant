@@ -5,9 +5,6 @@
 
 Current status: **InReview**. The coordinator's [integrated review](review-five-completion.md) and [execution manifest](five-completion.json) supersede historical code-integration Pending statements below. SQLite-only source follows the directly approved amendment. Live accounts/provider/downloads, physical Windows/installer, licensing, human UAT and soak remain Pending; this is not beta-ready or publication. O04 bot setup and U03 first-answer UX remain separate roadmap work.
 <!-- /five-current -->
-
-
-
 2026-10-05: implementation and focused test evidence available. Root runtime wiring, independent review and Windows release gates are **Pending**; this is not a Done/Verified claim.
 
 New native service and Qt dialog perform real effects through an injected approved credential store and transactional settings callback. Tests use only synthetic keys/fake stores/transports and an actually owned loopback HTTP server. No account access, actual Windows credential access, provider billing, installations or downloads occurred.

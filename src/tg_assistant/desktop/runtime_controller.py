@@ -12,6 +12,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from threading import RLock
 from uuid import UUID, uuid4
 
 import httpx
@@ -46,6 +47,9 @@ class RuntimeController:
         self.snapshot = RuntimeSnapshot("stopped", "runtime_stopped")
         self.spawn_options = {}
         self.stop_requested = False
+        self._stop_lock = RLock()
+        self._stop_target = None
+        self._stop_sent = False
         self.launch_id = None
         self.start_failed = False
         self.attached_process = None
@@ -127,11 +131,23 @@ class RuntimeController:
         return state
 
     def start(self):
-        if self.handoff_active:
-            return self.executor.submit(lambda: False)
-        self.stop_requested = False
-        self.start_failed = False
-        return self.executor.submit(self._start_safely)
+        with self._stop_lock:
+            if self.handoff_active:
+                return self.executor.submit(lambda: False)
+            if self._stop_target is not None:
+                try:
+                    if process_incarnation_exists(*self._stop_target[1:]):
+                        return self.executor.submit(lambda: False)
+                except psutil.Error:
+                    return self.executor.submit(lambda: False)
+            if self.process is None or self.process.poll() is not None:
+                # A fresh start intent clears an earlier unbound/completed stop.
+                # Stop calls after this intent still win while startup is queued.
+                self.stop_requested = False
+                self._stop_target = None
+                self._stop_sent = False
+            self.start_failed = False
+            return self.executor.submit(self._start_safely)
 
     def _start_safely(self):
         try:
@@ -143,8 +159,15 @@ class RuntimeController:
     def _start(self):
         if self.handoff_active:
             return
-        if self.process and self.process.poll() is None:
-            return
+        with self._stop_lock:
+            if self.process and self.process.poll() is None:
+                return
+            if self._stop_target is not None:
+                try:
+                    if process_incarnation_exists(*self._stop_target[1:]):
+                        return
+                except psutil.Error:
+                    return
         if self.process is None and self._refresh().phase == "ready":
             return
         paths = ensure_runtime_dirs(self.settings.data_dir, profile_id=self.settings.profile_id)
@@ -224,7 +247,10 @@ class RuntimeController:
         self.handoff_active = False
         self._handoff_failed = False
         self._handoff_process = None
-        self.stop_requested = False
+        with self._stop_lock:
+            self.stop_requested = False
+            self._stop_target = None
+            self._stop_sent = False
         self._start_safely()
         deadline = time.monotonic() + 20
         while time.monotonic() < deadline:
@@ -338,6 +364,13 @@ class RuntimeController:
                     return self.snapshot
             except psutil.Error:
                 pass
+        with self._stop_lock:
+            if self._stop_sent:
+                self.snapshot = RuntimeSnapshot(
+                    "stopping", "runtime_stopping", pid=self._stop_target[1],
+                    run_id=self._stop_target[0],
+                )
+                return self.snapshot
         self.snapshot = RuntimeSnapshot(
             "starting" if self.process else "unknown",
             "runtime_readiness_unavailable",
@@ -387,38 +420,78 @@ class RuntimeController:
                 or mode not in {"setup", "assistant"}
             ):
                 return self.snapshot
-            self.attached_process = (state["pid"], state["process_started_at"])
-            self.snapshot = RuntimeSnapshot(
-                "ready",
-                "runtime_ready",
-                state["mode"],
-                state["pid"],
-                port,
-                state["run_id"],
-                state.get("owner_id"),
-            )
-            if self.stop_requested:
-                self.stop()
+            with self._stop_lock:
+                identity = (state["run_id"], state["pid"], state["process_started_at"])
+                if (self._stop_target is not None and identity != self._stop_target) or (
+                    self.process and state["run_id"] != self.launch_id
+                ):
+                    return self.snapshot
+                self.attached_process = (state["pid"], state["process_started_at"])
+                self.snapshot = RuntimeSnapshot(
+                    "ready",
+                    "runtime_ready",
+                    state["mode"],
+                    state["pid"],
+                    port,
+                    state["run_id"],
+                    state.get("owner_id"),
+                )
+                if self.stop_requested:
+                    self.stop()
         except (OSError, ValueError, KeyError, TypeError, httpx.HTTPError, psutil.Error):
             pass
         return self.snapshot
 
     def stop(self):
-        self.stop_requested = True
-        if self.snapshot.phase not in {"starting", "ready"}:
-            return
-        # A stale controller cannot send a shutdown for a newer incarnation.
-        try:
-            state = self._read_state()
-            if self.snapshot.run_id is None:
-                if not self.process or state["run_id"] != self.launch_id:
-                    return
-            elif state["run_id"] != self.snapshot.run_id:
+        with self._stop_lock:
+            self.stop_requested = True
+            if self._stop_sent:
                 return
-            (self.settings.data_dir / "stop.request").write_text(state["run_id"], encoding="ascii")
-            self.snapshot = RuntimeSnapshot("stopping", "runtime_stopping", pid=state["pid"])
-        except (OSError, ValueError, KeyError):
-            return
+            if self.snapshot.phase not in {"starting", "ready", "stopping"}:
+                return
+            # Bind even a failed publication to this verified incarnation. A
+            # later readiness poll must never redirect its stop to a new run.
+            temporary = None
+            try:
+                state = self._read_state()
+                identity = (state["run_id"], state["pid"], state["process_started_at"])
+                if state["profile_id"] != self.settings.profile_id or not process_matches_owner(
+                    state["pid"], state["process_started_at"]
+                ):
+                    return
+                if self._stop_target is not None and identity != self._stop_target:
+                    return
+                if self.snapshot.run_id is None:
+                    if not self.process or state["run_id"] != self.launch_id:
+                        return
+                elif state["run_id"] != self.snapshot.run_id:
+                    return
+                self._stop_target = identity
+                marker = self.settings.data_dir / "stop.request"
+                candidate = marker.with_name(f".stop-{uuid4().hex}.tmp")
+                # Never open the final marker for writing: Windows denies its
+                # deletion while a normal Python write handle is still open.
+                # Exclusive creation also refuses an existing alias at the temp path.
+                with candidate.open("x", encoding="ascii") as stream:
+                    temporary = candidate
+                    stream.write(state["run_id"])
+                current = self._read_state()
+                if (
+                    (current["run_id"], current["pid"], current["process_started_at"]) != identity
+                    or current["profile_id"] != self.settings.profile_id
+                    or not process_matches_owner(current["pid"], current["process_started_at"])
+                ):
+                    return
+                os.replace(temporary, marker)
+                self._stop_sent = True
+                self.snapshot = RuntimeSnapshot(
+                    "stopping", "runtime_stopping", pid=state["pid"], run_id=state["run_id"]
+                )
+            except (OSError, ValueError, KeyError, psutil.Error):
+                return
+            finally:
+                if temporary is not None:
+                    temporary.unlink(missing_ok=True)
 
     def close(self):
         # Closing a launcher/dashboard does not stop the managed worker.

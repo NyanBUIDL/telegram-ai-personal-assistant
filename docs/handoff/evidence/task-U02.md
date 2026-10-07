@@ -5,9 +5,6 @@
 
 Current status: **InReview**. The coordinator's [integrated review](review-five-completion.md) and [execution manifest](five-completion.json) supersede historical code-integration Pending statements below. SQLite-only source follows the directly approved amendment. Live accounts/provider/downloads, physical Windows/installer, licensing, human UAT and soak remain Pending; this is not beta-ready or publication. O04 bot setup and U03 first-answer UX remain separate roadmap work.
 <!-- /five-current -->
-
-
-
 Status: InProgress. The isolated relay and actual HTTP/IPC/GUI bridge have independently passed review; the new setup/navigation consumer and setup-mode static delivery are in their first scoped fix round. Full integration, hosted-head verification and release acceptance remain Pending.
 
 The first isolated relay core accepts only the three native connection-dialog commands with matching profile and empty browser payload. It requires an actual native handler heartbeat, current SID, maintenance admission and a trusted issuing-session check. Session authority and request expiry are checked again at native claim. Requests are consumed atomically; the bounded spent-ID table prevents a repeated request from opening another dialog. Invalid nested DTO mutation is rejected without input echo. Shutdown/drain/authority loss withdraws pending requests. Availability reads do not renew a heartbeat or request. A queued response is never proof of a successful connection or completed setup.

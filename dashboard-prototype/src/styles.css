@@ -2434,12 +2434,14 @@ textarea:focus-visible {
 .setup-dialog-actions { display: flex; flex-wrap: wrap; gap: 12px; margin: 20px 0; }
 .setup-dialog-actions > div { flex: 1 1 220px; }
 .setup-dialog-actions button { width: 100%; white-space: normal; }
-.setup-services { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
+.setup-services { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
 .setup-service { border: 3px solid var(--ink); padding: 16px; background: var(--panel); }
 .setup-service h3 { font-family: var(--font-ui); }
+.setup-technical summary { min-height: 44px; padding: 12px 0; cursor: pointer; }
 .advanced-navigation summary { min-height: 44px; cursor: pointer; padding: 12px 0; }
 .advanced-navigation button { min-height: 44px; }
 .setup-navigation button, .setup-readiness button { min-height: 44px; }
+@media (min-width: 601px) and (max-width: 900px) { .setup-services { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 600px) { .setup-dashboard { padding: 12px; } .setup-readiness { padding: 12px; } .setup-services { grid-template-columns: 1fr; } .setup-readiness .panel-heading { flex-wrap: wrap; gap: 12px; } }
 
 .setup-dashboard { background: var(--paper); min-height: 100vh; }

@@ -78,8 +78,12 @@ Luồng thiết lập trên launcher:
 3. chọn nhà cung cấp/model, nhập API key trong cửa sổ Windows và kiểm tra kết nối;
 4. nhập Telegram API ID/API hash rồi đăng nhập tài khoản qua QR hoặc số điện thoại,
    OTP và 2FA trong cửa sổ Windows;
-5. nhập token bot, kiểm tra bot và đối chiếu owner/pairing;
-6. xem trạng thái kết nối và bật đúng quyền cho từng chat.
+5. nhập token bot, kiểm tra bot và đối chiếu owner/pairing (chưa hoàn tất — O04);
+6. chọn nguồn dữ liệu và thử câu trả lời đầu tiên (chưa hoàn tất — U03).
+
+Launcher source hiện có các bước 1–4. Luồng native kết nối bot/ghép owner và
+hoàn tất onboarding ở bước 5–6 chưa được nghiệm thu; dashboard phản ánh các bước
+còn thiếu thay vì hiển thị setup hoàn tất.
 
 Kết nối tài khoản Telegram và kết nối bot là hai bước riêng. Luồng thiết lập chưa
 cho phép bỏ qua owner/pairing bằng trạng thái giả. Cài mới không mang theo database,

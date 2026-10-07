@@ -8,7 +8,7 @@ Before making substantial visual changes, use the Product Design plugin's `get-c
 
 - Product: Telegram AI Admin desktop dashboard.
 - Product goal: turn the permitted chat history from all joined Telegram groups and channels into one continuously improving personal-assistant brain for the owner.
-- Learning semantics: “learning” means Telegram sync to MySQL, cleanup/deduplication, embedding, and retrieval indexing. Never imply that the application automatically fine-tunes the selected AI model.
+- Learning semantics: “learning” means Telegram sync to SQLite, cleanup/deduplication, embedding, and retrieval indexing. Never imply that the application automatically fine-tunes the selected AI model.
 - Visual reference: `reference/neo-brutalist-reference.png`.
 - Style: retro neo-brutalist with paper beige surfaces, condensed black type, squared corners, thick black rules, hard shadows, and teal/magenta/yellow accents.
 - Interaction rule: keep controls visibly actionable, keyboard focus obvious, and destructive/sensitive operations behind preview plus owner confirmation.
@@ -26,7 +26,7 @@ Build app UI in `src/`. Keep `.openai/hosting.json`, `worker/index.js`, `scripts
 
 ## Approved Windows public-beta feedback (2026-10-02)
 
-- V1 is Windows 10/11 x64, one active owner/profile per Windows SID, local loopback dashboard. The normal installation/setup flow requires no terminal or separately installed Python/Node/MySQL. SQLite is the new-install default; preserve existing/advanced MySQL without silent migration.
+- V1 is Windows 10/11 x64, one active owner/profile per Windows SID, local loopback dashboard. The normal installation/setup flow requires no terminal or separately installed Python/Node/MySQL. The owner approved SQLite-only and empty new profiles on 06/10/2026; see `../docs/superpowers/specs/2026-10-06-sqlite-only-amendment.md`. Refuse legacy MySQL profiles before connection; never connect to, migrate, reset or delete existing MySQL data or erase an existing SQLite profile.
 - Preserve the exact art tokens: paper `#f3efdf`, panel `#fffdf5`, ink `#090909`, teal `#00c8c8`, magenta `#ef00c8`, yellow `#ffd51f`; square 3px black borders and hard 7px shadows. PeterObscure remains logo/main-title only; DarleySans covers every other UI text/control. Font distribution licensing is a release gate.
 - Main navigation: Tổng quan; Kết nối; Nguồn Telegram; Tri thức; Công việc; Vận hành; Cài đặt & trợ giúp. Overview prioritizes actual runtime/Telegram/bot/chat/embedding readiness and the next setup action. Keep advanced permissions/logs/model details accessible and preserve all 19 permissions and all six group AI modes.
 - API key/token/API hash/OTP/2FA never enter browser fields, requests, query strings, bot messages, logs or analytics. Request an allowlisted native dialog through the authenticated command bridge. Never prefill saved credentials or show stored fragments. Public setup data is sanitized/read-only; writes require session, CSRF and Origin checks.

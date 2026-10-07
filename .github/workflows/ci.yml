@@ -80,6 +80,10 @@ jobs:
         if: matrix.python == '3.12'
         working-directory: dashboard-prototype
         run: npx playwright install chromium
+      - name: Check native fixture message and cleanup regressions
+        if: matrix.python == '3.12'
+        working-directory: dashboard-prototype
+        run: node --test tests/native-fixture.test.mjs
       - name: Run real native-to-browser ticket and recovery regressions
         if: matrix.python == '3.12'
         working-directory: dashboard-prototype
@@ -130,6 +134,8 @@ jobs:
       - run: npm run test:sites
       - name: Preserve exact Telegram IDs in real API payloads
         run: node --test tests/chat-ids.test.mjs
+      - name: Check native fixture message and cleanup regressions
+        run: node --test tests/native-fixture.test.mjs
       - name: Install portable Chromium
         run: npx playwright install --with-deps chromium
       - name: Run browser geometry, fonts, keyboard and error regressions

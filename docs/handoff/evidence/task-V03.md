@@ -5,9 +5,6 @@
 
 Current status: **InReview**. The coordinator's [integrated review](review-five-completion.md) and [execution manifest](five-completion.json) supersede historical code-integration Pending statements below. SQLite-only source follows the directly approved amendment. Live accounts/provider/downloads, physical Windows/installer, licensing, human UAT and soak remain Pending; this is not beta-ready or publication. O04 bot setup and U03 first-answer UX remain separate roadmap work.
 <!-- /five-current -->
-
-
-
 Status: isolated freeze2 implemented and scoped GREEN; shared integration and independent review Pending. Not Verified or beta-ready.
 
 Owned new files: services/vector_recovery.py, services/vector_paths.py, admin_api/recovery_routes.py, tests/integration/test_vector_recovery.py. Existing runtime.py, actions.py, vector_reliability.py and Admin app remain unchanged. No contract/schema/generated frontend edits; no source permission widening. Coordinator owns shared integration, Git and whole-tree gates.

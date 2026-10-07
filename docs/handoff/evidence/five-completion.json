@@ -14,21 +14,21 @@
   "published": false,
   "source_hash_scheme": "SHA256 of actual tested Windows working-file bytes; checkout line endings may differ",
   "source_sha256": {
-    ".github/workflows/ci.yml": "9a8f3c5ec6ea25a305e29abdda13190b87ce8b326452ab85c98fe1b7d8db1b1c",
+    ".github/workflows/ci.yml": "086ba92f3c77b684a262b5c238c8b739c9967182129095bf474ff1efb328542d",
     "dashboard-prototype/playwright.d02.config.js": "caa335bc8fb2d65ce30694a2c5b036ffecaf227241cb27e81d8b748bf382e8bc",
     "dashboard-prototype/playwright.setup.config.js": "9a06e27bcd1b24280785222b17a4b4c15315dcb679ce8cdc866add010c65f4d2",
     "dashboard-prototype/src/App.jsx": "52def1f4be9421622749e0987055cba12ea15252860ee11c9acfd1735f4537d2",
     "dashboard-prototype/src/api.js": "1327bdedc987e6bb6cc47ce0b881cbecb014f1e66ad5f10d4043a73fcbb0b6b0",
     "dashboard-prototype/src/contracts/generated.js": "92cbd151755052773d9aef63861b74d6a1fb789c0cd899016dda388a6c469157",
-    "dashboard-prototype/src/styles.css": "07d60258794e572ca6ebd2deee3ccccf417887a7a9d4c6749c87794387706443",
+    "dashboard-prototype/src/styles.css": "8a8f3eda6711b1b681e07845b6f65b98ecc2c67c4099daf18ae0f6083e94373e",
     "dashboard-prototype/src/views/GroupsView.jsx": "9fe28a0811e77df2a5279ea1d2efc81594d1384c8b50238527fec2190ad987a9",
     "dashboard-prototype/src/views/KnowledgeView.jsx": "322928a269e27f9a3cfcd3856723240cd6d244936a4f00e02e3abe0d9821217b",
-    "dashboard-prototype/src/views/OnboardingView.jsx": "4352bca25e904b2e43460639c208e79b78506c3532565894c3a4ad9c4ceebdd8",
+    "dashboard-prototype/src/views/OnboardingView.jsx": "bd1d06aa3f62ce98c446b4a3ed7bd783ec508d3d2859fd1d60164deafc829cf3",
     "dashboard-prototype/tests/d02-auth.spec.js": "38e022fb7ab4a31aa5fa1a2bbfb04863a81e1fabd2de2a4cd0aa4fcce39d8f1b",
-    "dashboard-prototype/tests/e2e/onboarding-dashboard.spec.js": "c7c3be27a12db1d9e8ab18dcce041ccfafa548825faac63a4934b8047aedf432",
-    "dashboard-prototype/tests/u02-native.spec.js": "da405d8a3dad4585e38b7d83fa71433b61cf7a768c1818ec3269c26333947b3b",
+    "dashboard-prototype/tests/e2e/onboarding-dashboard.spec.js": "7e51d9db3d5bd75f848b4339274d56b53045263f969af408f15987d5856ebe40",
+    "dashboard-prototype/tests/u02-native.spec.js": "7df3ab7b7dbf6b730d96c96b8be94ef7cef0fe676318d183f8751bd66b8db01f",
     "pyproject.toml": "0566f5c4197109d28c3c167f0f7ccc4f7d237889709d8b8dbce703b9bacdc174",
-    "scripts/ci_checks.py": "6559993a3553b555a8a60ba9aa566366e4bdaffc3d233c0908030c620e347839",
+    "scripts/ci_checks.py": "089167411e039f2045f1930eb54a8fac55fb1aa01e7529a59f9dbc87aad79e50",
     "src/tg_assistant/admin_api/app.py": "dbdc54c494ba4a5a33fe29e28b6c9741d3ee43da1ee04374a625f1342ce0e6db",
     "src/tg_assistant/admin_api/auth.py": "a27a37c366acefb6dbdceca55fbbfb3daded53ef2bee23de2e78d67e6e77194e",
     "src/tg_assistant/admin_api/recovery_routes.py": "43bfcb4b70cb6a594ce2c0f67fc29ff3d33328903a8c9d5b25435fb30a8d33b1",
@@ -45,7 +45,7 @@
     "src/tg_assistant/desktop/dialogs/telegram.py": "dbc1da91fe10cddfd1ab051f4b4d262502ecd7507b6ff3fc960f53ee55852d6a",
     "src/tg_assistant/desktop/provider_activation.py": "e2798c30c2a85fb835e283046c73783152aa5c34ca6fa24c95e8a82feba8f7fb",
     "src/tg_assistant/desktop/provider_context.py": "8aac55c3b7d7b8a6a7e0b18fa1ff5a68614be90c76a1a96ec5e80d863f9be8ba",
-    "src/tg_assistant/desktop/runtime_controller.py": "8b148bf6babbb8f3a1e46a26794f4387310766850f6ce61872197a5b8260dbcd",
+    "src/tg_assistant/desktop/runtime_controller.py": "e4ef757454b53276dc4581b460f16c2f216b3cf090cc3f261def9e5c14ea8389",
     "src/tg_assistant/desktop/setup_context.py": "2848dd1531adde45aaf93716a01d0740cb442bf88976316c04790ad8e6097716",
     "src/tg_assistant/desktop/setup_ui.py": "6db70be62828125e9e221b237ffecc743cb3f06d20b562b83c5954a2b66e9209",
     "src/tg_assistant/desktop/telegram_context.py": "74434387aea8fb0cde994ca2b878a6380e3d5be95fca9174d141622c7ba0416b",
@@ -83,7 +83,7 @@
     "tests/desktop/test_setup_health.py": "f2f344c40acf177e6942fa21b0d327ef31b66a613bdd018bd2cd2f1fcf4e31f8",
     "tests/desktop/test_setup_ui.py": "4fef274d05c43a5511601b8171a1db7a94b9eab93b96a09dacc60b34f212237c",
     "tests/desktop/test_setup_worker.py": "f663f0da2ead6a972896208583356f08318289d7acdcdeed3a7b4e77ddeddaad",
-    "tests/fixtures/u02_native_browser_server.py": "88d8802a98f6e545d0c3cc41fa35d05e038b6d95f458eef679aee9d4d24582a1",
+    "tests/fixtures/u02_native_browser_server.py": "4036895bfa7fc51babd53d01b2b89cabed13d759bc6aeb83e13f398ed5ca7796",
     "tests/integration/test_backup_restore.py": "d6cffdceef4e2f989ae97d5a26579e6a515a7ecd01abaa5eb027da9c56867c61",
     "tests/integration/test_budget_migrations.py": "aae486df8d27fd0f8e2e966e4a49b43d6248096402cd196b54b728be66666e76",
     "tests/integration/test_job_concurrency.py": "5777cb2fcee54ac40a63b3e854305556739f345064f048119a9abe815097ac82",
@@ -103,7 +103,13 @@
     "tests/test_sqlite_only.py": "eb9ac35ff87e3eba8c46c8e6ccc49b5c4f756f00b2fda930d71e10e1731c046a",
     "tests/test_sqlite_storage_boundaries.py": "1b539aa641de48804f8b0a86ab8af02b07496abedf0fc68306d7d22350de415f",
     "tests/test_storage_profile.py": "69e30cd4e4b2e12a14ed95e9ebd55bd3f4920b08c1bcbd2a4beb506d7d281112",
-    "tests/test_telegram_login.py": "91852dcbc5e6d6b678296b34070731aabd961c09a2d2e359dcbe06638e888915"
+    "tests/test_telegram_login.py": "91852dcbc5e6d6b678296b34070731aabd961c09a2d2e359dcbe06638e888915",
+    "dashboard-prototype/AGENTS.md": "212cda64e99c6f45c59eaa3aa60f7f8393ceb6a40f96ddcd55c7cd63f6383c3f",
+    "dashboard-prototype/tests/helpers/native-fixture.js": "3a582495a61d972aa1b612bd9ddf7941f4819205582b43b7f3c662f1e07deb62",
+    "dashboard-prototype/tests/native-fixture.test.mjs": "3d9cf34cd214e379f352a72854f1f29f9fac21d68a2cc47c570e0719af0ae20f",
+    "scripts/windows_fixture_owner.py": "2429962673474d1d196eb589dcdb32dfa26f431f56c09658a9f412fee5f8d14d",
+    "tests/desktop/test_stop_request_race.py": "44e2831358bbe7982ae5d95f0032ff6274f7a0522ab6f43a05e5860c6cba667a",
+    "tests/test_u02_fixture_bootstrap.py": "a526096b38434e465a351a1d1bcc1b721d131c0c7852f87cfc5df74d8e9018dd"
   },
   "removed_source_paths": [
     "src/tg_assistant/setup/mysql.py"
@@ -160,19 +166,39 @@
     {
       "name": "review-CI-runner-budget.md",
       "sha256": "e2949e0ed8b23ac58f42573d6994ef0d79c8c10de598fbfd2630d068941e7ca1"
+    },
+    {
+      "name": "review-CI-native-owner-diagnostic.md",
+      "sha256": "434afbb80aebf0287814fcae6790d62c3097b7cfec3f87c3002146f0476e03ca"
+    },
+    {
+      "name": "review-CI-native-fixture-candidate.md",
+      "sha256": "3139d919f7749f2145081004c237d1942b5e6f11c97bd541c38112366f306b40"
+    },
+    {
+      "name": "review-U02-copy-polish.md",
+      "sha256": "5e2d08bf336b71610e97d4592e5cbd18a2a8666c40589d57b8132fc44978dfdb"
+    },
+    {
+      "name": "review-native-stop-race-fix.md",
+      "sha256": "9a262c5d5b0488efbcd52965800478947c856f390ca4d1e54359433ab9465693"
+    },
+    {
+      "name": "review-CI-native-and-U02-final.md",
+      "sha256": "aae34eaab276a5f950910677b7622ba61139dd92daf6c39de164ff90e8758130"
     }
   ],
   "python_full": {
     "summary": {
-      "passed": 1117,
+      "passed": 1134,
       "failed": 0,
       "skipped": 1,
       "errors": 0,
       "exit_code": 0
     },
     "actual_process_exit": 0,
-    "command": "python scripts/ci_checks.py --report .test-temp/sqlite-final-summary.json -o addopts='' -q --tb=short --basetemp=.test-temp/sqg",
-    "raw_log_sha256": "c9f2580fcca47d29cbf7d34c660ea4667b3940f15603d6121f9e6a1852b63556"
+    "command": "python scripts/ci_checks.py --report .test-temp/sqlite-final-summary.json -o addopts='' -q --tb=short --basetemp=.test-temp/sqk",
+    "raw_log_sha256": "0573ed57cbcd6790cfe11255c2e27970f198809233d4ffe05903e102d298aad8"
   },
   "prior_failed_full": {
     "passed": 1115,
@@ -183,12 +209,35 @@
     "reason": "Fresh native guard requires actual profile enrollment before disabled-embedding metadata test.",
     "raw_log_sha256": "862daee239e42b07f17505819edbfb9220f98909d881dfa072a773708bffe347"
   },
+  "prior_stop_race_failed_full": {
+    "summary": {
+      "passed": 1120,
+      "failed": 1,
+      "skipped": 1,
+      "errors": 0,
+      "exit_code": 1
+    },
+    "actual_process_exit": 1,
+    "raw_log_sha256": "0f851c36a09743c07d4194357bbe04a8f655a1b202e0a254a1c20f8a1fcd7ab7",
+    "reason": "Repeated stop request writes race with actual Windows worker cleanup (WinError32)."
+  },
+  "python_prior_to_fixture_correction": {
+    "summary": {
+      "passed": 1117,
+      "failed": 0,
+      "skipped": 1,
+      "errors": 0,
+      "exit_code": 0
+    },
+    "actual_process_exit": 0,
+    "raw_log_sha256": "c9f2580fcca47d29cbf7d34c660ea4667b3940f15603d6121f9e6a1852b63556"
+  },
   "frontend": {
     "build": "passed",
     "sites_preparation": "passed",
     "lint": "passed",
-    "node_cases": 25,
-    "setup_browser": 15,
+    "node_cases": 36,
+    "setup_browser": 16,
     "art_browser": 11,
     "real_native_browser": 8,
     "actual_process_exits": [
@@ -199,7 +248,35 @@
       0,
       0,
       0
-    ]
+    ],
+    "node_log_sha256": "7b21b9548f523b3cb395215ad3d548bae47d69ff2984269fc0ce10d4e072e1a2",
+    "native_log_sha256": "4002827be941d8b733d90e0ffecc4e00d35f92ef359bece4d79aa3e92a8d9c7b"
+  },
+  "stop_regression": {
+    "summary": {
+      "passed": 28,
+      "failed": 0,
+      "skipped": 0,
+      "errors": 0,
+      "exit_code": 0
+    },
+    "actual_process_exit": 0,
+    "raw_log_sha256": "98812044c879c6efbcdc37c6b2e453d0efc2dd55f9080b2f20e460fd8f504c3f"
+  },
+  "fixture_bootstrap_regression": {
+    "summary": {
+      "passed": 14,
+      "failed": 0,
+      "skipped": 0,
+      "errors": 0,
+      "exit_code": 0
+    },
+    "actual_process_exit": 0
+  },
+  "prior_aborted_native_attempt": {
+    "actual_process_exit": -1073741819,
+    "raw_log_sha256": "9f2c5f7e326766c545798b23be1e7c5808b8c7c9c73c9f6f6aeca2c8c8e53b29",
+    "reason": "Direct default-Qt attempt aborted; not accepted. Final checks use the approved offscreen/bootstrap CI entry."
   },
   "hosted_ci": null,
   "prior_hosted_ci": {
@@ -254,6 +331,54 @@
       "conclusion": "success"
     }
   },
+  "prior_failed_hosted_ci": [
+    {
+      "head_sha": "d679c0cf360fd4c0214c576bb1ffe7322f9e843a",
+      "sha_binding": "Workflow run returned by exact commit-SHA query; API wrapper omits head_sha.",
+      "run_id": 37501922115,
+      "url": "https://github.com/NyanBUIDL/telegram-ai-personal-assistant/actions/runs/37501922115",
+      "conclusion": "failure",
+      "jobs": [
+        {
+          "id": 112400810100,
+          "name": "Node 24 / build, lint, Sites and browser art accessibility",
+          "conclusion": "success"
+        },
+        {
+          "id": 112400810487,
+          "name": "Windows Python 3.13 / SQLite",
+          "conclusion": "success"
+        },
+        {
+          "id": 112400810614,
+          "name": "Windows Python 3.12 / SQLite",
+          "conclusion": "failure"
+        },
+        {
+          "id": 112412316741,
+          "name": "Required CI",
+          "conclusion": "failure"
+        }
+      ],
+      "python_full": {
+        "python312": {
+          "passed": 1118,
+          "seconds": 1023.49
+        },
+        "python313": {
+          "passed": 1118,
+          "seconds": 1442.39
+        }
+      },
+      "native_browser": {
+        "passed": 5,
+        "failed": 3,
+        "actual_step_exit": 1
+      },
+      "acceptance": false,
+      "reason": "Native-to-browser U02 cases fail after both full Python suites pass; bootstrap omission and failure masking under investigation."
+    }
+  ],
   "sqlite_test_conversion": {
     "literal_retained_AST_bodies": 351,
     "reviewed_adapters": 23,

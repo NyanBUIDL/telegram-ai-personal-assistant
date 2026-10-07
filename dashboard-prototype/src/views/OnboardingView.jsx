@@ -10,7 +10,7 @@ export const primaryNavigation = [
   { id: "actions", label: "Công việc" }, { id: "workers", label: "Vận hành" },
   { id: "documentation", label: "Cài đặt & trợ giúp" },
 ];
-const services = { runtime: "Ứng dụng", telegram_account: "Tài khoản Telegram", control_bot: "Bot điều khiển", chat_ai: "AI trò chuyện", embeddings: "Embedding", storage: "Lưu trữ" };
+const services = { runtime: "Ứng dụng", telegram_account: "Tài khoản Telegram", control_bot: "Bot điều khiển", chat_ai: "AI trò chuyện", embeddings: "Chỉ mục AI", storage: "Lưu trữ" };
 const labels = { checking: "ĐANG KIỂM TRA", ready: "SẴN SÀNG", degraded: "SUY GIẢM", disconnected: "CHƯA KẾT NỐI", unknown: "CHƯA BIẾT" };
 const dialogs = [
   ["open_connection_dialog", "Mở cấu hình AI trên Windows"],
@@ -76,15 +76,16 @@ export function SetupReadiness({ session }) {
   return <section className="panel setup-readiness" aria-label="Thiết lập và trạng thái kết nối">
     <div className="panel-heading"><div><p className="eyebrow">THIẾT LẬP WINDOWS</p><h2>Tiếp tục thiết lập trên Windows</h2><p>Bước tiếp theo</p></div><button className="button button--outline" onClick={() => setRefresh(value => value + 1)}>Kiểm tra lại</button></div>
     {error ? <p role="alert">{error}</p> : <p>{data?.status.next_action || "Đang đọc trạng thái backend; chưa có xác nhận sẵn sàng."}</p>}
-    <p>Nhập khóa, token, OTP và 2FA chỉ trong hộp thoại Windows. Giai đoạn lưu trước đây không xác nhận khả năng hiện tại.</p>
+    <p>Nhập API key, token bot và thông tin đăng nhập Telegram trong cửa sổ Windows được mở từ các nút bên dưới.</p>
     <div className="setup-dialog-actions">{dialogs.map(([name, label]) => <div key={name}><button className="button button--primary" disabled={busy || !data?.commands.includes(name)} onClick={() => requestDialog(name)}>{label}</button>{!data?.commands.includes(name) ? <p>Trình xử lý này chưa sẵn sàng trên Windows.</p> : null}</div>)}</div>
     {operation ? <p role="status" className="realtime-warning">{operation}</p> : null}
-    <p>Quan sát quá 60 giây được ghi rõ là dữ liệu cũ. Danh sách hộp thoại phản ánh heartbeat native dưới 5 giây ở thời điểm GET, không xác nhận hộp thoại đã mở.</p><div className="setup-services">{Object.entries(services).map(([service, title]) => {
+    <div className="setup-services">{Object.entries(services).map(([service, title]) => {
       const row = data?.rows.find(value => value.service === service);
       const stale = row?.checked_at && observedAt - Date.parse(row.checked_at) >= 60000;
       const state = row?.state === "ready" && !row.checked_at ? "unknown" : row?.state || "unknown";
-      return <article className="setup-service" key={service}><h3>{title}</h3><Badge tone={state === "ready" && !stale ? "success" : "yellow"}>{`${stale ? "DỮ LIỆU CŨ · " : ""}${labels[state]}`}</Badge><p>{row?.message || "Chưa có quan sát hợp lệ."}</p><p>Kiểm tra: {row?.checked_at ? formatDate(row.checked_at) : "Chưa kiểm tra"}</p><p>{row?.next_action}</p>{row?.capabilities.length ? <p>Capability: {row.capabilities.join(", ")}. Metadata không xác nhận inference hay runtime đã kích hoạt.</p> : null}</article>;
+      return <article className="setup-service" key={service}><h3>{title}</h3><Badge tone={state === "ready" && !stale ? "success" : "yellow"}>{`${stale ? "DỮ LIỆU CŨ · " : ""}${labels[state]}`}</Badge><p>{row?.message || "Chưa có kết quả kiểm tra."}</p><p>Kiểm tra: {row?.checked_at ? formatDate(row.checked_at) : "Chưa kiểm tra"}</p><p>{row?.next_action}</p>{row?.capabilities.length ? <details className="setup-technical"><summary>Chi tiết kiểm tra</summary><p>Capability: {row.capabilities.join(", ")}. Thông tin cấu hình không chứng minh AI đã trả lời hoặc ứng dụng đã bật đủ chức năng.</p></details> : null}</article>;
     })}</div>
+    <details className="setup-technical"><summary>Cách đọc trạng thái kết nối</summary><p>Kết quả kiểm tra quá một phút được ghi là dữ liệu cũ. Bấm Kiểm tra lại để đọc trạng thái hiện tại. Nút kết nối chỉ gửi yêu cầu mở cửa sổ Windows; hãy hoàn tất các bước trong cửa sổ đó. Bước thiết lập đã lưu không thay thế kết quả kiểm tra mới.</p></details>
     {data ? <p>Profile: {data.status.profile.profile_id} · Owner: {data.status.profile.owner_id ?? "Chưa ghép owner"} · Backend: {data.status.profile.storage_backend}</p> : null}
   </section>;
 }

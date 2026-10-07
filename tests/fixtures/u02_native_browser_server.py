@@ -13,6 +13,9 @@ import time
 from pathlib import Path
 from uuid import uuid4
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "scripts"))
+from windows_fixture_owner import prepare_windows_fixture_owner  # noqa: E402
+
 from tg_assistant.config import Settings, save_settings
 
 
@@ -20,16 +23,60 @@ def emit(value):
     print(json.dumps(value), flush=True)
 
 
+WORKER_CODES = {"storage_access_denied", "native_worker_failed", "native_worker_early_exit"}
+
+
+def unexpected_worker_exit(runtime, *, stopping):
+    return (
+        runtime.process is not None and runtime.process.poll() is not None
+        and not stopping and not runtime.handoff_active
+        and runtime.snapshot.phase != "stopped"
+    )
+
+
+def worker_failure_code(path):
+    try:
+        if path.stat().st_size > 1024:
+            return "native_worker_early_exit"
+        code = json.loads(path.read_text(encoding="utf-8")).get("code")
+        return code if code in WORKER_CODES else "native_worker_early_exit"
+    except (OSError, ValueError, TypeError, AttributeError):
+        return "native_worker_early_exit"
+
+
 def main():
     if os.name != "nt":
         raise SystemExit(77)
+    try:
+        owner_matches_before = prepare_windows_fixture_owner()
+    except (OSError, RuntimeError):
+        emit({"type": "failure", "code": "windows_fixture_owner_unavailable"})
+        raise SystemExit(2) from None
     if sys.argv[1] == "--worker":
         from tg_assistant.desktop.worker import serve_worker
 
-        serve_worker(
-            Settings(_env_file=None, data_dir=Path(sys.argv[2])),
-            instance_directory=Path(sys.argv[3]),
-        )
+        diagnostic = Path(sys.argv[3]).parent / "worker-diagnostic.json"
+        outcome = {
+            "code": "native_worker_running",
+            "owner_matches_before": owner_matches_before,
+            "owner_matches_after": True,
+        }
+        diagnostic.write_text(json.dumps(outcome), encoding="utf-8")
+        try:
+            serve_worker(
+                Settings(_env_file=None, data_dir=Path(sys.argv[2])),
+                instance_directory=Path(sys.argv[3]),
+            )
+        except Exception as error:
+            outcome["code"] = (
+                "storage_access_denied"
+                if isinstance(error, OSError) and error.args == ("storage_access_denied",)
+                else "native_worker_failed"
+            )
+            diagnostic.write_text(json.dumps(outcome), encoding="utf-8")
+            raise SystemExit(2) from None
+        outcome["code"] = "native_worker_stopped"
+        diagnostic.write_text(json.dumps(outcome), encoding="utf-8")
         return
     from PySide6.QtCore import QCoreApplication, QEvent, QTimer
     from PySide6.QtWidgets import QApplication
@@ -45,6 +92,9 @@ def main():
             del os.environ[name]
     root = Path(sys.argv[3]).resolve() / ("fixture-" + uuid4().hex)
     root.mkdir(parents=True)
+    (root / "parent-diagnostic.json").write_text(json.dumps({
+        "owner_matches_before": owner_matches_before, "owner_matches_after": True
+    }), encoding="utf-8")
     bundle = root / "bundle"
     shutil.copytree(Path(sys.argv[1]), bundle)
     raw = (bundle / "index.html").read_bytes().replace(b"\r\n", b"\n").replace(b"\r", b"\n")
@@ -102,6 +152,7 @@ def main():
     threading.Thread(target=reader, daemon=True).start()
     began = time.monotonic()
     announced = False
+    failed = False
     ticket_future = None
     seen = []
     setup_controllers = []
@@ -112,7 +163,7 @@ def main():
     timer = QTimer()
 
     def tick():
-        nonlocal announced, ticket_future, stopping, stop_began, telegram_seen, telegram_resumed
+        nonlocal announced, failed, ticket_future, stopping, stop_began, telegram_seen, telegram_resumed
         for widget in app.topLevelWidgets():
             if isinstance(widget, ProviderDialog) and widget.isVisible():
                 seen.append(id(widget))
@@ -177,8 +228,11 @@ def main():
                     "profile_id": settings.profile_id,
                 }
             )
-        if not announced and time.monotonic() - began > 25:
-            emit({"type": "failure", "code": "readiness_timeout"})
+        early_exit = unexpected_worker_exit(runtime, stopping=stopping)
+        if not failed and (early_exit or (not announced and time.monotonic() - began > 25)):
+            failed = True
+            code = worker_failure_code(root / "worker-diagnostic.json") if early_exit else "readiness_timeout"
+            emit({"type": "failure", "code": code})
             commands.put("stop")
         if ticket_future is not None and ticket_future.done():
             try:
@@ -202,8 +256,15 @@ def main():
             # Original controller checks exact SID/profile/run before writing stop.request.
             runtime.stop()
             if runtime.process is not None and runtime.process.poll() is not None:
-                emit({"type": "stopped", "clean": runtime.process.returncode == 0})
-                app.quit()
+                released = False
+                try:
+                    with instance.InstanceGuard(root / "sid-control"):
+                        released = True
+                except (OSError, RuntimeError):
+                    pass
+                clean = runtime.process.returncode == 0 and not runtime.state_file.exists() and released
+                emit({"type": "stopped", "clean": clean, "owned_handle_released": released})
+                app.exit(0 if clean and not failed else 2)
             elif time.monotonic() - stop_began > 20:
                 emit({"type": "failure", "code": "owned_stop_timeout"})
                 app.exit(2)
@@ -211,7 +272,7 @@ def main():
     timer.timeout.connect(tick)
     timer.start(25)
     try:
-        app.exec()
+        exit_code = app.exec()
     finally:
         timer.stop()
         window.finish_setup()
@@ -225,7 +286,8 @@ def main():
             controller.executor.shutdown(wait=True, cancel_futures=False)
         window.deleteLater()
         QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+    return exit_code
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

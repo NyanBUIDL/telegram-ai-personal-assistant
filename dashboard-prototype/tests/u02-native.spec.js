@@ -1,8 +1,8 @@
 import { expect, test } from '@playwright/test';
 import { spawn } from 'node:child_process';
-import { createInterface } from 'node:readline';
 import { resolve } from 'node:path';
 import { mkdirSync, writeFileSync } from 'node:fs';
+import { fixtureMessages, withFixtureCleanup, publicFixtureMessage, navigateToDashboard } from './helpers/native-fixture.js';
 
 const evidence = resolve(process.env.ART_EVIDENCE_DIR || '../.test-temp/u02-static-fix1-art');
 mkdirSync(evidence, { recursive: true });
@@ -15,26 +15,14 @@ for (const variant of ['lf', 'crlf', 'cr']) {
     const child = spawn(process.env.D02_PYTHON || resolve('../.venv-q01/Scripts/python.exe'),
       ['-u', resolve('../tests/fixtures/u02_native_browser_server.py'), resolve(process.env.U02_BUILD || 'dist/client'), variant, evidence],
       { cwd: resolve('..'), windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'], env: { ...process.env, QT_QPA_PLATFORM: 'offscreen' } });
-    const messages = [], waiters = [];
-    let exited = false;
-    child.on('exit', () => { exited = true; });
-    // stdout carries the ephemeral ticket: retain only fixed sanitized outcomes.
-    createInterface({ input: child.stdout }).on('line', line => {
-      let value; try { value = JSON.parse(line); } catch { return; }
-      if (waiters.length) waiters.shift()(value); else messages.push(value);
-    });
-    child.stderr.on('data', () => {});
-    const next = async () => {
-      if (messages.length) return messages.shift();
-      return new Promise((done, reject) => {
-        const timeout = setTimeout(() => reject(new Error('native_fixture_timeout')), 30000);
-        waiters.push(value => { clearTimeout(timeout); done(value); });
-      });
-    };
+    const next = fixtureMessages(child);
+    // Resolve only on actual exit; a timeout remains an assertion failure below.
+    const exited = new Promise(done => child.once('exit', done));
     let result = 'failed';
-    try {
-      const ready = await next();
-      expect(ready.type).toBe('ready'); expect(ready.hidden).toBe(true);
+    let cleanup = 'failed';
+    try { await withFixtureCleanup(async () => {
+      const ready = publicFixtureMessage(await next(), 'ready');
+      expect(ready.hidden).toBe(true);
       await page.addInitScript(() => {
         window.__observations = [];
         const fetch = window.fetch;
@@ -45,10 +33,10 @@ for (const variant of ['lf', 'crlf', 'cr']) {
         new PerformanceObserver(list => list.getEntries().forEach(() => window.__observations.push({ kind: 'resource', hashEmpty: location.hash === '' }))).observe({ entryTypes: ['resource'] });
       });
       child.stdin.write('issue\n');
-      const launch = await next(); expect(launch.type).toBe('ticket');
+      const launch = publicFixtureMessage(await next(), 'ticket');
       const redeemed = page.waitForResponse(response => response.url() === ready.origin + '/api/v1/auth/launch/redeem', { timeout: 10000 }).catch(() => null);
       const measured = page.waitForResponse(response => response.url() === ready.origin + '/api/v1/connections');
-      await page.goto(launch.url);
+      await navigateToDashboard(page, launch.url);
       const response = await redeemed;
       // Boolean assertion prevents the disposable URL fragment appearing in failure output.
       expect(response !== null, 'bootstrap_redeem_missing').toBe(true);
@@ -88,14 +76,14 @@ for (const variant of ['lf', 'crlf', 'cr']) {
       expect(command.payload_nonsecret).toEqual({}); expect(command.profile_id).toBe(ready.profile_id);
       expect(queued.request().headers()['x-csrf-token']?.length > 0).toBe(true);
       expect((await queued.json()).state).toBe('queued');
-      const dialog = await next();
+      const dialog = publicFixtureMessage(await next(), 'dialog');
       expect(dialog).toEqual({ type: 'dialog', count: 1, empty: true, launcher_visible: true });
       // Same authenticated request including original CSRF proves relay replay cannot open twice.
       const replayResponse = await context.request.post(ready.origin + '/api/v1/native/commands', { data: command, headers: { Origin: ready.origin, 'X-CSRF-Token': queued.request().headers()['x-csrf-token'] } });
       expect((await replayResponse.json()).code).toBe('native_request_replayed');
       await page.waitForTimeout(1200);
       child.stdin.write('status\n');
-      expect(await next()).toEqual({ type: 'status', count: 1, launcher_visible: true });
+      expect(publicFixtureMessage(await next(), 'status')).toEqual({ type: 'status', count: 1, launcher_visible: true });
       if (variant === 'lf') {
         // Same real browser/session bridge also reaches the actual Telegram
         // dialog. Auth fields stay native and the old worker must exit first.
@@ -105,17 +93,26 @@ for (const variant of ['lf', 'crlf', 'cr']) {
         const telegramResponse = await telegramQueued;
         expect((await telegramResponse.json()).state).toBe('queued');
         expect(telegramResponse.request().postDataJSON().payload_nonsecret).toEqual({});
-        expect(await next()).toEqual({ type: 'telegram', empty: true, worker_stopped: true, retained_context: true });
-        expect(await next()).toEqual({ type: 'telegram_resumed', ready: true });
+        expect(publicFixtureMessage(await next(), 'telegram')).toEqual({ type: 'telegram', empty: true, worker_stopped: true, retained_context: true });
+        expect(publicFixtureMessage(await next(), 'telegram_resumed')).toEqual({ type: 'telegram_resumed', ready: true });
       }
       result = 'passed';
-    } finally {
-      writeFileSync(resolve(evidence, `${variant}-result.json`), JSON.stringify({ variant, result }));
-      child.stdin.write('stop\n'); child.stdin.end();
-      const stopped = await next();
-      expect(stopped).toEqual({ type: 'stopped', clean: true });
-      if (!exited) await new Promise(done => { child.once('exit', done); setTimeout(done, 5000); });
+    }, async () => {
+      if (!child.stdin.destroyed && child.exitCode === null && child.signalCode === null) {
+        child.stdin.write('stop\n'); child.stdin.end();
+      }
+      const stopped = publicFixtureMessage(await next(), 'stopped');
+      expect(stopped).toEqual({ type: 'stopped', clean: true, owned_handle_released: true });
+      if (child.exitCode === null && child.signalCode === null) {
+        let timeout;
+        try { await Promise.race([exited, new Promise(done => { timeout = setTimeout(done, 5000); })]); }
+        finally { clearTimeout(timeout); }
+      }
       expect(child.exitCode).toBe(0);
+      expect(child.signalCode).toBe(null);
+      cleanup = 'passed';
+    }); } finally {
+      writeFileSync(resolve(evidence, `${variant}-result.json`), JSON.stringify({ variant, result: result === 'passed' && cleanup === 'passed' ? 'passed' : 'failed', cleanup }));
     }
   });
 }

@@ -5,9 +5,6 @@
 
 Current status: **InReview**. The coordinator's [integrated review](review-five-completion.md) and [execution manifest](five-completion.json) supersede historical code-integration Pending statements below. SQLite-only source follows the directly approved amendment. Live accounts/provider/downloads, physical Windows/installer, licensing, human UAT and soak remain Pending; this is not beta-ready or publication. O04 bot setup and U03 first-answer UX remain separate roadmap work.
 <!-- /five-current -->
-
-
-
 2026-10-06: owned implementation and focused verification are available for independent root review. **Activation integration, encrypted runtime publisher, O01 trusted evidence bridge, physical Windows/live account QA and whole-task acceptance are Pending.** This is not TaskVerified/Done/Ready, release approval or an account-authentication claim. No Git writes, real Telegram authentication, real credentials/secret-store writes, model downloads or external release occurred.
 
 The default service uses installed Telethon 1.45.0 APIs with MemorySession; tests substitute only external transport and credential/session publication. It never opens or writes account.session/account.session.enc. API ID/hash remain required for QR. Native QR wait starts before display, has bounded expiry, explicit refresh and phone/OTP/2FA fallback. Three invalid code/password attempts terminate a candidate; FloodWait returns a countdown without automatic sleep/retry. All connect/request/wait/disconnect operations have deadlines; cancellation interrupts pending IO and is terminal for this service instance. New dialogs need fresh services.

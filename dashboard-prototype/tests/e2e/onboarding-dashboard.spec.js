@@ -49,6 +49,22 @@ test('synthetic ready with no checked_at remains unknown; other installed native
   await expect(page.locator('.setup-service').filter({ hasText: 'Lưu trữ' })).toContainText('CHƯA BIẾT');
   await expect(page.getByRole('button', { name: 'Mở cấu hình AI trên Windows' })).toBeEnabled();
 });
+
+test('synthetic setup keeps honest state visible and technical capabilities behind keyboard-accessible details', async ({ page }) => {
+  await fixture(page);
+  const ai = page.locator('.setup-service').filter({ has: page.getByRole('heading', { name: 'AI trò chuyện', exact: true }) });
+  await expect(ai.getByText('CHƯA BIẾT', { exact: true })).toBeVisible();
+  const capabilities = ai.getByText(/^Capability:/);
+  await expect(capabilities).not.toBeVisible();
+  const details = ai.locator('summary').filter({ hasText: 'Chi tiết kiểm tra' });
+  await details.focus();
+  await page.keyboard.press('Enter');
+  await expect(capabilities).toBeVisible();
+  await expect(capabilities).toContainText('metadata');
+  await expect(ai.getByText('CHƯA BIẾT', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Mở cấu hình AI trên Windows' })).toBeEnabled();
+  expect(await page.locator('input[type=password]').count()).toBe(0);
+});
 for (const width of [360, 390, 1280, 1440]) test(`synthetic setup geometry, type and keyboard at ${width}`, async ({ page }) => {
   await page.setViewportSize({ width, height: 900 }); await fixture(page);
   await expect(page.locator('.setup-services')).toBeVisible();
