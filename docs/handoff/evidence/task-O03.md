@@ -1,9 +1,9 @@
 # O03 — Isolated native Telegram login producer
 
 <!-- five-current -->
-## Integrated acceptance — 07/10/2026
+## Integrated acceptance — 08/10/2026
 
-Current status: **InReview**. The coordinator's [integrated review](review-five-completion.md) and [execution manifest](five-completion.json) supersede historical code-integration Pending statements below. SQLite-only source follows the directly approved amendment. Live accounts/provider/downloads, physical Windows/installer, licensing, human UAT and soak remain Pending; this is not beta-ready or publication. O04 bot setup and U03 first-answer UX remain separate roadmap work.
+Current status: **Verified**. The coordinator's [integrated review](review-five-completion.md) and [execution manifest](five-completion.json) supersede historical code-integration Pending statements below. SQLite-only source follows the directly approved amendment. Live accounts/provider/downloads, physical Windows/installer, licensing, human UAT and soak remain Pending; this is not beta-ready or publication. O04 bot setup and U03 first-answer UX remain separate roadmap work.
 <!-- /five-current -->
 2026-10-06: owned implementation and focused verification are available for independent root review. **Activation integration, encrypted runtime publisher, O01 trusted evidence bridge, physical Windows/live account QA and whole-task acceptance are Pending.** This is not TaskVerified/Done/Ready, release approval or an account-authentication claim. No Git writes, real Telegram authentication, real credentials/secret-store writes, model downloads or external release occurred.
 

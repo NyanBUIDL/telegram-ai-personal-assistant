@@ -1,0 +1,9 @@
+# O04 — Bot connection and verified owner pairing
+
+Current status: **InProgress**, 08/10/2026. Dependency O03 is Verified on product commit `5f56dda48a7cb170b4e1d704fc0b130a644ed853` and its successful exact-candidate hosted CI. This document records work started, not completed acceptance.
+
+Implementation is split across the durable SQLite pairing repository, scoped native bot credentials/actual Bot API transport, and an opaque borrow of the current verified Telegram account context. The coordinator owns the connecting service, restricted pairing event handler, native dialog, worker/runtime management admission and final integration. Tokens remain native write-only inputs; the first bot sender never becomes the owner. The Start challenge remains hash-only, one-use and 300 seconds, with the same atomic manual-code fallback.
+
+Private prototypes and their historical tests remain preparation evidence until production modules, owning lifecycle, account/bot/owner proof, single-poller behavior and native UI are connected and reviewed. Current work must preserve profile/SID/storage binding, current account candidate, append-only credential publication history, atomic pairing/account flag publication, original-age health measurements, and existing management permissions. There is no real account/API/keychain, installer, human UAT or release acceptance from these prototypes.
+
+Remaining scoped acceptance includes wrong-owner/group/replay/expired challenges; concurrent consumption/cancel/replacement; credential/SQL faults and uncertain commit reconciliation; actual SDK session cleanup; native handoff and stage completion from actual events; fresh management admission and direct IPC/API/handler bypass negatives; art/keyboard regressions; full integration and exact-candidate hosted CI. Live Telegram Start/revocation/conflicting-poller checks remain separately pending until performed with authorized disposable accounts.

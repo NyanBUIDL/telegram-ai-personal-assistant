@@ -33,17 +33,17 @@ Ngày lập: 02/10/2026. **Thiết kế đã duyệt; implementation đang thự
 - [x] **S03 — Backup/restore có kiểm chứng và fence runtime** · Reliability · phụ thuộc: S02, V01 · Verified.
 - [x] **V01 — Profile embedding cloud/local và data boundary theo nguồn** · Reliability · phụ thuộc: S01, F01 · Verified.
 - [x] **V02 — Incremental index, chỉnh sửa/xóa/dedup và coverage cùng contract** · Reliability · phụ thuộc: S02, V01 · Verified.
-- [ ] **V03 — Recovery từng nguồn thực thi được và có rollback** · Reliability · phụ thuộc: V02, S02 · InReview.
+- [x] **V03 — Recovery từng nguồn thực thi được và có rollback** · Reliability · phụ thuộc: V02, S02 · Verified.
 - [x] **D01 — Native launcher/tray và service lifecycle** · Platform · phụ thuộc: S01, S02 · Verified.
 - [x] **D02 — Một nút đăng nhập dashboard qua IPC ticket** · Platform · phụ thuộc: D01 · Verified.
 
 ### M3 — Kết nối và onboarding
 
-- [ ] **O01 — Onboarding coordinator lưu/tiếp tục và health thực** · Platform · phụ thuộc: D02, V01 · InReview.
-- [ ] **O02 — Kết nối API cloud/local qua native dialogs** · Platform · phụ thuộc: O01 · InReview.
-- [ ] **O03 — Đăng nhập tài khoản Telegram bằng QR/OTP/2FA** · Platform · phụ thuộc: O01 · InReview.
-- [ ] **O04 — Kết nối bot và ghép đúng owner bằng nút Start** · Platform · phụ thuộc: O03 · Planned.
-- [ ] **U02 — Navigation/dashboard setup và connections dễ hiểu** · Experience · phụ thuộc: O01, U01 · InReview.
+- [x] **O01 — Onboarding coordinator lưu/tiếp tục và health thực** · Platform · phụ thuộc: D02, V01 · Verified.
+- [x] **O02 — Kết nối API cloud/local qua native dialogs** · Platform · phụ thuộc: O01 · Verified.
+- [x] **O03 — Đăng nhập tài khoản Telegram bằng QR/OTP/2FA** · Platform · phụ thuộc: O01 · Verified.
+- [ ] **O04 — Kết nối bot và ghép đúng owner bằng nút Start** · Platform · phụ thuộc: O03 · InProgress.
+- [x] **U02 — Navigation/dashboard setup và connections dễ hiểu** · Experience · phụ thuộc: O01, U01 · Verified.
 
 ### M4 — Quản trị hoàn chỉnh
 

@@ -1,9 +1,9 @@
 # O01 independent persisted onboarding and measured health
 
 <!-- five-current -->
-## Integrated acceptance — 07/10/2026
+## Integrated acceptance — 08/10/2026
 
-Current status: **InReview**. The coordinator's [integrated review](review-five-completion.md) and [execution manifest](five-completion.json) supersede historical code-integration Pending statements below. SQLite-only source follows the directly approved amendment. Live accounts/provider/downloads, physical Windows/installer, licensing, human UAT and soak remain Pending; this is not beta-ready or publication. O04 bot setup and U03 first-answer UX remain separate roadmap work.
+Current status: **Verified**. The coordinator's [integrated review](review-five-completion.md) and [execution manifest](five-completion.json) supersede historical code-integration Pending statements below. SQLite-only source follows the directly approved amendment. Live accounts/provider/downloads, physical Windows/installer, licensing, human UAT and soak remain Pending; this is not beta-ready or publication. O04 bot setup and U03 first-answer UX remain separate roadmap work.
 <!-- /five-current -->
 Status: independent service and the scoped native/worker setup shell have passed independent review. Actual AI/Telegram/bot/source/answer producers and full onboarding acceptance remain Pending. O01 is InProgress; this is not task Verified or beta readiness. Historical sections below retain their original execution scope.
 

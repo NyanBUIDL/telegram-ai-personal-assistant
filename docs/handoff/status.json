@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-10-07",
+  "updated_at": "2026-10-08",
   "scope": "Windows per-user local application",
   "baseline_commit": "7429fcffd61860e9502f066e0b6a921df72fe176",
   "documents_ready": true,
@@ -143,7 +143,7 @@
         "V02",
         "S02"
       ],
-      "status": "InReview",
+      "status": "Verified",
       "evidence": [
         "docs/handoff/evidence/task-V03.md",
         "docs/handoff/evidence/review-five-completion.md",
@@ -190,7 +190,7 @@
         "D02",
         "V01"
       ],
-      "status": "InReview",
+      "status": "Verified",
       "evidence": [
         "docs/handoff/evidence/task-O01.md",
         "docs/handoff/evidence/review-five-completion.md",
@@ -206,7 +206,7 @@
       "dependencies": [
         "O01"
       ],
-      "status": "InReview",
+      "status": "Verified",
       "evidence": [
         "docs/handoff/evidence/task-O02.md",
         "docs/handoff/evidence/review-five-completion.md",
@@ -222,7 +222,7 @@
       "dependencies": [
         "O01"
       ],
-      "status": "InReview",
+      "status": "Verified",
       "evidence": [
         "docs/handoff/evidence/task-O03.md",
         "docs/handoff/evidence/review-five-completion.md",
@@ -238,8 +238,10 @@
       "dependencies": [
         "O03"
       ],
-      "status": "Planned",
-      "evidence": [],
+      "status": "InProgress",
+      "evidence": [
+        "docs/handoff/evidence/task-O04.md"
+      ],
       "acceptance": "Tạo/connect/pair bot không paste token qua chat, trạng thái UI cập nhật từ actual bot event."
     },
     {
@@ -266,7 +268,7 @@
         "O01",
         "U01"
       ],
-      "status": "InReview",
+      "status": "Verified",
       "evidence": [
         "docs/handoff/evidence/task-U02.md",
         "docs/handoff/evidence/review-five-completion.md",
