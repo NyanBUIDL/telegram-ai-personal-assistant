@@ -1638,3 +1638,62 @@ async def test_paired_activation_target_pointer_requires_authenticated_owner(
     assert tree_bytes(path) == before
     async with app.database.session() as session:
         assert (await session.get(AppSetting, pointer_key(profile.store_id))).value == pointer
+
+
+async def paused_job_with_deleted_plan(app, recovery):
+    """Real queued->paused job whose synthetic AppSetting plan row is then removed."""
+    from tg_assistant.services.vector_recovery import plan_key
+
+    plan = await recovery.preview(20, app.settings.embedding_profile.store_id)
+    operation = await recovery.enqueue(plan.plan_id, 7)
+    await recovery.control(operation, "pause", 7)
+    async with app.database.session() as session:
+        await session.delete(await session.get(AppSetting, plan_key(plan.plan_id)))
+    return operation, plan
+
+
+async def paused_job_state(app, operation, plan, requests):
+    from tg_assistant.services.vector_recovery import plan_key
+
+    async with app.database.session() as session:
+        job = await session.get(BackgroundJob, operation)
+        audits = (await session.scalars(select(AuditLog.id).order_by(AuditLog.id))).all()
+        return {
+            "job": (
+                job.status,
+                job.run_after,
+                job.paused_at,
+                job.payload,
+                job.claim_token,
+                job.locked_by,
+                job.lease_expires_at,
+            ),
+            "plan_row": await session.get(AppSetting, plan_key(plan.plan_id)),
+            "audits": list(audits),
+            "provider_calls": len(requests),
+            "sql_and_vectors": await snapshot(app),
+        }
+
+
+async def test_owned_paused_resume_with_missing_plan_row_reports_plan_unknown(recovery_case):
+    app, requests, _ = recovery_case
+    recovery = service(app)
+    operation, plan = await paused_job_with_deleted_plan(app, recovery)
+    before = await paused_job_state(app, operation, plan, requests)
+    assert before["job"][0] == "paused" and before["job"][2] is not None
+    assert before["plan_row"] is None
+    with pytest.raises(ValueError, match="recovery_plan_unknown"):
+        await service(app).control(operation, "resume", 7)
+    assert await paused_job_state(app, operation, plan, requests) == before
+
+
+async def test_foreign_actor_resume_of_missing_plan_job_refused_before_side_effects(
+    recovery_case,
+):
+    app, requests, _ = recovery_case
+    recovery = service(app)
+    operation, plan = await paused_job_with_deleted_plan(app, recovery)
+    before = await paused_job_state(app, operation, plan, requests)
+    with pytest.raises(PermissionError, match="recovery_not_owner"):
+        await service(app).control(operation, "resume", 8)
+    assert await paused_job_state(app, operation, plan, requests) == before

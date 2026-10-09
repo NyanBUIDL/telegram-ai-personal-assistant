@@ -972,6 +972,8 @@ class VectorRecoveryService:
                 job.paused_at = datetime.now(UTC)
             elif operation == "resume" and job.status == "paused":
                 row = await session.get(AppSetting, plan_key(job.payload["plan_id"]))
+                if row is None:
+                    raise ValueError("recovery_plan_unknown")
                 await self._validate(session, row.value, expiry=False, locked=True)
                 if job.payload.get("external_effect_started"):
                     raise ValueError("recovery_requires_reconciliation")
