@@ -13,7 +13,7 @@
 "O01","M3","Platform","D02|V01","Verified","Wizard complete/resume/error states UI lẫn backend phản ánh cùng contract.","docs/handoff/evidence/task-O01.md|docs/handoff/evidence/review-five-completion.md|docs/handoff/evidence/five-completion.json"
 "O02","M3","Platform","O01","Verified","Connect/test/change/disconnect OpenAI/OpenRouter/Ollama supported thật; không cần terminal hoặc hidden Ollama.","docs/handoff/evidence/task-O02.md|docs/handoff/evidence/review-five-completion.md|docs/handoff/evidence/five-completion.json"
 "O03","M3","Platform","O01","Verified","GUI đủ QR và fallback; không claim autoAPIregistration hoặc email/OTP auto-read.","docs/handoff/evidence/task-O03.md|docs/handoff/evidence/review-five-completion.md|docs/handoff/evidence/five-completion.json"
-"O04","M3","Platform","O03","InProgress","Tạo/connect/pair bot không paste token qua chat, trạng thái UI cập nhật từ actual bot event.","docs/handoff/evidence/task-O04.md"
+"O04","M3","Platform","O03","InReview","Tạo/connect/pair bot không paste token qua chat, trạng thái UI cập nhật từ actual bot event.","docs/handoff/evidence/task-O04.md|docs/handoff/evidence/o04-review.json"
 "U01","M1","Experience","B00","Verified","Có trước/sau evidence và art signoff; không coi đổi palette/font là redesign trong scope.","docs/handoff/evidence/task-U01.md|docs/handoff/evidence/review-U01.md"
 "U02","M3","Experience","O01|U01","Verified","Người mới hiểu thiếu gì và sửa ở đâu mà không mở docs dài/terminal.","docs/handoff/evidence/task-U02.md|docs/handoff/evidence/review-five-completion.md|docs/handoff/evidence/five-completion.json"
 "U03","M4","Experience","O04|V03|U02","Planned","Journey đầu hoàn thành tới answer verified; status không chuyển xanh khi unknown/partial.",""

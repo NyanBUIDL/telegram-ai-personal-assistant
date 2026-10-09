@@ -242,6 +242,20 @@ class DashboardTicketService(AdminAuth):
         self._verified_owner = None
         self._generation = 0
         self._available = True
+        self.before_authority = None
+
+    def _reconcile_authority(self):
+        if self.before_authority is None:
+            return True
+        reconciled = False
+        try:
+            reconciled = self.before_authority() is None
+        except Exception:
+            reconciled = False
+        if not reconciled:
+            self.invalidate()
+            self._verified_owner = None
+        return reconciled
 
     def shutdown(self):
         with self._lock:
@@ -266,6 +280,8 @@ class DashboardTicketService(AdminAuth):
         if profile_id != self.profile_id or windows_sid != self.windows_sid or now.tzinfo is None:
             raise PermissionError("native_authority_denied")
         with self._lock:
+            if not self._reconcile_authority():
+                raise PermissionError("native_authority_denied")
             if not self._available:
                 raise PermissionError("native_authority_denied")
             self._tickets = {digest: record for digest, record in self._tickets.items() if record[0] > now}
@@ -284,6 +300,8 @@ class DashboardTicketService(AdminAuth):
             raise PermissionError("ticket_denied")
         digest = hashlib.sha256(ticket.encode("ascii")).hexdigest()
         with self._lock:
+            if not self._reconcile_authority():
+                raise PermissionError("ticket_denied")
             record = self._tickets.pop(digest, None)
             if not record or record[0] <= now or record[1:] != (self.profile_id, "dashboard", self._generation):
                 raise PermissionError("ticket_denied")
@@ -303,6 +321,8 @@ class DashboardTicketService(AdminAuth):
 
     def get_session(self, token):
         with self._lock:
+            if not self._reconcile_authority():
+                return None
             return super().get_session(token) if self._available else None
 
 

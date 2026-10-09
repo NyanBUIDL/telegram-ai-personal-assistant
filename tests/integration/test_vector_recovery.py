@@ -1193,6 +1193,7 @@ async def test_integrated_admin_preview_confirm_worker_and_session_boundary(
             resume_all_handler=unused,
             paths={"data": app.settings.data_dir},
             admin_secret=secret,
+            management_admission=lambda: True,
         )
     )
     async with httpx.AsyncClient(
@@ -1377,7 +1378,11 @@ async def test_integrated_authenticated_startup_refuses_pointer_for_other_owner(
 
 
 async def paired_runtime_startup(app, monkeypatch):
-    """Run the actual paired startup to its registered callbacks without clients."""
+    """Exercise real vector startup with an explicitly isolated bot composition.
+
+    This double supplies no Telegram health evidence. Native O04 suites own that
+    proof; here real SQL/vector callbacks must run against a still-live runtime.
+    """
     from tg_assistant import runtime
 
     async with app.database.session() as session:
@@ -1391,8 +1396,37 @@ async def paired_runtime_startup(app, monkeypatch):
         pass
 
     callbacks = {}
+    registered = asyncio.Event()
+
+    class PrivateBotContext:
+        def __init__(self, runtime):
+            self.runtime, self.user = runtime, runtime.user
+            self.account_client = runtime.user.client
+            self.bot = object()
+            self.prepared = False
+
+        async def prepare(self):
+            assert self.runtime.bot is None and self.user.owner_id == 7
+            self.prepared = True
+
+        def management_admitted(self):
+            return (
+                self.prepared is True
+                and self.runtime.user is self.user
+                and self.user.client is self.account_client
+                and type(self.user.owner_id) is int
+                and self.user.owner_id == 7
+            )
+
+        async def run_updates(self, dispatcher, borrowed_bot):
+            assert borrowed_bot is self.bot
+            await app.stopping.wait()
+
+        async def close(self):
+            self.prepared = False
 
     def bot(*args, **kwargs):
+        assert app.bot_runtime.prepared and kwargs["bot_instance"] is app.bot_runtime.bot
         callbacks.update(kwargs)
         return SimpleNamespace(**kwargs, run=app.stopping.wait)
 
@@ -1404,15 +1438,34 @@ async def paired_runtime_startup(app, monkeypatch):
     app.ai = app.ai_router = app.coingecko = app.ollama = NoNetworkDependency()
     app.paths = {"data": app.settings.data_dir}
     app.scheduler = SimpleNamespace(start=lambda: None, add_job=lambda *args, **kwargs: None)
-    app.admin_app_ready = lambda api: app.stopping.set()
+    app._closed, app._resources_released = False, False
+    app._tasks, app.bot_runtime = [], None
+    app.bot_runtime_factory = PrivateBotContext
+    app.admin_app_ready = lambda api: registered.set()
     app.runtime_ready = None
     monkeypatch.setattr(runtime, "ControlBot", bot)
     monkeypatch.setattr(runtime, "make_ai_engine", lambda *args: NoNetworkDependency())
     monkeypatch.setattr(runtime, "make_ai_router", lambda *args: NoNetworkDependency())
     monkeypatch.setattr(runtime, "make_local_embedding_engine", lambda *args: NoNetworkDependency())
     monkeypatch.setattr(runtime, "save_settings_env", lambda *args: None)
-    await app._run()
-    await asyncio.gather(*app._tasks)
+    startup = asyncio.create_task(app._run())
+    try:
+        await asyncio.wait_for(registered.wait(), 5)
+        assert app.management_admitted() is True
+    finally:
+        # Drain only this fixture's background work. Marking the owning runtime
+        # stopped would correctly deny the subsequent hot-switch callbacks.
+        startup.cancel()
+        tasks = [startup, *app._tasks]
+        for task in tasks:
+            task.cancel()
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        assert not any(
+            isinstance(result, BaseException) and not isinstance(result, asyncio.CancelledError)
+            for result in results
+        )
+        app._tasks = []
+    assert not app.stopping.is_set() and app.management_admitted() is True
     assert callbacks["owner_id"] == 7
     return callbacks
 

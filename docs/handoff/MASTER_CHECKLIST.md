@@ -42,7 +42,7 @@ Ngày lập: 02/10/2026. **Thiết kế đã duyệt; implementation đang thự
 - [x] **O01 — Onboarding coordinator lưu/tiếp tục và health thực** · Platform · phụ thuộc: D02, V01 · Verified.
 - [x] **O02 — Kết nối API cloud/local qua native dialogs** · Platform · phụ thuộc: O01 · Verified.
 - [x] **O03 — Đăng nhập tài khoản Telegram bằng QR/OTP/2FA** · Platform · phụ thuộc: O01 · Verified.
-- [ ] **O04 — Kết nối bot và ghép đúng owner bằng nút Start** · Platform · phụ thuộc: O03 · InProgress.
+- [ ] **O04 — Kết nối bot và ghép đúng owner bằng nút Start** · Platform · phụ thuộc: O03 · InReview.
 - [x] **U02 — Navigation/dashboard setup và connections dễ hiểu** · Experience · phụ thuộc: O01, U01 · Verified.
 
 ### M4 — Quản trị hoàn chỉnh

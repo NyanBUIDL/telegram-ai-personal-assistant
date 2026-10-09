@@ -53,7 +53,7 @@ for (const variant of ['lf', 'crlf', 'cr']) {
       expect(await page.evaluate(() => document.cookie.includes('tg_admin_session'))).toBe(false);
       expect(await page.locator('input[type=password], input[name*=token], input[name*=secret]').count()).toBe(0);
       await expect(page.getByText(`Profile: ${ready.profile_id}`, { exact: false })).toBeVisible();
-      await expect(page.getByRole('button', { name: 'Kết nối bot trên Windows' })).toBeDisabled();
+      await expect(page.getByRole('button', { name: 'Kết nối bot trên Windows' })).toBeVisible();
       expect(await page.getByText('CHƯA BIẾT', { exact: true }).count()).toBeGreaterThan(0);
       const rows = await (await measured).json();
       expect(rows.length).toBe(6);
@@ -64,11 +64,12 @@ for (const variant of ['lf', 'crlf', 'cr']) {
       }
       // Await the actual pipe heartbeat before asking React to refresh availability.
       await expect.poll(async () => (await (await context.request.get(ready.origin + '/api/v1/native/dialogs')).json()).commands,
-        { timeout: 10000 }).toEqual(['open_connection_dialog', 'open_telegram_login']);
+        { timeout: 10000 }).toEqual(['open_bot_dialog', 'open_connection_dialog', 'open_telegram_login']);
       await page.getByRole('button', { name: 'Kiểm tra lại', exact: true }).click();
       const button = page.getByRole('button', { name: 'Mở cấu hình AI trên Windows' });
       await expect(button).toBeEnabled({ timeout: 10000 });
       await expect(page.getByRole('button', { name: 'Đăng nhập Telegram trên Windows' })).toBeEnabled();
+      await expect(page.getByRole('button', { name: 'Kết nối bot trên Windows' })).toBeEnabled();
       const queuedPromise = page.waitForResponse(value => value.url().endsWith('/api/v1/native/commands'));
       await button.click();
       const queued = await queuedPromise;

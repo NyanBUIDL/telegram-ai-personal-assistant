@@ -104,7 +104,7 @@ class LauncherWindow(QWidget):
         if self.native_closed:
             return
         available = (
-            ["open_connection_dialog", "open_telegram_login"]
+            ["open_connection_dialog", "open_telegram_login", "open_bot_dialog"]
             if self.setup_dialog is None and self.backup_dialog is None
             and not getattr(self.controller, "handoff_active", False)
             else []

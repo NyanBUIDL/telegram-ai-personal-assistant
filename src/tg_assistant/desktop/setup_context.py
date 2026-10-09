@@ -28,6 +28,7 @@ class SetupContext:
         self.coordinator, self.engine, self.fence = coordinator, engine, fence
         self.provider = provider
         self.telegram = None
+        self.bot = None
 
     def install_telegram(self, context):
         if self.telegram is not None:
@@ -37,6 +38,7 @@ class SetupContext:
         self.coordinator.connections.telegram_reader = context.connection_status
 
     def detach_telegram(self):
+        self.detach_bot()
         if self.telegram is not None:
             # A timeout must retain resources and the actual ownership fence.
             self.telegram.close()
@@ -44,16 +46,40 @@ class SetupContext:
         self.coordinator._verifiers.pop(OnboardingStage.TELEGRAM_VERIFIED, None)
         self.coordinator.connections.telegram_reader = None
 
+    def install_bot(self, context):
+        if self.bot is not None or self.telegram is None or context._account is not self.telegram:
+            raise ValueError("bot_context_already_owned")
+        self.bot = context
+        self.coordinator._verifiers[OnboardingStage.BOT_VERIFIED] = context.bot_verification
+        self.coordinator._verifiers[OnboardingStage.OWNER_PAIRED] = context.pairing_verification
+        self.coordinator.connections.bot_reader = context.connection_status
+
+    def detach_bot(self):
+        if self.bot is not None:
+            # Failure retains both borrowers and account guard; never resume a
+            # second worker while Bot API work is still being drained.
+            self.bot.close()
+            self.bot = None
+        self.coordinator._verifiers.pop(OnboardingStage.BOT_VERIFIED, None)
+        self.coordinator._verifiers.pop(OnboardingStage.OWNER_PAIRED, None)
+        self.coordinator.connections.bot_reader = None
+
     def prepare_health(self, *, active_settings=None, refresh_telegram=True):
         """Owning probes run before the coordinator starts any SQL mutation."""
         self.provider.drain()
         self.provider.refresh_saved_health(active_settings=active_settings)
-        if refresh_telegram and self.telegram is not None:
-            self.telegram.refresh()
+        if refresh_telegram:
+            if self.bot is not None:
+                self.bot.refresh()
+            elif self.telegram is not None:
+                self.telegram.refresh()
 
     def advance_verified(self):
         status = self.coordinator.status()
-        for stage in (OnboardingStage.AI_CONFIGURED, OnboardingStage.TELEGRAM_VERIFIED):
+        for stage in (
+            OnboardingStage.AI_CONFIGURED, OnboardingStage.TELEGRAM_VERIFIED,
+            OnboardingStage.BOT_VERIFIED, OnboardingStage.OWNER_PAIRED,
+        ):
             previous = list(OnboardingStage)[: list(OnboardingStage).index(stage)]
             if stage in status.stage_evidence_ids or any(
                 item not in status.stage_evidence_ids for item in previous
@@ -110,14 +136,17 @@ def open_setup_context(
 
     class SetupHealth(ProviderHealth):
         telegram_reader = None
+        bot_reader = None
 
         def status(self):
             result = super().status()
+            readers = {
+                ConnectionService.TELEGRAM_ACCOUNT: self.telegram_reader,
+                ConnectionService.CONTROL_BOT: self.bot_reader,
+            }
             return [
-                self.telegram_reader().model_copy(deep=True)
-                if row.service == ConnectionService.TELEGRAM_ACCOUNT and self.telegram_reader
-                else row
-                for row in result
+                readers[row.service]().model_copy(deep=True)
+                if readers.get(row.service) else row for row in result
             ]
 
     settings = validate_settings(settings)

@@ -238,9 +238,10 @@
       "dependencies": [
         "O03"
       ],
-      "status": "InProgress",
+      "status": "InReview",
       "evidence": [
-        "docs/handoff/evidence/task-O04.md"
+        "docs/handoff/evidence/task-O04.md",
+        "docs/handoff/evidence/o04-review.json"
       ],
       "acceptance": "Tạo/connect/pair bot không paste token qua chat, trạng thái UI cập nhật từ actual bot event."
     },

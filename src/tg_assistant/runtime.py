@@ -82,7 +82,7 @@ from .services.jobs import (
     utc,
     worker_lease,
 )
-from .services.maintenance import MaintenanceService, profile_writer
+from .services.maintenance import MaintenanceService
 from .services.memory import MemoryService
 from .services.ollama import OllamaPullCancelled, OllamaService
 from .services.operations import (
@@ -110,8 +110,7 @@ from .services.vector_reliability import (
     inspect_source_coverage,
 )
 from .telegram.control_bot import ControlBot, telegram_html_chunks
-from .telegram.pairing import PairingCode
-from .telegram.user_client import UserClientAdapter, mask_phone
+from .telegram.user_client import UserClientAdapter
 
 log = structlog.get_logger()
 
@@ -688,78 +687,39 @@ def make_budget(settings: Settings) -> BudgetService:
     )
 
 
-@profile_writer(lambda: get_settings())
 async def bootstrap() -> None:
-    settings, store, paths = get_settings(), SecretStore(), ensure_runtime_dirs()
-    for key in ("telegram_api_id", "telegram_api_hash", "telegram_phone", "telegram_bot_token"):
-        if not store.get(key):
-            prompt_secrets(store)
-            break
-    username = await verify_bot_token(store.get("telegram_bot_token") or "")
-    print(f"Đã xác minh bot @{username}")
-    database, policy = make_database(settings, store), PolicyEngine()
-    user = make_user_client(settings, store, policy, paths)
-    try:
-        # Telethon tự hỏi OTP/2FA trong terminal và không lưu chúng.
-        me = await user.authenticate(store.get("telegram_phone") or "")
-        async with database.session() as session:
-            account = await session.scalar(select(TelegramAccount).limit(1))
-            if not account:
-                account = TelegramAccount()
-                session.add(account)
-            account.telegram_user_id, account.username = int(me.id), me.username
-            account.phone_masked, account.last_authenticated_at = (
-                mask_phone(me.phone),
-                datetime.now(UTC),
-            )
-            await user.discover_dialogs(session)
-            paired = account.is_owner_paired
-        if not paired:
-            pairing = PairingCode.create(int(me.id), settings.pairing_ttl_seconds)
-            print(f"Mở @{username} và gửi:\n/pair {pairing.value}\nMã hết hạn sau 5 phút.")
-            control = ControlBot(
-                store.get("telegram_bot_token") or "",
-                owner_id=int(me.id),
-                database=database,
-                policy=policy,
-                pairing=pairing,
-            )
-            bot_task = asyncio.create_task(control.run())
-            try:
-                for _ in range(settings.pairing_ttl_seconds):
-                    if pairing.used:
-                        async with database.session() as session:
-                            account = await session.scalar(select(TelegramAccount).limit(1))
-                            if account:
-                                account.is_owner_paired = True
-                        print("[✓] Ghép nối chủ sở hữu thành công.")
-                        break
-                    await asyncio.sleep(1)
-                else:
-                    raise TimeoutError("Mã pairing đã hết hạn")
-            finally:
-                await control.dp.stop_polling()
-                bot_task.cancel()
-                await asyncio.gather(bot_task, return_exceptions=True)
-                await control.close()
-    finally:
-        await user.close()
-        await database.close()
+    """The retired terminal pairing flow cannot grant Windows authority."""
+    typer.echo(
+        "Mở ứng dụng Windows → Thiết lập → Đăng nhập Telegram → Kết nối bot. "
+        "Nhập token trong cửa sổ native rồi dùng liên kết Start hoặc mã /pair "
+        "để ghép tài khoản đã xác minh."
+    )
 
 
 class Application:
+    def _management_fence(self):
+        # The composed Database carries the actual current bot admission. Old
+        # isolated storage/policy callers without that private hook remain valid.
+        check = getattr(self.database, "_check_management", None)
+        if check is not None:
+            check()
+
     async def _source_fence(
         self, chat_id: int, permission: PermissionName, epoch: int | None = None
     ) -> int:
+        self._management_fence()
         # A separate transaction observes committed revocations after network I/O.
         async with self.database.session() as authorization_session:
             lease = active_job_lease.get()
-            return await require_fresh_authorization(
+            observed = await require_fresh_authorization(
                 authorization_session, chat_id, permission, epoch, lease
             )
+        self._management_fence()
+        return observed
 
     async def _model_fence(self, epochs, permission, *, cloud, store_id=None, intent=None):
         """Observe all current source grants/modes and the worker in one fresh read."""
+        self._management_fence()
         async with self.database.session() as current:
             query = (
                 select(
@@ -831,6 +791,7 @@ class Application:
                     == len(hashes)
                 )
             observed = list((await current.execute(query)).all())
+        self._management_fence()
         if lease and any(
             not row.worker_expires_at or utc(row.worker_expires_at) <= datetime.now(UTC)
             for row in observed
@@ -899,10 +860,11 @@ class Application:
                     source.requested_for_learning = False
 
     def __init__(self, *, settings: Settings | None = None, admin_app_ready=None,
-                 runtime_ready=None) -> None:
+                 runtime_ready=None, bot_runtime_factory=None) -> None:
         self.settings = settings if settings is not None else get_settings()
         self.admin_app_ready = admin_app_ready
         self.runtime_ready = runtime_ready
+        self.bot_runtime_factory, self.bot_runtime = bot_runtime_factory, None
         self.store = self.paths = self.database = self.user = None
         self.ai = self.embedding_ai = self.ai_router = None
         self.coingecko = self.ollama = self.rag = None
@@ -910,6 +872,17 @@ class Application:
         self.stopping = asyncio.Event()
         self._tasks = []
         self._closed = False
+        self._resources_released = False
+
+    def management_admitted(self):
+        try:
+            return (
+                not self._closed and getattr(self, "_close_task", None) is None
+                and not self.stopping.is_set() and self.bot_runtime is not None
+                and self.bot_runtime.management_admitted() is True
+            )
+        except Exception:
+            return False
 
     def _initialize(self) -> None:
         self.store = SecretStore()
@@ -1388,6 +1361,7 @@ class Application:
                             await self._source_fence(
                                 chat_id, PermissionName.GROUP_AI_ASK, authorization_epoch
                             )
+                            self._management_fence()
                             await self.user.client.send_message(
                                 chat_id,
                                 "Đã nhận câu hỏi; đang rà dữ liệu Telegram phù hợp…",
@@ -1469,6 +1443,7 @@ class Application:
                 await self._source_fence(chat_id, PermissionName.GROUP_AI_ASK, authorization_epoch)
                 async with self.database.session() as current:
                     await validate_answer(current, answer)
+                self._management_fence()
                 await self.user.client.send_message(
                     chat_id,
                     chunk,
@@ -3672,6 +3647,15 @@ class Application:
                 or not accounts[0].is_active or accounts[0].telegram_user_id != me.id
             ):
                 raise RuntimeError("owner_pairing_required")
+        if self.bot_runtime_factory is None:
+            raise RuntimeError("owner_pairing_required")
+        self.bot_runtime = self.bot_runtime_factory(self)
+        await self.bot_runtime.prepare()
+        if not self.management_admitted():
+            raise RuntimeError("owner_pairing_required")
+        self.database.management_admission = self.management_admitted
+        self.user.management_admission = self.management_admitted
+        async with self.database.session() as session:
             await self.user.discover_dialogs(session)
             recovered_jobs = await recover_interrupted_learning_jobs(session)
             if recovered_jobs:
@@ -3684,7 +3668,7 @@ class Application:
             group_ask_handler=self._handle_group_ai_ask,
         )
         self.bot = ControlBot(
-            self.store.get("telegram_bot_token") or "",
+            "",
             owner_id=int(me.id),
             database=self.database,
             policy=self.policy,
@@ -3695,6 +3679,9 @@ class Application:
             ollama=self.ollama,
             ollama_activate_handler=self._activate_ollama,
             ai_provider_switch_handler=self._switch_ai_provider,
+            bot_instance=self.bot_runtime.bot,
+            admission=self.management_admitted,
+            polling_runner=self.bot_runtime.run_updates,
         )
         self.scheduler.start()
         self.scheduler.add_job(
@@ -3751,6 +3738,10 @@ class Application:
             asyncio.create_task(self.user.client.run_until_disconnected()),
             asyncio.create_task(self._execute_actions()),
         ]
+        if self.runtime_ready is not None:
+            # Owning bot/account observations must precede attachment of the
+            # dashboard API and issuance of management tickets.
+            self.runtime_ready(self)
         if self.settings.admin_api_enabled:
             admin_app = create_admin_app(
                 AdminContext(
@@ -3769,16 +3760,13 @@ class Application:
                     scheduler_getter=lambda: self.scheduler,
                     history_ai_filter_handler=self._classify_history_delete_with_openai,
                     history_sender_lookup_handler=self._resolve_history_sender_identity,
+                    management_admission=self.management_admitted,
                 )
             )
             if self.admin_app_ready is not None:
                 self.admin_app_ready(admin_app)
             else:
                 self._start_admin_server(admin_app)
-        if self.runtime_ready is not None:
-            # Private owning-loop reference, delivered only after actual SDK
-            # authentication and durable paired-owner checks above.
-            self.runtime_ready(self)
         stopped = asyncio.create_task(self.stopping.wait())
         self._tasks.append(stopped)
         completed, _ = await asyncio.wait(self._tasks, return_when=asyncio.FIRST_COMPLETED)
@@ -3805,7 +3793,7 @@ class Application:
 
     async def close(self) -> None:
         task = getattr(self, "_close_task", None)
-        if task is None:
+        if task is None or (task.done() and not task.cancelled() and task.exception() is not None):
             task = asyncio.create_task(self._close_resources())
             self._close_task = task
         cancelled = False
@@ -3851,8 +3839,19 @@ class Application:
                 self.rag.vectors.close()
             except Exception as exc:
                 errors.append(exc)
+        # Both bot borrowers and the owning SDK transport must drain before
+        # account/session/database cleanup. A failed drain keeps those owners
+        # available for the next explicit close attempt.
+        for bot_resource in (self.bot, self.bot_runtime):
+            if bot_resource is not None:
+                pending = False
+                try:
+                    await bot_resource.close()
+                except Exception:
+                    pending = True
+                if pending:
+                    raise RuntimeError("runtime_cleanup_pending") from None
         resources = (
-            self.bot,
             self.ai_router or self.ai,
             self.embedding_ai,
             self.ollama,
@@ -3877,16 +3876,21 @@ class Application:
                     errors.append(exc)
         if errors:
             raise RuntimeError("runtime_cleanup_failed") from None
+        self._resources_released = True
         log.info("application_stopped")
 
 
 async def run_application(*, settings: Settings | None = None, admin_app_ready=None,
-                          runtime_ready=None) -> None:
+                          runtime_ready=None, bot_runtime_factory=None, runtime_owned=None) -> None:
     settings = settings if settings is not None else get_settings()
     paths = ensure_runtime_dirs(settings.data_dir, profile_id=settings.profile_id)
     with MaintenanceService(paths["config"], profile_id=settings.profile_id).operation():
         app = Application(settings=settings, admin_app_ready=admin_app_ready,
-                          runtime_ready=runtime_ready)
+                          runtime_ready=runtime_ready, bot_runtime_factory=bot_runtime_factory)
+        # Register lifecycle ownership before initialization/authentication can
+        # await or fail. A later bot factory cannot cover those cleanup failures.
+        if runtime_owned is not None:
+            runtime_owned(app)
         loop = asyncio.get_running_loop()
         for sig in (signal.SIGINT, signal.SIGTERM):
             try:

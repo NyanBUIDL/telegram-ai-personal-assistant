@@ -53,6 +53,7 @@ class RuntimeGateway:
         self._admin = None
         self.runtime_owner = None
         self.tickets = DashboardTicketService(profile_id=profile_id, windows_sid=current_user_sid(), origin=self.origin)
+        self.tickets.before_authority = self.before_dashboard_ticket
         self.authentication = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
         self.native_relay = None
         if setup_context is not None and setup_context.fence.profile_id == profile_id:
@@ -164,16 +165,28 @@ class RuntimeGateway:
     @property
     def admin(self):
         owner = self.runtime_owner
-        if self._admin is not None and owner is not None and (
-            owner._closed or getattr(owner, "_close_task", None) is not None
-            or owner.stopping.is_set()
-        ):
+        admitted = False
+        if self._admin is not None and owner is not None:
+            try:
+                admitted = (
+                    not owner._closed and getattr(owner, "_close_task", None) is None
+                    and not owner.stopping.is_set()
+                    and owner.management_admitted() is True
+                )
+            except Exception:
+                admitted = False
+        if self._admin is not None and not admitted:
             # Withdraw management at the request boundary, without waiting for
             # a 15-second health tick or slow SDK/resource shutdown.
             self.tickets.invalidate()
             self.tickets.set_verified_owner(None)
             self._admin = None
         return self._admin
+
+    def before_dashboard_ticket(self):
+        # The SID-authenticated pipe issues tickets without traversing HTTP.
+        # Reconcile the same current admission before capturing ticket authority.
+        _ = self.admin
 
     def native_submit(self, command, session):
         if self.native_relay is None:
@@ -288,6 +301,30 @@ async def maintain_setup_health(coordinator, *, interval=15, refresh_handler=Non
             logging.getLogger(__name__).warning("setup_health_refresh_unavailable")
 
 
+async def drain_runtime_owner(runtime, *, on_pending=None):
+    """Retain the actual account/SDK owner until a close attempt succeeds.
+
+    Worker cancellation cannot turn an uncertain drain into permission to
+    release the surrounding native guard or setup storage. Only cleanup is
+    retried here; external actions are never replayed.
+    """
+    cancelled = False
+    while not runtime._resources_released:
+        try:
+            await runtime.close()
+        except asyncio.CancelledError:
+            cancelled = True
+        except Exception:
+            if on_pending is not None:
+                on_pending()
+            try:
+                await asyncio.sleep(0.1)
+            except asyncio.CancelledError:
+                cancelled = True
+    if cancelled:
+        raise asyncio.CancelledError
+
+
 async def _serve(settings, paths, database, listener, *, setup_context=None, instance_guard=None):
     port = listener.getsockname()[1]
     state_file = paths["config"] / "desktop-runtime.json"
@@ -357,7 +394,9 @@ async def _serve(settings, paths, database, listener, *, setup_context=None, ins
                 # Incompatible embedding identity remains visibly pending. No
                 # corpus/model switch or success is inferred from saved config.
                 logging.getLogger(__name__).warning("provider_activation_unavailable")
-            if setup_context.telegram is not None:
+            if runtime.bot_runtime is not None:
+                await runtime.bot_runtime.refresh(runtime)
+            elif setup_context.telegram is not None:
                 await setup_context.telegram.refresh(runtime)
             await asyncio.to_thread(
                 setup_context.prepare_health, active_settings=runtime.settings,
@@ -368,7 +407,8 @@ async def _serve(settings, paths, database, listener, *, setup_context=None, ins
         await asyncio.to_thread(setup_context.coordinator.resume)
         return await asyncio.to_thread(setup_context.advance_verified)
     pipe = NativePipeServer(
-        settings.profile_id, launch_id, gateway.tickets, command_handler=gateway.native_claim
+        settings.profile_id, launch_id, gateway.tickets,
+        command_handler=gateway.native_claim, before_ticket=gateway.before_dashboard_ticket,
     )
     try:
         pipe.__enter__()
@@ -407,6 +447,8 @@ async def _serve(settings, paths, database, listener, *, setup_context=None, ins
             async def assistant():
                 from ..runtime import run_application
 
+                owned = {}
+
                 def attach(admin):
                     gateway.admin = admin
                     state.update(mode="assistant", owner_id=str(admin.state.admin_context.owner_id))
@@ -415,23 +457,38 @@ async def _serve(settings, paths, database, listener, *, setup_context=None, ins
                 def attach_runtime(runtime):
                     gateway.runtime_owner = runtime
                     if setup_context is not None:
-                        from .telegram_context import RuntimeTelegramObservation
-
-                        setup_context.install_telegram(RuntimeTelegramObservation(
-                            settings, engine=setup_context.engine, fence=setup_context.fence,
-                            guard=instance_guard, store=runtime.store,
-                        ))
+                        setup_context.install_telegram(runtime.bot_runtime.account_observation)
+                        setup_context.install_bot(runtime.bot_runtime.setup_observation)
                     running["runtime"] = runtime
+
+                def bot_runtime_factory(runtime):
+                    from .runtime_bot_context import RuntimeBotContext
+
+                    if setup_context is None or instance_guard is None:
+                        raise RuntimeError("owner_pairing_required")
+                    return RuntimeBotContext(
+                        settings, engine=setup_context.engine, fence=setup_context.fence,
+                        guard=instance_guard, runtime=runtime,
+                    )
 
                 try:
                     await run_application(
                         settings=settings.model_copy(update={"admin_api_port": port}),
                         admin_app_ready=attach,
                         runtime_ready=attach_runtime,
+                        bot_runtime_factory=bot_runtime_factory,
+                        runtime_owned=lambda runtime: owned.update(runtime=runtime),
                     )
                 except Exception:
                     gateway.code = "telegram_reconnect_required"
                 finally:
+                    actual = owned.get("runtime")
+                    if actual is not None:
+                        def pending_cleanup():
+                            gateway.admin = None
+                            gateway.code = "runtime_shutdown_pending"
+
+                        await drain_runtime_owner(actual, on_pending=pending_cleanup)
                     running.pop("runtime", None)
                     if setup_context is not None:
                         await asyncio.to_thread(setup_context.detach_telegram)

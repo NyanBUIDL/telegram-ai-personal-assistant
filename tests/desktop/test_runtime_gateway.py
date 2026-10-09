@@ -85,6 +85,24 @@ class BotTransport:
         self.closed += 1
 
 
+class PreparedBotContext:
+    """Private composition double; owning SDK/pair proof has its own O04 suite."""
+
+    bot = object()
+
+    async def prepare(self):
+        pass
+
+    def management_admitted(self):
+        return True
+
+    async def run_updates(self, *_args):
+        pass
+
+    async def close(self):
+        pass
+
+
 @pytest.fixture
 async def native_case(tmp_path, monkeypatch):
     selected = Settings(
@@ -136,7 +154,7 @@ async def native_case(tmp_path, monkeypatch):
     return selected, paths, store, transports
 
 
-async def test_native_resume_attaches_protected_api_to_existing_gateway(native_case):
+async def test_native_resume_legacy_pair_requires_native_reenrollment(native_case):
     selected, paths, store, transports = native_case
     gateway = RuntimeGateway(selected.admin_api_port, "1" * 32)
     attached = []
@@ -147,15 +165,16 @@ async def test_native_resume_attaches_protected_api_to_existing_gateway(native_c
         application.stopping.set()
 
     application = runtime.Application(settings=selected, admin_app_ready=attach)
-    await application.run()
-    assert attached == [123]
+    with pytest.raises(RuntimeError, match="owner_pairing_required"):
+        await application.run()
+    assert attached == []
     assert application.user.owner_id == 123 and transports[0].closed == 1
     async with httpx.AsyncClient(
         transport=httpx.ASGITransport(app=gateway), base_url="http://127.0.0.1:18765"
     ) as client:
-        assert (await client.get("/api/v1/overview")).status_code == 401
+        assert (await client.get("/api/v1/auth/session")).status_code == 401
         response = await client.get("/api/v1/runtime/readiness")
-        assert response.json()["capabilities"] == ["management"]
+        assert response.json()["capabilities"] == ["setup"]
         assert (
             await client.get("/api/v1/overview", headers={"Origin": "https://foreign.invalid"})
         ).status_code == 403
@@ -165,7 +184,7 @@ async def test_native_resume_attaches_protected_api_to_existing_gateway(native_c
     )
     assert content == b"synthetic session content"
     await application.close()
-    assert transports[0].closed == 1 and application.bot.closed == 1
+    assert transports[0].closed == 1 and application.bot is None
 
 
 @pytest.mark.parametrize(
@@ -240,8 +259,24 @@ async def test_gateway_withdraws_management_when_actual_runtime_begins_closing(n
     def attach_runtime(actual):
         gateway.runtime_owner = actual
 
+    class PrivateBotContext:
+        bot = object()
+
+        async def prepare(self):
+            pass
+
+        def management_admitted(self):
+            return True
+
+        async def run_updates(self, *_args):
+            pass
+
+        async def close(self):
+            pass
+
     application = runtime.Application(
-        settings=selected, admin_app_ready=attach, runtime_ready=attach_runtime
+        settings=selected, admin_app_ready=attach, runtime_ready=attach_runtime,
+        bot_runtime_factory=lambda _application: PrivateBotContext(),
     )
     await application.run()
     assert gateway.admin is None, "Closed SDK/application must not keep management authority"
@@ -339,7 +374,8 @@ async def test_transport_failure_leaves_ready_runtime_and_closes_resources(
 
     monkeypatch.setattr(BotTransport, "run", failed_bot)
     application = runtime.Application(
-        settings=selected, admin_app_ready=lambda admin: attached.set()
+        settings=selected, admin_app_ready=lambda admin: attached.set(),
+        bot_runtime_factory=lambda _application: PreparedBotContext(),
     )
     task = asyncio.create_task(application.run())
     await asyncio.wait_for(attached.wait(), timeout=5)
@@ -530,13 +566,16 @@ async def test_completed_assistant_removes_management_from_live_gateway(native_c
     servers = []
 
     class StoppingApplication(original_application):
-        def __init__(self, *, settings, admin_app_ready, runtime_ready=None):
+        def __init__(self, *, settings, admin_app_ready, runtime_ready=None, bot_runtime_factory=None):
             def attach(admin):
                 admin_app_ready(admin)
                 attached.set()
                 self.stopping.set()
 
-            super().__init__(settings=settings, admin_app_ready=attach, runtime_ready=runtime_ready)
+            super().__init__(
+                settings=settings, admin_app_ready=attach, runtime_ready=runtime_ready,
+                bot_runtime_factory=lambda _application: PreparedBotContext(),
+            )
 
     def server(*args):
         assert not servers, "Native runtime opened a second listener"

@@ -106,10 +106,11 @@ def _write(handle, kernel, data):
 
 
 class NativePipeServer:
-    def __init__(self, profile_id, run_id, tickets, *, command_handler=None):
+    def __init__(self, profile_id, run_id, tickets, *, command_handler=None, before_ticket=None):
         self.profile_id, self.run_id, self.tickets = profile_id, run_id, tickets
         self.sid = current_user_sid()
         self.command_handler = command_handler
+        self.before_ticket = before_ticket
         self.sddl = f'D:P(A;;GA;;;{self.sid})'
         self.stop = threading.Event()
         self.failed = threading.Event()
@@ -151,6 +152,14 @@ class NativePipeServer:
         if command.name.value == 'issue_dashboard_ticket':
             if command.payload_nonsecret:
                 raise PermissionError('native_payload_denied')
+            if self.before_ticket is not None:
+                admitted = False
+                try:
+                    admitted = self.before_ticket() is None
+                except Exception:
+                    admitted = False
+                if not admitted:
+                    raise PermissionError('native_ticket_unavailable') from None
             ticket = self.tickets.issue(self.profile_id, peer_sid, datetime.now(UTC))
             return {'raw_ticket': ticket.raw_ticket, 'expires_at': ticket.expires_at.isoformat()}
         if self.command_handler is None:

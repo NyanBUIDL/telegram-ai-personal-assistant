@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import inspect
 import json
+import math
 import os
 import time
 from contextlib import contextmanager
@@ -230,8 +231,14 @@ class MaintenanceService:
             path.unlink(missing_ok=True)
 
     @contextmanager
-    def operation(self):
-        with FileLock(self.control, exclusive=True, timeout=0.2):
+    def operation(self, *, admission_timeout=0.2):
+        if (
+            type(admission_timeout) not in {int, float}
+            or not 0 <= admission_timeout <= 0.2
+            or not math.isfinite(admission_timeout)
+        ):
+            raise MaintenanceBusy("maintenance_admission_invalid")
+        with FileLock(self.control, exclusive=True, timeout=admission_timeout):
             state = self._read()["state"]
             if state != "open" and not admitted(self.key):
                 raise MaintenanceBusy("maintenance_in_progress")

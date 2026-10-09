@@ -425,7 +425,8 @@ async def test_owner_ask_command_rechecks_before_each_delivery(session, revoke_a
     await authorize(session)
     epoch = await source_epoch(session, 100)
     control = ControlBot(
-        "123456:synthetic-test-token", owner_id=1, database=Database(session), policy=PolicyEngine()
+        "123456:synthetic-test-token", owner_id=1, database=Database(session),
+        policy=PolicyEngine(), admission=lambda: True,
     )
     delivered = []
     response = AuthorizedAnswer("confidential " * 700, {100: epoch})
@@ -442,7 +443,7 @@ async def test_owner_ask_command_rechecks_before_each_delivery(session, revoke_a
                 await RevocationService(Database(session), 1).revoke_source(100, 1, "keep")
 
     control._ask_ai = answer
-    message = SimpleNamespace(from_user=SimpleNamespace(id=1), answer=send)
+    message = SimpleNamespace(from_user=SimpleNamespace(id=1, is_bot=False), answer=send)
     handler = next(
         item.callback for item in control.router.message.handlers if item.callback.__name__ == "ask"
     )

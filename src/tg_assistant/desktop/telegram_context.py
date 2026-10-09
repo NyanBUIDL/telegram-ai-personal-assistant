@@ -16,6 +16,7 @@ import weakref
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from threading import Lock, RLock, Thread
+from time import monotonic
 
 from alembic.script import ScriptDirectory
 from cryptography.fernet import Fernet
@@ -40,6 +41,19 @@ from ..services.telegram_publication import (
     _require,
 )
 from .instance import InstanceGuard, _assert_owned_path, _refuse_reparse, native_control_directory
+
+
+def _client_matches_candidate(client, material):
+    """Read current private SDK material without renewing measured evidence."""
+    try:
+        return (
+            client is not None
+            and material is not None
+            and client.is_connected() is True
+            and _material(client.session) == material
+        )
+    except Exception:
+        return False
 
 
 class NativeTelegramRunner:
@@ -70,6 +84,107 @@ class NativeTelegramRunner:
         self.thread.join(5)
         if self.thread.is_alive():
             raise RuntimeError("telegram_shutdown_pending")
+
+
+class BotAccountBinding:
+    """Private, candidate-bound borrow; the account owner retains every resource.
+
+    This handle is neither a public status DTO nor transferable writer evidence.
+    Each access rechecks the owning context; account replacement requires a fresh
+    borrow. Consumers must drain their bot work before the account owner closes.
+    """
+
+    __slots__ = ("_context", "_publication", "_runner", "_client", "_guard", "_proof", "_material")
+
+    def __init__(self, context):
+        try:
+            with context._mutex:
+                self._context, self._publication = context, context.publication
+                _require(type(self._publication) is EncryptedSessionPublication)
+                self._runner, self._client = context.runner, context.service._client
+                self._material = _material(self._client.session)
+                self._guard = self._publication._guard
+                self._proof = context.verification()
+                self._current_proof()
+        except Exception:
+            raise ValueError("bot_account_binding_unavailable") from None
+
+    def _current_proof(self):
+        try:
+            context, publication = self._context, self._publication
+            with context._mutex:
+                _require(
+                    not context._closed
+                    and context._readonly_resume is False
+                    and context.publication is publication
+                    and publication._owns_guard is True
+                    and publication._guard is self._guard
+                    and type(self._guard) is InstanceGuard
+                    and context.engine is publication.engine
+                    and context.fence is publication.maintenance
+                    and context.store is publication.store
+                    and context.profile_id == publication.profile_id
+                    and Path(context._root).resolve() == publication.root
+                    and current_user_sid() == context._sid == publication._sid
+                )
+                publication._check()
+                _require(
+                    context.runner is self._runner
+                    and type(self._runner) is NativeTelegramRunner
+                    and self._runner.thread.is_alive()
+                    and not self._runner.loop.is_closed()
+                    and self._client is not None
+                    and context.service._client is self._client
+                    and not context.service._cancelled.is_set()
+                    and monotonic() < context.service._checked_until
+                    and _client_matches_candidate(self._client, self._material)
+                )
+                # This is private original-age SDK evidence. The public login
+                # view and a caller-supplied owner/bool cannot establish it.
+                proof = context.verification()
+                _require(
+                    self._proof is not None
+                    and proof is not None
+                    and proof.owner_id == self._proof.owner_id
+                    and proof.fingerprint == self._proof.fingerprint
+                    and publication.is_current_readonly(self._client.session, proof.owner_id)
+                    is True
+                )
+                publication._check()
+                # The SDK loop may dispose a candidate before it can publish a
+                # disconnected observation on this context's mutex.
+                _require(
+                    context.service._client is self._client
+                    and not context.service._cancelled.is_set()
+                    and monotonic() < context.service._checked_until
+                    and _client_matches_candidate(self._client, self._material)
+                )
+                return proof
+        except Exception:
+            raise ValueError("bot_account_binding_unavailable") from None
+
+    def account_verifier(self) -> StageVerification | None:
+        """Return only current owning proof, without advancing measured time."""
+        try:
+            return self._current_proof()
+        except ValueError:
+            return None
+
+    def check_ownership(self) -> None:
+        self._current_proof()
+
+    @property
+    def runner(self) -> NativeTelegramRunner:
+        self._current_proof()
+        return self._runner
+
+    @property
+    def owner_id(self) -> int:
+        return int(self._current_proof().owner_id)
+
+    @property
+    def fingerprint(self) -> str:
+        return self._current_proof().fingerprint
 
 
 class TelegramContext:
@@ -192,6 +307,10 @@ class TelegramContext:
                 f"{self.profile_id}:{self._sid}:{owner}:{fingerprint}".encode()
             ).hexdigest(),
         )
+
+    def borrow_bot_binding(self) -> BotAccountBinding:
+        """Borrow native ownership of this exact verified account candidate."""
+        return BotAccountBinding(self)
 
     def connection_status(self):
         proof = self.verification()
@@ -358,6 +477,7 @@ class RuntimeTelegramObservation(TelegramContext):
         self._sid, self._now, self._timeout = current_user_sid(), now, request_timeout
         self._mutex, self._closed = RLock(), False
         self._checked_at = self._fingerprint = self._owner = self._client_ref = None
+        self._client_material = None
         self._state = "unknown"
         self._selection = _digest(
             [
@@ -457,6 +577,7 @@ class RuntimeTelegramObservation(TelegramContext):
         """Called only with the private actual Application on its SDK loop."""
         with self._mutex:
             self._owner = self._fingerprint = self._client_ref = None
+            self._client_material = None
             self._state = "checking"
         try:
             self._check()
@@ -483,7 +604,7 @@ class RuntimeTelegramObservation(TelegramContext):
             _require(runtime.store is self.store)
             with self.fence.operation():
                 material, fingerprint = self._durable(owner)
-                _require(_material(client.session) == material and client.is_connected() is True)
+                _require(_client_matches_candidate(client, material))
                 self._check()
             with self._mutex:
                 self._owner, self._fingerprint, self._client_ref = (
@@ -491,10 +612,12 @@ class RuntimeTelegramObservation(TelegramContext):
                     fingerprint,
                     weakref.ref(client),
                 )
+                self._client_material = material
                 self._state, self._checked_at = "ready", self._time()
         except Exception:
             with self._mutex:
                 self._owner = self._fingerprint = self._client_ref = None
+                self._client_material = None
                 self._state, self._checked_at = "disconnected", self._time()
         return self.connection_status()
 
@@ -502,9 +625,27 @@ class RuntimeTelegramObservation(TelegramContext):
         try:
             with self._mutex:
                 client = self._client_ref() if self._client_ref else None
-            if client is None or client.is_connected() is not True:
-                return None
-            return super().verification()
+                material = self._client_material
+                measured = (self._owner, self._fingerprint, self._checked_at)
+                if not _client_matches_candidate(client, material):
+                    return None
+                proof = super().verification()
+                if proof is None:
+                    return None
+                # Durable reads cannot keep a disposed/replaced SDK candidate
+                # admitted or extend the original owning measurement's age.
+                self._check()
+                if (
+                    self._client_ref is None
+                    or self._client_ref() is not client
+                    or self._client_material != material
+                    or measured != (self._owner, self._fingerprint, self._checked_at)
+                    or self._state != "ready"
+                    or not _client_matches_candidate(client, material)
+                    or not timedelta(0) <= self._time() - self._checked_at < timedelta(seconds=30)
+                ):
+                    return None
+                return proof
         except Exception:
             return None
 
@@ -512,3 +653,4 @@ class RuntimeTelegramObservation(TelegramContext):
         with self._mutex:
             self._closed = True
             self._owner = self._fingerprint = self._client_ref = None
+            self._client_material = None

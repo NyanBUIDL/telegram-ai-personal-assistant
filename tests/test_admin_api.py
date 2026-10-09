@@ -84,6 +84,7 @@ async def admin_client(tmp_path):
             resume_all_handler=no_jobs,
             paths={"data": tmp_path, "downloads": tmp_path / "downloads"},
             admin_secret=secret,
+            management_admission=lambda: True,
             history_ai_filter_handler=filter_history_posts,
             history_sender_lookup_handler=lookup_history_sender,
         )

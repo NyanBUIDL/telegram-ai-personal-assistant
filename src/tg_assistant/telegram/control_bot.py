@@ -11,9 +11,12 @@ from typing import TYPE_CHECKING
 from zoneinfo import ZoneInfo
 
 from aiogram import Bot, Dispatcher, F, Router
+from aiogram.client.session.middlewares.base import BaseRequestMiddleware
+from aiogram.dispatcher.middlewares.base import BaseMiddleware
 from aiogram.filters import Command, CommandObject
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
+from aiogram.methods import GetMe, GetUpdates
 from aiogram.types import (
     BufferedInputFile,
     CallbackQuery,
@@ -1146,6 +1149,49 @@ def digest_window(
     return start.astimezone(UTC), end.astimezone(UTC)
 
 
+class _ManagementUnavailable(RuntimeError):
+    def __init__(self):
+        super().__init__("bot_management_unavailable")
+
+
+class _ManagementUpdateGate(BaseMiddleware):
+    def __init__(self, owner):
+        self._owner = owner
+
+    async def __call__(self, handler, event, data):
+        allowed = (
+            self._owner._owner(event)
+            if isinstance(event, Message)
+            else self._owner._owner_callback(event)
+            if isinstance(event, CallbackQuery)
+            else False
+        )
+        if not allowed:
+            return None
+        task = asyncio.create_task(handler(event, data))
+        self._owner._handler_tasks.add(task)
+        try:
+            return await task
+        except _ManagementUnavailable:
+            # Admission can expire during awaited work. Do not emit a reply or
+            # serialize the update/body while withdrawing that capability.
+            return None
+        finally:
+            self._owner._handler_tasks.discard(task)
+
+
+class _ManagementRequestGate(BaseRequestMiddleware):
+    def __init__(self, admission):
+        self._admission = admission
+
+    async def __call__(self, make_request, bot, method):
+        # Owning health measurements continue while management is withdrawn.
+        # Pairing-only setup never constructs ControlBot or installs this gate.
+        if not isinstance(method, (GetMe, GetUpdates)) and not self._admission():
+            raise _ManagementUnavailable()
+        return await make_request(bot, method)
+
+
 class ControlBot:
     def __init__(
         self,
@@ -1162,8 +1208,16 @@ class ControlBot:
         ollama: OllamaService | None = None,
         ollama_activate_handler: OllamaActivateHandler | None = None,
         ai_provider_switch_handler: AiProviderSwitchHandler | None = None,
+        bot_instance: Bot | None = None,
+        admission: Callable[[], bool] | None = None,
+        polling_runner: Callable[[Dispatcher, Bot], Awaitable[None]] | None = None,
     ) -> None:
-        self.bot, self.dp, self.router = Bot(token), Dispatcher(), Router()
+        if bot_instance is not None and not isinstance(bot_instance, Bot):
+            raise _ManagementUnavailable()
+        self._owns_bot, self._closing = bot_instance is None, False
+        self._admission, self._polling_runner = admission, polling_runner
+        self.bot = Bot(token) if self._owns_bot else bot_instance
+        self.dp, self.router = Dispatcher(), Router()
         self.owner_id, self.database, self.policy, self.pairing = (
             owner_id,
             database,
@@ -1177,6 +1231,7 @@ class ControlBot:
         self.ollama_activate_handler = ollama_activate_handler
         self.ai_provider_switch_handler = ai_provider_switch_handler
         self._background_tasks: set[asyncio.Task] = set()
+        self._handler_tasks: set[asyncio.Task] = set()
         self.actions, self.tasks, self.search = (
             PendingActionService(),
             TaskService(),
@@ -1184,13 +1239,35 @@ class ControlBot:
         )
         self.memories = MemoryService()
         self._register()
+        gate = _ManagementUpdateGate(self)
+        self.router.message.outer_middleware(gate)
+        self.router.callback_query.outer_middleware(gate)
+        self._request_gate = _ManagementRequestGate(self._admitted)
+        self.bot.session.middleware.register(self._request_gate)
         self.dp.include_router(self.router)
 
+    def _admitted(self) -> bool:
+        if self._closing or not callable(self._admission):
+            return False
+        try:
+            return self._admission() is True
+        except Exception:
+            return False
+
     def _owner(self, message: Message) -> bool:
-        return bool(message.from_user and message.from_user.id == self.owner_id)
+        sender = message.from_user
+        return (
+            type(self.owner_id) is int
+            and self.owner_id > 0
+            and sender is not None
+            and type(sender.id) is int
+            and sender.id == self.owner_id
+            and getattr(sender, "is_bot", True) is False
+            and self._admitted()
+        )
 
     def _owner_callback(self, callback: CallbackQuery) -> bool:
-        return callback.from_user.id == self.owner_id
+        return self._owner(callback)
 
     async def _deny(self, message: Message) -> None:
         # Không tiết lộ trạng thái hệ thống cho người lạ.
@@ -1537,12 +1614,12 @@ class ControlBot:
                 return "AI tạm thời không khả dụng; tìm kiếm local vẫn hoạt động."
 
     async def _answer_still_authorized(self, answer: str) -> bool:
-        if not answer:
+        if not answer or not self._admitted():
             return False
         try:
             async with self.database.session() as session:
                 await validate_answer(session, answer)
-            return True
+            return self._admitted()
         except AuthorizationRevoked:
             return False
 
@@ -1725,11 +1802,11 @@ class ControlBot:
         async def pair(message: Message, command: CommandObject) -> None:
             if not self._owner(message):
                 return await self._deny(message)
-            code = (command.args or "").strip()
-            if not self.pairing or not self.pairing.consume(code, message.from_user.id):
-                await message.answer("Mã pairing không hợp lệ hoặc đã hết hạn.")
-                return
-            await message.answer("Đã ghép nối chủ sở hữu. Hệ thống chỉ phản hồi tài khoản này.")
+            # Legacy in-memory PairingCode cannot publish durable authority.
+            # Native enrollment's restricted client owns the actual pair flow.
+            await message.answer(
+                "Mở cửa sổ ghép bot trong ứng dụng Windows để quản lý liên kết ghép."
+            )
 
         @self.router.message(Command("start", "help"))
         async def help_command(message: Message) -> None:
@@ -4555,9 +4632,7 @@ class ControlBot:
             if contains_secret(question):
                 await message.answer("Nội dung có vẻ chứa secret nên bot không gửi nó tới AI.")
                 return
-            await message.answer(
-                "Đã nhận câu hỏi; đang rà dữ liệu Telegram trong 7 ngày gần nhất…"
-            )
+            await message.answer("Đã nhận câu hỏi; đang rà dữ liệu Telegram trong 7 ngày gần nhất…")
             answer = await self._ask_ai(question)
             chunks = telegram_html_chunks(answer)
             for index, chunk in enumerate(chunks):
@@ -5149,11 +5224,28 @@ class ControlBot:
                 )
 
     async def run(self) -> None:
-        await self.dp.start_polling(self.bot, allowed_updates=self.dp.resolve_used_update_types())
+        if not self._admitted():
+            raise _ManagementUnavailable()
+        if self._polling_runner is not None:
+            await self._polling_runner(self.dp, self.bot)
+        elif self._owns_bot:
+            await self.dp.start_polling(
+                self.bot, allowed_updates=self.dp.resolve_used_update_types()
+            )
+        else:
+            # A borrowed SDK belongs to one controlled poller. Aiogram's default
+            # polling shutdown would also close that owner's HTTP session.
+            raise _ManagementUnavailable()
 
     async def close(self) -> None:
-        for task in self._background_tasks:
+        self._closing = True
+        tasks = tuple(self._background_tasks | self._handler_tasks)
+        for task in tasks:
             task.cancel()
-        if self._background_tasks:
-            await asyncio.gather(*self._background_tasks, return_exceptions=True)
-        await self.bot.session.close()
+        if tasks:
+            await asyncio.gather(*tasks, return_exceptions=True)
+        if self._request_gate is not None:
+            self.bot.session.middleware.unregister(self._request_gate)
+            self._request_gate = None
+        if self._owns_bot:
+            await self.bot.session.close()

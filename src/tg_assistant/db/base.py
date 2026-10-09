@@ -50,6 +50,19 @@ class Database:
         event.listen(self.engine.sync_engine, "connect", configure_sqlite)
         self.sessions = async_sessionmaker(self.engine, expire_on_commit=False)
         self.fence = None
+        self.management_admission = None
+
+    def _check_management(self):
+        callback = self.management_admission
+        if callback is None:
+            return
+        admitted = False
+        try:
+            admitted = callback() is True
+        except Exception:
+            admitted = False
+        if not admitted:
+            raise PermissionError("owner_pairing_required") from None
 
     def operation(self):
         return self.fence.operation() if self.fence else nullcontext()
@@ -57,6 +70,7 @@ class Database:
     @asynccontextmanager
     async def session(self) -> AsyncIterator[AsyncSession]:
         with self.operation():
+            self._check_management()
             async with self.sessions() as session:
                 from ..services.jobs import (
                     active_job_lease,
@@ -89,6 +103,12 @@ class Database:
 
                     event.listen(session.sync_session, "after_commit", clear_guard)
                     event.listen(session.sync_session, "after_rollback", clear_guard)
+                if self.management_admission is not None:
+                    # Job/source fences above issue actual SQL and can yield.
+                    # Their success must precede the final current bot check.
+                    event.listen(session.sync_session, "before_flush", lambda *_: self._check_management())
+                    event.listen(session.sync_session, "before_commit", lambda *_: self._check_management())
+                    event.listen(session.sync_session, "do_orm_execute", lambda *_: self._check_management())
                 try:
                     yield session
                     await session.commit()

@@ -53,6 +53,7 @@ async def backup_admin(tmp_path, monkeypatch):
             resume_all_handler=handler,
             paths={"data": settings.data_dir},
             admin_secret="synthetic-backup-owner",  # noqa: S106 - disposable test authority
+            management_admission=lambda: True,
         )
     )
     async with httpx.AsyncClient(

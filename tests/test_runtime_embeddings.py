@@ -250,7 +250,7 @@ async def test_application_close_releases_independent_embedding_http_client(runt
         pass
 
     app.stopping = asyncio.Event()
-    app.admin_server, app.bot = None, None
+    app.admin_server, app.bot, app.bot_runtime = None, None, None
     app.scheduler = SimpleNamespace(running=False)
     app.ai_router = app.ollama = app.coingecko = app.user = SimpleNamespace(
         close=closed, engines={}

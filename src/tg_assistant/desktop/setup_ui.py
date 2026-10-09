@@ -243,10 +243,76 @@ class NativeSetupController:
                     parent,
                 )
 
+        def open_bot(parent):
+            from .bot_context import open_bot_context
+            from .dialogs.bot import NativeBotDialog
+            from .telegram_context import open_telegram_context
+
+            if not contexts or runtime_controller is None:
+                raise ValueError("setup_unavailable")
+            current = contexts[0]
+            stopped = _wait_operation(
+                runtime_controller.quiesce(),
+                "Đang dừng an toàn trước khi kết nối bot…", parent,
+            )
+            if stopped is not True:
+                raise ValueError("telegram_worker_handoff_unavailable")
+            runtime_controller._native_handoff_context = current
+
+            def acquire():
+                selected = open_telegram_context(
+                    settings, engine=current.engine, fence=current.fence,
+                    **(
+                        {"secret_store_factory": context_options["secret_store_factory"]}
+                        if context_options and "secret_store_factory" in context_options else {}
+                    ),
+                )
+                # Install before probing so failures still retain an actual
+                # account owner for the mandatory drain below.
+                current.install_telegram(selected)
+                selected.refresh()
+                if selected.verification() is None:
+                    raise ValueError("telegram_account_required")
+                bot = open_bot_context(
+                    settings, engine=current.engine, fence=current.fence,
+                    account_context=selected,
+                )
+                current.install_bot(bot)
+                return bot
+
+            try:
+                selected = _wait_operation(
+                    control.executor.submit(acquire), "Đang xác minh tài khoản cho bot…", parent,
+                )
+                NativeBotDialog(selected, parent=parent).exec()
+                _wait_operation(
+                    control.executor.submit(current.advance_verified),
+                    "Đang kiểm tra kết nối và ghép bot…", parent,
+                )
+            finally:
+                _wait_operation(
+                    control.executor.submit(current.detach_telegram),
+                    "Đang đóng kết nối bot và tài khoản an toàn…", parent,
+                )
+
+                def release_setup():
+                    current.close()
+                    contexts.clear()
+                    runtime_controller._native_handoff_context = None
+
+                _wait_operation(
+                    control.executor.submit(release_setup),
+                    "Đang chuẩn bị khởi động lại an toàn…", parent,
+                )
+                _wait_operation(
+                    runtime_controller.resume_after_handoff(), "Đang mở lại ứng dụng…", parent,
+                )
+
         handlers = dict(dialog_handlers or {})
         handlers.setdefault("open_connection_dialog", open_provider)
         if runtime_controller is not None:
             handlers.setdefault("open_telegram_login", open_telegram)
+            handlers.setdefault("open_bot_dialog", open_bot)
 
         control = cls(
             coordinator,

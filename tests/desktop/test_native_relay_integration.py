@@ -253,7 +253,9 @@ def test_hidden_launcher_opens_real_provider_modal_from_browser(qt_application, 
                 availability = client.get("/api/v1/native/dialogs")
                 if availability.status_code == 200 and availability.json()["commands"]:
                     break
-            assert availability.json()["commands"] == ["open_connection_dialog", "open_telegram_login"], (
+            assert availability.json()["commands"] == [
+                "open_bot_dialog", "open_connection_dialog", "open_telegram_login"
+            ], (
                 "hidden launcher did not advertise an actual provider handler"
             )
             command = dict(name="open_connection_dialog", request_id=uuid4().hex,

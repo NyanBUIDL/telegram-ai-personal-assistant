@@ -137,6 +137,7 @@ class AdminContext:
     scheduler_getter: Callable[[], Any] | None = None
     history_ai_filter_handler: HistoryAiFilterHandler | None = None
     history_sender_lookup_handler: HistorySenderLookupHandler | None = None
+    management_admission: Callable[[], bool] | None = None
 
 
 def _utc(value: datetime | None) -> datetime | None:
@@ -377,6 +378,33 @@ def create_admin_app(context: AdminContext) -> FastAPI:
     app.state.admin_context = context
     app.state.admin_auth = auth
 
+    def admission_current():
+        try:
+            return (
+                type(context.owner_id) is int and context.owner_id > 0
+                and context.management_admission is not None
+                and context.management_admission() is True
+            )
+        except Exception:
+            return False
+
+    previous_database_admission = context.database.management_admission
+
+    def database_admission():
+        return admission_current() and (
+            previous_database_admission is None or previous_database_admission() is True
+        )
+
+    context.database.management_admission = database_admission
+
+    def withdraw_sessions():
+        current_auth = app.state.admin_auth
+        if hasattr(current_auth, "invalidate"):
+            current_auth.invalidate()
+        else:
+            for old_token in tuple(current_auth.sessions):
+                current_auth.revoke_session(old_token)
+
     @app.exception_handler(MaintenanceBusy)
     async def maintenance_busy(_request, _error):
         return JSONResponse(
@@ -411,7 +439,15 @@ def create_admin_app(context: AdminContext) -> FastAPI:
 
     @app.middleware("http")
     async def secure_api_headers(request: Request, call_next):
-        response = await call_next(request)
+        admitted = admission_current() if request.url.path.startswith("/api/") else False
+        if request.url.path.startswith("/api/") and not admitted:
+            withdraw_sessions()
+            response = JSONResponse(
+                status_code=403,
+                content={"code": "owner_pairing_required", "detail": "Cần xác minh và ghép bot trước khi quản lý."},
+            )
+        else:
+            response = await call_next(request)
         if request.url.path.startswith("/api/"):
             response.headers["Cache-Control"] = "no-store"
             response.headers["X-Content-Type-Options"] = "nosniff"
@@ -423,6 +459,9 @@ def create_admin_app(context: AdminContext) -> FastAPI:
     async def require_session(
         token: str | None = Depends(cookie),
     ) -> AdminSession:
+        if not admission_current():
+            withdraw_sessions()
+            raise HTTPException(status_code=403, detail="owner_pairing_required")
         session = app.state.admin_auth.get_session(token)
         if not session:
             raise HTTPException(status_code=401, detail="Cần đăng nhập owner.")
@@ -508,6 +547,9 @@ def create_admin_app(context: AdminContext) -> FastAPI:
             raise HTTPException(status_code=429, detail="Thử đăng nhập quá nhiều; chờ một phút.")
         if not auth.validate_login_code(payload.code):
             raise HTTPException(status_code=401, detail="Mã đăng nhập sai hoặc đã hết hạn.")
+        if not admission_current():
+            withdraw_sessions()
+            raise HTTPException(status_code=403, detail="owner_pairing_required")
         admin_session = auth.create_session(context.owner_id)
         response.set_cookie(
             SESSION_COOKIE,
