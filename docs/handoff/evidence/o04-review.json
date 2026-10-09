@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "date": "2026-10-08",
+  "date": "2026-10-09",
   "task": "O04",
   "status": "InReview",
   "base_commit": "aec0c7d3135032d47786445ccbab76f69274cdb2",
-  "product_commit": null,
+  "product_commit": "4e42d612bc76b7e7907b5ab1fc08aecc5f88ff41",
   "full_python": "PassedWithOneLocalAclSkip",
-  "hosted_ci": "Pending",
+  "hosted_ci": "Failed",
   "full_python_result": {
     "passed": 1543,
     "failed": 0,
@@ -397,6 +397,21 @@
         "exact_reviewed_fixture_dispositions": 6
       },
       "qualification": "Tracked index text only; six independently reviewed synthetic path/kind/hash tuples. No generic suppression, credential-store access or public release approval."
+    },
+    {
+      "check": "fixture_followup_full_python",
+      "tool_chunks": [
+        "8ad782",
+        "34beb8"
+      ],
+      "result": {
+        "passed": 1547,
+        "failed": 0,
+        "skipped": 1,
+        "errors": 0,
+        "exit_code": 0
+      },
+      "elapsed_seconds": 509.92
     }
   ],
   "native_browser_variant_reports": [
@@ -427,5 +442,180 @@
         "cleanup": "passed"
       }
     }
-  ]
+  ],
+  "source_hash_scope": "Original reviewed O04 working-byte snapshot committed as 4e42d612; follow-up fixture hashes are separate below.",
+  "hosted_ci_result": {
+    "run_id": 37909485757,
+    "attempt": 1,
+    "event": "pull_request",
+    "head_sha": "4e42d612bc76b7e7907b5ab1fc08aecc5f88ff41",
+    "status": "completed",
+    "conclusion": "failure",
+    "url": "https://github.com/NyanBUIDL/telegram-ai-personal-assistant/actions/runs/37909485757",
+    "jobs": [
+      {
+        "job_id": 113750917972,
+        "name": "Windows Python 3.12 / SQLite",
+        "conclusion": "success",
+        "full_python": {
+          "passed": 1544,
+          "failed": 0,
+          "skipped": 0,
+          "errors": 0
+        },
+        "full_python_seconds": 1559.91,
+        "native_browser_passed": 8,
+        "native_scale_checks_passed": 3
+      },
+      {
+        "job_id": 113750918260,
+        "name": "Windows Python 3.13 / SQLite",
+        "conclusion": "failure",
+        "full_python": {
+          "passed": 1543,
+          "failed": 1,
+          "skipped": 0,
+          "errors": 0
+        },
+        "full_python_seconds": 1731.08,
+        "failed_test": "tests/desktop/test_launcher.py::test_ready_deadline_failure_survives_pending_start_cleanup"
+      },
+      {
+        "job_id": 113750918338,
+        "name": "Node 24 / build, lint, Sites and browser art accessibility",
+        "conclusion": "success",
+        "node_passed": 36,
+        "art_browser_passed": 11,
+        "setup_browser_passed": 16
+      },
+      {
+        "job_id": 113761944240,
+        "name": "Required CI",
+        "conclusion": "failure"
+      }
+    ],
+    "qualification": "Actual exact-head run and job logs; counts overlap other scoped evidence. No O04 acceptance or public release."
+  },
+  "fixture_followup": {
+    "base_commit": "4e42d612bc76b7e7907b5ab1fc08aecc5f88ff41",
+    "status": "InReview",
+    "changed_source": {
+      "tests/desktop/test_launcher.py": "e326a416a9cd142d1e08b4d2382f6bb583f7e13c47de9a7e0ffe47efcbbf4c0e"
+    },
+    "production_source_changed": false,
+    "ci_workflow_changed": false,
+    "fresh_full_python": "PassedWithOneLocalAclSkip",
+    "new_exact_hosted_ci": "Pending",
+    "reports": [
+      {
+        "path": ".ci-work/o04-helper-consumers-red-oct9.json",
+        "sha256": "9b397c21994be4786ff741c51b31a93cdadca6f5456851d65fc0eca7d1d9fb4c",
+        "actual_result": {
+          "passed": 9,
+          "failed": 6,
+          "skipped": 0,
+          "errors": 0,
+          "exit_code": 1
+        }
+      },
+      {
+        "path": ".ci-work/o04-acquisition-expiry-red-oct9.json",
+        "sha256": "afaa4b5c1a6830137859d1553015cf09e93d82ed4e33f4b0023992583d4d368b",
+        "actual_result": {
+          "passed": 0,
+          "failed": 1,
+          "skipped": 0,
+          "errors": 0,
+          "exit_code": 1
+        }
+      },
+      {
+        "path": ".ci-work/o04-terminal-publication-red-oct9.json",
+        "sha256": "afaa4b5c1a6830137859d1553015cf09e93d82ed4e33f4b0023992583d4d368b",
+        "actual_result": {
+          "passed": 0,
+          "failed": 1,
+          "skipped": 0,
+          "errors": 0,
+          "exit_code": 1
+        }
+      },
+      {
+        "path": ".ci-work/o04-bound-stop-force-red-oct9.json",
+        "sha256": "afaa4b5c1a6830137859d1553015cf09e93d82ed4e33f4b0023992583d4d368b",
+        "actual_result": {
+          "passed": 0,
+          "failed": 1,
+          "skipped": 0,
+          "errors": 0,
+          "exit_code": 1
+        }
+      },
+      {
+        "path": ".ci-work/o04-launcher-all-consumers-green-oct9.json",
+        "sha256": "855daadf8624e05017ba4f4b2d5ccc5947359a6606691369f3e45a546a0d36be",
+        "actual_result": {
+          "passed": 46,
+          "failed": 0,
+          "skipped": 0,
+          "errors": 0,
+          "exit_code": 0
+        }
+      },
+      {
+        "path": ".ci-work/o04-path-boundary-green-oct9.json",
+        "sha256": "5c777356cce04e31c1109d9b3a10f2d7aa78205a282f415d4489e7bcf41935af",
+        "actual_result": {
+          "passed": 1,
+          "failed": 0,
+          "skipped": 0,
+          "errors": 0,
+          "exit_code": 0
+        }
+      },
+      {
+        "path": ".ci-work/o04-full-python-fixture-followup-oct9.json",
+        "sha256": "20a014e7a00b624ccfe2e136f4af101864e2ff303de0d76d78010632719fa57b",
+        "actual_result": {
+          "passed": 1477,
+          "failed": 70,
+          "skipped": 1,
+          "errors": 0,
+          "exit_code": 1
+        }
+      },
+      {
+        "path": ".ci-work/o04-full-python-final-fixture-oct9.json",
+        "sha256": "27afd694f9e0ce097fe6c7818ae5aa303dfb2ca4214f95db394ff7965630da4f",
+        "actual_result": {
+          "passed": 1547,
+          "failed": 0,
+          "skipped": 1,
+          "errors": 0,
+          "exit_code": 0
+        }
+      }
+    ],
+    "baseline_full_python": {
+      "passed": 1477,
+      "failed": 70,
+      "skipped": 1,
+      "errors": 0,
+      "exit_code": 1
+    },
+    "baseline_elapsed_seconds": 513.61,
+    "baseline_fixture_sha256": "3de44db47a35708b4e148d9b8363bde7b77c1e793575d3f0b90d88befc7874f1",
+    "final_full_basetemp": ".test-temp/o4g9",
+    "independent_fixture_review": "Read-only exact final source e326a416a9cd142d1e08b4d2382f6bb583f7e13c47de9a7e0ffe47efcbbf4c0e; no material remaining findings; reviewer ran no tests.",
+    "qualification": "Actual final helper e326, unchanged44 O04 source files, fresh full1547pass/1skip/exit0 in509.92s; existing foreign-owner ACL token limitation, no privilege changes. Failed long-path/fake-consumer baseline retained. New exact-head hosted CI still required; no O04 acceptance or release.",
+    "full_python_result": {
+      "passed": 1547,
+      "failed": 0,
+      "skipped": 1,
+      "errors": 0,
+      "exit_code": 0
+    },
+    "full_python_seconds": 509.92,
+    "full_python_command": "QT_QPA_PLATFORM=offscreen PYTHONPATH=.test-temp: .venv-q01/Scripts/python.exe scripts/ci_checks.py --report .ci-work/o04-full-python-final-fixture-oct9.json -p o04_failure_watch --durations=20 -rs --basetemp .test-temp/o4g9"
+  }
 }

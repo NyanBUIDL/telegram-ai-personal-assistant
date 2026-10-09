@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import importlib
 import json
+import math
 import os
 import shutil
 import socket
@@ -362,6 +363,19 @@ def force_fixture_worker_exit(runtime, *, timeout=3):
     errors = []
     child = None
     recorded = getattr(runtime, "attached_process", None)
+    if recorded is None and getattr(runtime, "_stop_sent", False) is True:
+        target = getattr(runtime, "_stop_target", None)
+        if (
+            isinstance(target, tuple) and len(target) == 3
+            and isinstance(target[0], str) and target[0] == runtime.launch_id
+            and type(target[1]) is int and target[1] > 0
+            and type(target[2]) in {int, float} and target[2] > 0
+            and math.isfinite(target[2])
+        ):
+            # stop() already verified this exact incarnation before atomic
+            # publication; its sent fast path may precede an attaching refresh.
+            # The child still passes every live SID/exe/command/parent check below.
+            recorded = target[1:]
     if recorded is None:
         errors.append("fixture_worker_identity_unavailable")
     elif recorded[0] != process.pid:
@@ -402,18 +416,29 @@ def force_fixture_worker_exit(runtime, *, timeout=3):
 
 def stop(runtime, *, timeout=15):
     deadline = time.monotonic() + timeout
+    phase = "producer"
     failures = []
     with getattr(runtime, "fixture_producer_lock", nullcontext()):
         runtime.fixture_closing = True
         producers = tuple(getattr(runtime, "fixture_starts", ()))
+        pending_start = any(not future.done() for future in producers) or (
+            bool(producers) and runtime.process is not None
+            and runtime.process.poll() is None and runtime.attached_process is None
+            and getattr(runtime, "_stop_sent", False) is not True
+        )
     try:
         runtime.stop()
+        stop_published_at = (
+            time.monotonic() if getattr(runtime, "_stop_sent", False) is True else None
+        )
         # A running start can assign Popen after stop(). Wait for fixture-owned
         # starts; cancel queued ones before claiming cleanup is complete.
         for future in producers:
             if not future.cancel():
                 try:
                     future.result(timeout=max(0, deadline - time.monotonic()))
+                    if time.monotonic() >= deadline:
+                        failures.append("Fixture producer exceeded deadline")
                 except Exception as error:
                     failures.append(
                         type(error).__name__ if type(error).__name__ in {
@@ -423,12 +448,37 @@ def stop(runtime, *, timeout=15):
                     # A running producer cannot be cancelled. Do not return
                     # while it can still assign a Popen after cleanup.
                     runtime.executor.shutdown(wait=True, cancel_futures=True)
+        if pending_start and runtime.process is not None and runtime.process.poll() is None:
+            # Popen creation does not include cold imports/migrations. Acquire a
+            # real bound stop separately; neither phase renews on a failed poll.
+            if getattr(runtime, "_stop_sent", False) is True:
+                phase = "drain"
+                if stop_published_at is not None:
+                    deadline = stop_published_at + timeout
+                # An unmeasured publication during producer drain retains the
+                # earlier deadline instead of inventing a later publication.
+            else:
+                deadline = time.monotonic() + timeout
+                phase = "acquisition"
         runtime.stop()
-        while runtime.process and runtime.process.poll() is None:
+        # Check publication timing even if the worker exited inside stop().
+        while runtime.process is not None:
             # Refresh may record a venv-launcher's actual worker child after
             # a slow producer completes. Only that verified identity may be forced.
             runtime._refresh()
             runtime.stop()
+            if phase == "acquisition" and getattr(runtime, "_stop_sent", False) is True:
+                published_at = time.monotonic()
+                if published_at >= deadline:
+                    failures.append("Bound stop acquisition expired")
+                    failures.extend(force_fixture_worker_exit(runtime))
+                    break
+                # The real controller has atomically published an identity-bound
+                # stop. Only now does the original graceful-drain budget begin.
+                deadline = published_at + timeout
+                phase = "drain"
+            if runtime.process.poll() is not None:
+                break
             remaining = deadline - time.monotonic()
             if remaining <= 0:
                 failures.append("Owned synthetic worker did not stop")
@@ -517,6 +567,100 @@ def test_ready_deadline_failure_survives_pending_start_cleanup(settings, tmp_pat
     assert startup.done() and runtime.process.returncode == 0
 
 
+@pytest.mark.parametrize("bootstrap_floor, cleanup_fails, exit_during_stop", [
+    (8, False, False), (16, True, False), (16, True, True),
+])
+def test_cleanup_pending_start_keeps_acquisition_and_drain_deadlines_separate(
+    settings, tmp_path, monkeypatch, bootstrap_floor, cleanup_fails, exit_during_stop,
+):
+    import threading
+
+    from tg_assistant.desktop.instance import process_incarnation_exists
+
+    real_time = time
+
+    class Clock:
+        elapsed = 0.0
+
+        def monotonic(self):
+            return real_time.monotonic() + self.elapsed
+
+        def sleep(self, seconds):
+            real_time.sleep(seconds)
+
+        def require_elapsed(self, began, minimum):
+            # A slow runner's real elapsed time already counts. Never add the
+            # simulated minimum on top of actual cold-bootstrap duration.
+            self.elapsed += max(0, began + minimum - self.monotonic())
+
+    clock = Clock()
+    runtime, startup, release = held_start(settings, tmp_path, monkeypatch)
+    original_result, original_stop = startup.result, runtime.stop
+    producer_charged = False
+    producer_began = clock.monotonic()
+    acquisition_began = None
+    forced = []
+    original_force = force_fixture_worker_exit
+
+    def producer_result(*args, **kwargs):
+        nonlocal producer_charged, acquisition_began
+        result = original_result(*args, **kwargs)
+        if exit_during_stop and not producer_charged:
+            # Make the real identity ready before the helper's post-producer
+            # stop, without a refresh that itself publishes the sticky stop.
+            ready_by = real_time.monotonic() + 15
+            while not runtime.state_file.exists() and real_time.monotonic() < ready_by:
+                real_time.sleep(0.01)
+            assert runtime.state_file.exists()
+        # Charge only the helper's clock for actual producer completion.
+        # Product clocks and the real worker's identity/health are untouched.
+        if not producer_charged:
+            clock.require_elapsed(producer_began, 8)
+            acquisition_began = clock.monotonic()
+            producer_charged = True
+        return result
+
+    def publish_stop():
+        was_sent = runtime._stop_sent
+        original_stop()
+        if not was_sent and runtime._stop_sent:
+            # The real marker was bound to the actual worker before this charge.
+            if exit_during_stop:
+                runtime.process.wait(timeout=15)
+            assert acquisition_began is not None
+            clock.require_elapsed(acquisition_began, bootstrap_floor)
+
+    def force(*args, **kwargs):
+        forced.append(True)
+        return original_force(*args, **kwargs)
+
+    monkeypatch.setattr(startup, "result", producer_result)
+    monkeypatch.setattr(runtime, "stop", publish_stop)
+    monkeypatch.setattr(sys.modules[__name__], "time", clock)
+    monkeypatch.setattr(sys.modules[__name__], "force_fixture_worker_exit", force)
+    timer = threading.Timer(0.2, release.set)
+    timer.start()
+    try:
+        if cleanup_fails:
+            with pytest.raises(pytest.fail.Exception, match="Bound stop acquisition expired"):
+                stop(runtime)
+            assert forced, "Expired acquisition must retain independent cleanup failure"
+        else:
+            stop(runtime)
+            assert runtime.process.returncode == 0
+            assert not forced, "Emergency forced exit cannot prove graceful cleanup"
+        assert startup.done() and runtime._stop_sent
+        assert runtime.process.returncode is not None
+        recorded = runtime.attached_process or runtime._stop_target[1:]
+        assert not process_incarnation_exists(*recorded)
+    finally:
+        release.set()
+        # Real time remains available for independent leak cleanup if RED fails.
+        monkeypatch.setattr(sys.modules[__name__], "time", real_time)
+        stop(runtime)
+        timer.join()
+
+
 def test_cleanup_running_start_proves_exact_owned_worker_exit(settings, tmp_path, monkeypatch):
     import threading
 
@@ -535,6 +679,35 @@ def test_cleanup_running_start_proves_exact_owned_worker_exit(settings, tmp_path
         release.set()
         stop(runtime)
         timer.join()
+
+
+def test_force_cleanup_uses_bound_stop_identity_before_attaching_refresh(settings, tmp_path):
+    from tg_assistant.desktop.instance import process_incarnation_exists
+
+    runtime = controller(settings, tmp_path)
+    target = None
+    try:
+        startup = runtime.start()
+        startup.result(timeout=15)
+        deadline = time.monotonic() + 15
+        # Deliberately do not refresh: stop itself reads and validates the real
+        # profile/owner/run/PID incarnation before it publishes its marker.
+        while not runtime._stop_sent and time.monotonic() < deadline:
+            runtime.stop()
+            time.sleep(0.01)
+        assert runtime._stop_sent and runtime.attached_process is None
+        target = runtime._stop_target
+        assert target[0] == runtime.launch_id
+        errors = force_fixture_worker_exit(runtime)
+        assert not errors
+        assert runtime.process.returncode is not None
+        assert not process_incarnation_exists(target[1], target[2])
+    finally:
+        if target is not None:
+            # Independent leak cleanup of the actual already-verified target if
+            # the original helper fails to follow the Windows launcher child.
+            runtime.attached_process = (target[1], target[2])
+        stop(runtime)
 
 
 def test_cleanup_failure_preserves_primary_failure_and_owned_exit(settings, tmp_path, monkeypatch):
