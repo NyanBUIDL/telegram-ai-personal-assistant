@@ -22,10 +22,11 @@ jobs:
     name: Windows Python ${{ matrix.python }} / SQLite
     runs-on: windows-latest
     # Python 3.12 also builds the dashboard and runs real API browser regressions.
-    # Hosted full-suite runtime measured 22m50s on Python 3.13, before scale
-    # checks and the Python 3.12 native-browser steps. Include dependency setup
-    # and those mandatory gates in the bounded job budget.
-    timeout-minutes: 40
+    # Run37918805090: Python3.12 full suite passed in37m38s and all scale
+    # gates passed, but the40m job cap cancelled npm installation before the
+    # mandatory native-browser gates. Allow the remaining build/browser work
+    # within a50m job cap; individual test deadlines and required gates stay intact.
+    timeout-minutes: 50
     strategy:
       fail-fast: false
       matrix:

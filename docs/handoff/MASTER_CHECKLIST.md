@@ -42,7 +42,7 @@ Ngày lập: 02/10/2026. **Thiết kế đã duyệt; implementation đang thự
 - [x] **O01 — Onboarding coordinator lưu/tiếp tục và health thực** · Platform · phụ thuộc: D02, V01 · Verified.
 - [x] **O02 — Kết nối API cloud/local qua native dialogs** · Platform · phụ thuộc: O01 · Verified.
 - [x] **O03 — Đăng nhập tài khoản Telegram bằng QR/OTP/2FA** · Platform · phụ thuộc: O01 · Verified.
-- [ ] **O04 — Kết nối bot và ghép đúng owner bằng nút Start** · Platform · phụ thuộc: O03 · InReview. CI đúng candidate 4e42 lỗi một launcher fixture trên Python 3.13; bản sửa fixture đang kiểm thử, chưa nghiệm thu.
+- [ ] **O04 — Kết nối bot và ghép đúng owner bằng nút Start** · Platform · phụ thuộc: O03 · InReview. CI3f lỗi queued-stop Python3.13, Python3.12 bị hủy sau full1548đạt/3scale tại40phút trước native-browser; candidate chẩn đoán/budget50/Unicode đang kiểm thử, chưa nghiệm thu.
 - [x] **U02 — Navigation/dashboard setup và connections dễ hiểu** · Experience · phụ thuộc: O01, U01 · Verified.
 
 ### M4 — Quản trị hoàn chỉnh

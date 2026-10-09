@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import time
+import unicodedata
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager, nullcontext
 from datetime import datetime
 
-from sqlalchemy import DateTime, MetaData, event, func
+from sqlalchemy import DateTime, MetaData, String, event, func
 from sqlalchemy.engine import make_url
 from sqlalchemy.exc import ArgumentError
 from sqlalchemy.ext.asyncio import (
@@ -128,8 +129,24 @@ class Database:
         await self.engine.dispose()
 
 
+FOLD_FUNCTION = "tg_fold"
+
+
+def fold_text(value: object) -> str | None:
+    """NFC + casefold; keeps diacritics (Đ/đ stay distinct from D/d)."""
+    if value is None:
+        return None
+    return unicodedata.normalize("NFC", unicodedata.normalize("NFC", str(value)).casefold())
+
+
+def folded_contains(column, needle: str):
+    """Literal (%/_ escaped) substring match on folded column and folded needle."""
+    return func.tg_fold(column, type_=String).contains(fold_text(needle) or "", autoescape=True)
+
+
 def configure_sqlite(connection, _record, *, busy_timeout: int = 5000) -> None:
     """Enforce each SQLite connection's concurrency and referential settings."""
+    connection.create_function(FOLD_FUNCTION, 1, fold_text, deterministic=True)
     cursor = connection.cursor()
     try:
         cursor.execute("PRAGMA foreign_keys=ON")

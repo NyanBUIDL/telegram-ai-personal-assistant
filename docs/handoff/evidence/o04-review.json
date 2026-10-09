@@ -443,7 +443,7 @@
       }
     }
   ],
-  "source_hash_scope": "Original reviewed O04 working-byte snapshot committed as 4e42d612; follow-up fixture hashes are separate below.",
+  "source_hash_scope": "Historical44 O04 working-byte snapshot at4e42, also unchanged at3f before separate Unicode integration; current candidate recorded separately",
   "hosted_ci_result": {
     "run_id": 37909485757,
     "attempt": 1,
@@ -505,7 +505,7 @@
     "production_source_changed": false,
     "ci_workflow_changed": false,
     "fresh_full_python": "PassedWithOneLocalAclSkip",
-    "new_exact_hosted_ci": "Pending",
+    "new_exact_hosted_ci": "Failed",
     "reports": [
       {
         "path": ".ci-work/o04-helper-consumers-red-oct9.json",
@@ -616,6 +616,198 @@
       "exit_code": 0
     },
     "full_python_seconds": 509.92,
-    "full_python_command": "QT_QPA_PLATFORM=offscreen PYTHONPATH=.test-temp: .venv-q01/Scripts/python.exe scripts/ci_checks.py --report .ci-work/o04-full-python-final-fixture-oct9.json -p o04_failure_watch --durations=20 -rs --basetemp .test-temp/o4g9"
+    "full_python_command": "QT_QPA_PLATFORM=offscreen PYTHONPATH=.test-temp: .venv-q01/Scripts/python.exe scripts/ci_checks.py --report .ci-work/o04-full-python-final-fixture-oct9.json -p o04_failure_watch --durations=20 -rs --basetemp .test-temp/o4g9",
+    "exact_hosted_result": {
+      "commit": "3f4913a838526af382e778d769c7f0d4ffe8739f",
+      "run_id": 37918805090,
+      "attempt": 1,
+      "status": "completed",
+      "conclusion": "failure",
+      "url": "https://github.com/NyanBUIDL/telegram-ai-personal-assistant/actions/runs/37918805090",
+      "python312": {
+        "job_id": 113781459499,
+        "job_conclusion": "cancelled",
+        "full_passed": 1548,
+        "full_failed": 0,
+        "full_skipped": 0,
+        "full_seconds": 2258.08,
+        "scale_gates": "All3Passed",
+        "native_browser": "NotRun",
+        "cancelled_step": "Install dashboard dependencies",
+        "qualification": "Cancelled during npm ci around40m job boundary after complete full/scale results; incomplete remaining gates cannot pass"
+      },
+      "python313": {
+        "job_id": 113781459683,
+        "job_conclusion": "failure",
+        "full_passed": 1547,
+        "full_failed": 1,
+        "full_skipped": 0,
+        "full_seconds": 1866.54,
+        "failed_test": "tests/desktop/test_launcher.py::test_stop_during_queued_start_is_not_lost",
+        "last_phase": "starting",
+        "cause": "Unmeasured; bootstrap/publication timeline unavailable"
+      },
+      "frontend": {
+        "job_id": 113781459337,
+        "job_conclusion": "success",
+        "node_checks": 36,
+        "art_browser": 11,
+        "setup_browser": 16
+      },
+      "required": {
+        "job_id": 113794947765,
+        "job_conclusion": "failure"
+      }
+    }
+  },
+  "current_candidate": {
+    "base_commit": "3f4913a838526af382e778d769c7f0d4ffe8739f",
+    "status": "InReview",
+    "hosted_ci": "PendingNewExactRevision",
+    "source_sha256": {
+      ".github/workflows/ci.yml": "bba2a831b0b84d71a10ce8d5b2d7c724efe1cd02e44a5052e42d7761c9fa8866",
+      "tests/desktop/test_launcher.py": "598d64b9cc0acdcdc0ea20688d981e2fc5cef95c34d0075ba57ae2d6ad65777a",
+      "src/tg_assistant/db/base.py": "3724bda15825d1d9121517801078c2ecbd7bd1a0a48935f7c211ad550e9a6954",
+      "src/tg_assistant/services/search.py": "db490d7bb03b0cf1b083eee5eff230ca12de5848db7696b56cefdd44e4622290",
+      "src/tg_assistant/telegram/control_bot.py": "665f8390215ecade923704022f8eab0f7e1abf9e5f64d77810862b4fe9d94174",
+      "src/tg_assistant/admin_api/app.py": "c18f7ff78e1c8f8fd920ab5dcf9df462d1f5db86f0bcb5c85daa793b6f49914b",
+      "tests/conftest.py": "56786837775aeba05f6fdfb0e4b0d1ffc3405b3710baa9bfcd61fed321d6acad",
+      "tests/test_history_export.py": "e8d52ee40713961c6ae97d8e043292df7a88f71227573dee465fb3c52b7bc126",
+      "tests/test_sqlite_unicode_search.py": "de42e955ec6597beb36acce1c2213453a223417141391c6193b6b37fb6173c84",
+      "tests/test_admin_api_unicode_search.py": "ab50e800a9afefec309724f265e5902705770313dafe5ff0c8102dd92c04de8f"
+    },
+    "current_original44_sha256": {
+      "dashboard-prototype/tests/u02-native.spec.js": "423cf0c70f36b792637b73d662bacc08d043c6fe9ef9f869770088332812b3ee",
+      "src/tg_assistant/admin_api/app.py": "c18f7ff78e1c8f8fd920ab5dcf9df462d1f5db86f0bcb5c85daa793b6f49914b",
+      "src/tg_assistant/admin_api/auth.py": "80e4a9e9a10216ebfeb39cf7fd3bccb4cfe159f8df73c3879b859a3394e51978",
+      "src/tg_assistant/db/base.py": "3724bda15825d1d9121517801078c2ecbd7bd1a0a48935f7c211ad550e9a6954",
+      "src/tg_assistant/desktop/app.py": "2313ad16fe0f6f88393b7cb120d34f8fa74b1af5f47e22a43e4f76b2962181d0",
+      "src/tg_assistant/desktop/bot_context.py": "f29839d6d3e6f48919c7f35f057a91f73ccfb0264a473fae0d313f072d691068",
+      "src/tg_assistant/desktop/dialogs/bot.py": "6d3e1cc465640d3ed85bef337d402adc9486bbe959682be3cd1c949efc228147",
+      "src/tg_assistant/desktop/ipc.py": "02c1efe6f4f996000fc63f25f94b6483b217cd729f581d52b5752204ba7a2d85",
+      "src/tg_assistant/desktop/runtime_bot_context.py": "b168b1aa601b85d090aea81bd87f56cc0eab368ab88f70e42125b0a82966fd7e",
+      "src/tg_assistant/desktop/setup_context.py": "8326e27454d1f9128c803e09e37e7a8dd5de7e62aeea2924419bec6684e570ca",
+      "src/tg_assistant/desktop/setup_ui.py": "832d46d7a97779c3ab8db036e66fb1576a358d8d634dc20d0d5027c479235249",
+      "src/tg_assistant/desktop/telegram_context.py": "147579255209a6e14c1a92c922f4b64b84399de6709d9d3e7de96c739ad9e0f1",
+      "src/tg_assistant/desktop/worker.py": "197237b0fccb8ff4f8b5b8d1164e3dbca9aa6dabeae7813527f7d24466f145d6",
+      "src/tg_assistant/runtime.py": "01c1735ec8dcfbbc2aa80957730dc61fad239ed8c2c64e05c62bc8968225b7df",
+      "src/tg_assistant/services/bot_connection.py": "35b304c2fe9968c01a8dcbda1609ed4f419e9e897f9ef2cc981b71cde9c9252b",
+      "src/tg_assistant/services/bot_credentials.py": "deda23ff70b8f7b723ecfac71d99238ff9402e71b0aee4b066f821dafa1fddfb",
+      "src/tg_assistant/services/bot_pairing.py": "a1d5c33f5124616590220596a6ebbee2c23795fde9965798542bf0e7b9a919b3",
+      "src/tg_assistant/services/maintenance.py": "7e990e00d467126c912da2261d1f16960bcc203ff941c54eaa01d30c30cb4895",
+      "src/tg_assistant/telegram/bot_api.py": "ca0c2cf487cc904ad6a2da4add823297993d7b08f3e2e1b51d288740e7ebe0cf",
+      "src/tg_assistant/telegram/control_bot.py": "665f8390215ecade923704022f8eab0f7e1abf9e5f64d77810862b4fe9d94174",
+      "src/tg_assistant/telegram/user_client.py": "14688d58c0f864623509b4612c2de419a74d1149651fce21da6a9cf813cc569f",
+      "tests/desktop/test_bot_context.py": "28ed6b34cb5a554d16d513a66889c51beba6e1382a525132b1c65f81c0cc97d2",
+      "tests/desktop/test_bot_dashboard_admission.py": "ed9b22f11ee92ef30442f7627a083c118a57764cb40533e2b2ac1d1d9c1c2668",
+      "tests/desktop/test_bot_dialog.py": "00fc492508f3a31de31a3fc742b837de4f32d13f72026558cff261b21f920a5c",
+      "tests/desktop/test_bot_handoff.py": "99ad79497b7a9c37b5fbd4035542adbcfc4fc3b2cd3daef87c5270ae3f0ef95a",
+      "tests/desktop/test_bot_owner_binding.py": "e7cc9067ba75d2ddba802407d76b8efee2c8b6fbc9a67b24a9b8e9bf8462f6e5",
+      "tests/desktop/test_bot_runtime_integration.py": "b0106b1e5f1d8d25a362a372ee81a2e88b23862d6f4abc445d244d5a483c9fb6",
+      "tests/desktop/test_bot_setup_integration.py": "63ab85887d7378e4f1da03f9f794182e3e95e05f65e6c47e95db7a61b4b32d7d",
+      "tests/desktop/test_native_relay_integration.py": "bed61bb0ddbbba4feba9255bfaf62440c6f06457cc4f256f727dda580999cf17",
+      "tests/desktop/test_runtime_bot_context.py": "8599a3e71145487ab83adeb3a4384f492f944f05b8c7ea3a99debee0228459ff",
+      "tests/desktop/test_runtime_gateway.py": "a61ed6ad3ab45a436ca13a0cc80e378247b8aeb0cf3a2194d01fe0fcb3a82843",
+      "tests/integration/test_vector_recovery.py": "6557fc5cd710d305b2b119655c80c4495d36960c3a291fe4a6846b8eea5fbee8",
+      "tests/services/test_bot_connection.py": "3001d556841b39bf66211668ffe1c7f190092bc8f4fc53a93b7ee6dc2b6de3e1",
+      "tests/services/test_bot_credentials.py": "4ec524414a41b9fc034a3318a9b29349caa77bca46659127e58cb8510f495d11",
+      "tests/services/test_bot_pairing.py": "3974c38c1a2b2005244eb43880f2044804cbfd0aa9321aede0dd2d316b43a766",
+      "tests/telegram/test_account_bot_admission.py": "28a251dee48f955e046f2351d59129ef85e0f325688709404fd865ace28112e5",
+      "tests/telegram/test_bot_api.py": "a3962bac7ba9acc367cf42fc639940aaadcf7e6e485d7cacd38876ca58db726e",
+      "tests/telegram/test_bot_management_admission.py": "3b38ba892e012eccfc243c3ee951595dedae0e1d5fae04df8bdf4a5b38fdeddb",
+      "tests/test_admin_api.py": "e7e4dbb460da825ed2a326dace0d4619fb62d9d93d0e39eeba7d59bd63c94100",
+      "tests/test_admin_backups.py": "62dcf79b3b5497e24195b1f37dbeebbbf9b6205eead35ecd0b14c76c6224b13c",
+      "tests/test_bot_admin_admission.py": "2f216ed40130c509cce8634e2093421c7a89ad140ceb9b472fa64df98e40550f",
+      "tests/test_bot_database_admission.py": "abff827fda5ca8abd30481171cb3d31e8baf376e92f00b88534ed064a30da436",
+      "tests/test_revocation_jobs.py": "29c31bb2930980f7ea2c2df6325e0139c0569a2cbf3db96697d788a2ca3e6bfc",
+      "tests/test_runtime_embeddings.py": "b46c670101334d2f118ef886c227bb03208ab4124d453fb1edaefed32b24c03d"
+    },
+    "changed_from_historical44": {
+      "src/tg_assistant/admin_api/app.py": {
+        "historical_sha256": "5b70f0dcfc212cbdd2019bf27a1e742ca70f09590bda9cdb5f577b868e3948a9",
+        "current_sha256": "c18f7ff78e1c8f8fd920ab5dcf9df462d1f5db86f0bcb5c85daa793b6f49914b"
+      },
+      "src/tg_assistant/db/base.py": {
+        "historical_sha256": "c68b5d1c51e1ef64ec6d0e47fcba5a312169f5e7da4ef27d9d7b576bea9a60d7",
+        "current_sha256": "3724bda15825d1d9121517801078c2ecbd7bd1a0a48935f7c211ad550e9a6954"
+      },
+      "src/tg_assistant/telegram/control_bot.py": {
+        "historical_sha256": "1b1bfeb25f674ccf9d9fe59b085c3003aa3e7486077ca3b0b2d6b55c8e111aa7",
+        "current_sha256": "665f8390215ecade923704022f8eab0f7e1abf9e5f64d77810862b4fe9d94174"
+      }
+    },
+    "production_scope": "Only independent four-file Unicode keyword correction; O04 pairing/authority/runtime lifecycle unchanged",
+    "individual_test_deadlines_changed": false,
+    "required_ci_gates_changed": false,
+    "windows_job_budget_minutes": 50,
+    "job_budget_basis": "Measured Python3.12 full2258.08s/three scale gates then40m cancellation before required native browser;50m is allowance, not measured remaining completion",
+    "queued_stop": "Original2s waits/15s terminal loop retained, retained-intent assertions plus passive fixed diagnostic projections; hosted cause not claimed fixed",
+    "unicode_semantics": "NFC/casefold/NFC, accents retained, bound literal wildcards; actual per-connection deterministic UDF; scope/admission/order/page unchanged",
+    "schema_migration_dto_art_changed": false,
+    "u03_implemented": false,
+    "reports": [
+      {
+        "path": ".ci-work/o04-queued-stop-observed-oct9.json",
+        "sha256": "5c777356cce04e31c1109d9b3a10f2d7aa78205a282f415d4489e7bcf41935af",
+        "actual_result": {
+          "passed": 1,
+          "failed": 0,
+          "skipped": 0,
+          "errors": 0,
+          "exit_code": 0
+        },
+        "log_sha256": "d94c8ee4de84ed485dfab5fca7e2a544e9361036f579f8b26193a4d807c358e2",
+        "elapsed_seconds_from_log": 3.19
+      },
+      {
+        "path": ".ci-work/o04-queued-intent-mutant-red-oct9.json",
+        "sha256": "afaa4b5c1a6830137859d1553015cf09e93d82ed4e33f4b0023992583d4d368b",
+        "actual_result": {
+          "passed": 0,
+          "failed": 1,
+          "skipped": 0,
+          "errors": 0,
+          "exit_code": 1
+        },
+        "log_sha256": "110fb116b3d2ac0ac9407ce38b407cb3c0a22d1d7988b4d64099af56e7913b84",
+        "elapsed_seconds_from_log": 3.59
+      },
+      {
+        "path": ".ci-work/o04-queued-diagnostics-launcher-green-oct9.json",
+        "sha256": "855daadf8624e05017ba4f4b2d5ccc5947359a6606691369f3e45a546a0d36be",
+        "actual_result": {
+          "passed": 46,
+          "failed": 0,
+          "skipped": 0,
+          "errors": 0,
+          "exit_code": 0
+        },
+        "log_sha256": "e2dfae6d18ede5fad69f71ae01d66b798b452d6338488f837d5d121df46929cb",
+        "elapsed_seconds_from_log": 74.55
+      },
+      {
+        "path": ".ci-work/o04-unicode-integrated-full-oct9.json",
+        "sha256": "a1b12ee1badc29def2de52f8ab0e07249d992d00319192397c43db54c785578c",
+        "actual_result": {
+          "passed": 1557,
+          "failed": 0,
+          "skipped": 1,
+          "errors": 0,
+          "exit_code": 0
+        },
+        "log_sha256": "bef9ad6c738e9f96e2c3ffc05ab4587dd70f38067878a6cf4c9b5b7c86d00e19",
+        "elapsed_seconds_from_log": 507.36
+      }
+    ],
+    "independent_review": "Private7file Unicode plus eighth parent-chat setup and exact queued-stop/workflow diff reviewed; no material blocker; reviewers ran no tests",
+    "whole_lint_contract_art_drift": "Exit0 after exact8-file normalized-content match",
+    "qualifications": [
+      "Source hashes use working bytes; new Unicode test modules may have CRLF differences from reviewed private copies, normalized full contents matched exactly",
+      "Private base4e42 full1553pass1skip498.99s is not main/exact hosted evidence",
+      "No new first-answer, live credential/SDK, installer, licensing or human UAT proof",
+      "Original3f full1547pass1skip509.92s remains historical; new main full recorded separately",
+      "No overlapping suite counts added; private failed setup/fixture/full attempts retained in private root disposition"
+    ],
+    "fresh_full_python": "Passed"
   }
 }

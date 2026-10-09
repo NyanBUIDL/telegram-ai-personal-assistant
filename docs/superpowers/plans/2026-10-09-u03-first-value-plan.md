@@ -13,7 +13,7 @@
 ## Global Constraints
 
 - Windows 10/11 x64; one active owner/profile per Windows SID; SQLite-only; no real credentials, paid live calls or existing-profile reset in development checks.
-- O04, V03 and U02 must be Verified before implementation. O04 candidate `4e42d612bc76b7e7907b5ab1fc08aecc5f88ff41` failed one Python 3.13 launcher cleanup fixture in hosted run 37909485757; fixture follow-up and exact new hosted acceptance remain pending.
+- O04, V03 and U02 must be Verified before implementation. O04 follow-up `3f4913a838526af382e778d769c7f0d4ffe8739f` failed the separate Python3.13 queued-stop test in run37918805090; Python3.12 full1548/three scale gates passed but its40-minute job was cancelled before native-browser completion. The next diagnostic/budget/Unicode candidate and exact hosted acceptance remain pending. The independent keyword-search correction does not implement U03.
 - Reuse the actual application/engine/account/poller/vector/guard. No second runtime or portable bearer proof. Management still requires current owner pairing, session, CSRF, Host/Origin and writer admission.
 - Preserve all 19 permissions, six AI modes, group `/ask`, AUTO confirmation, retention/quota, ordinary RAG/cache behavior and existing recovery/backup boundaries.
 - Telegram IDs are canonical nonzero decimal JSON strings. Reject numeric JSON, booleans, zero and noncanonical IDs; Python uses exact ints internally.

@@ -910,19 +910,45 @@ def test_stop_during_queued_start_is_not_lost(settings, tmp_path):
     try:
         started = runtime.start()
         runtime.stop()
+        assert runtime.stop_requested is True
+        assert runtime._stop_sent is False
         held.set()
         queued.result(timeout=2)
         started.result(timeout=2)
-        deadline = time.monotonic() + 15
+        assert runtime.stop_requested is True
+        began = time.monotonic()
+        deadline = began + 15
         while time.monotonic() < deadline:
             state = runtime.refresh().result(timeout=2)
             if state.phase == "stopped":
                 break
             time.sleep(0.05)
-        assert state.phase == "stopped"
+        assert state.phase == "stopped", queued_stop_diagnostics(runtime, began, state)
     finally:
         held.set()
         stop(runtime)
+
+
+def queued_stop_diagnostics(runtime, began, state):
+    """Passive fixed facts; cleanup cannot replace the original stop result."""
+    facts = fixture_readiness_diagnostics(runtime, began)
+    target = runtime._stop_target
+    facts.update(
+        original_stop_intent=runtime.stop_requested is True,
+        bound_stop_published=runtime._stop_sent is True,
+        stop_target_present=target is not None,
+        stop_target_launch_matches=target is not None and target[0] == runtime.launch_id,
+        attached_identity_present=runtime.attached_process is not None,
+        observed_phase=state.phase if state.phase in {
+            "unknown", "starting", "ready", "stopping", "stopped", "error",
+        } else "other",
+        observed_code=state.code if state.code in {
+            "runtime_starting", "runtime_readiness_unavailable", "runtime_readiness_stale",
+            "runtime_not_ready", "runtime_ready", "runtime_stopping", "runtime_stopped",
+            "runtime_start_failed",
+        } else "other",
+    )
+    return "Original queued stop did not finish; diagnostics=" + json.dumps(facts, sort_keys=True)
 
 
 def test_gateway_checks_exact_host_and_origin(settings, tmp_path):

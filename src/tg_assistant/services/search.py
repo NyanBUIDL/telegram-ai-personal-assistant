@@ -7,6 +7,7 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy import and_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ..db.base import folded_contains
 from ..db.models import PermissionName, TelegramMessage
 from ..policy import PolicyEngine
 from ..security import redact
@@ -116,7 +117,7 @@ class SearchService:
         ]
         if parsed.text:
             terms = [term for term in parsed.text.split() if term]
-            filters.append(and_(*(TelegramMessage.text.contains(term) for term in terms)))
+            filters.append(and_(*(folded_contains(TelegramMessage.text, term) for term in terms)))
         if parsed.sender_id is not None:
             filters.append(TelegramMessage.sender_id == parsed.sender_id)
         effective_after = (
@@ -131,8 +132,8 @@ class SearchService:
         if parsed.has == "link":
             filters.append(
                 or_(
-                    TelegramMessage.text.contains("http://"),
-                    TelegramMessage.text.contains("https://"),
+                    folded_contains(TelegramMessage.text, "http://"),
+                    folded_contains(TelegramMessage.text, "https://"),
                 )
             )
         elif parsed.has:
@@ -140,16 +141,16 @@ class SearchService:
         if parsed.content_type == "task":
             filters.append(
                 or_(
-                    TelegramMessage.text.contains("cần "),
-                    TelegramMessage.text.contains("deadline"),
-                    TelegramMessage.text.contains("todo"),
+                    folded_contains(TelegramMessage.text, "cần "),
+                    folded_contains(TelegramMessage.text, "deadline"),
+                    folded_contains(TelegramMessage.text, "todo"),
                 )
             )
         elif parsed.content_type == "decision":
             filters.append(
                 or_(
-                    TelegramMessage.text.contains("quyết định"),
-                    TelegramMessage.text.contains("thống nhất"),
+                    folded_contains(TelegramMessage.text, "quyết định"),
+                    folded_contains(TelegramMessage.text, "thống nhất"),
                 )
             )
         rows = (

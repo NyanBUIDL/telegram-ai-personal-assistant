@@ -34,6 +34,7 @@ from ..ai.rag import (
     telegram_message_url,
 )
 from ..config import get_settings, save_settings_env
+from ..db.base import folded_contains
 from ..db.models import (
     AiMemory,
     AppSetting,
@@ -348,11 +349,9 @@ def group_search_query(
     chat_types: tuple[str, ...] = GROUP_CHAT_TYPES,
 ):
     query = raw_query.strip()
-    escaped = query.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
-    username = escaped.removeprefix("@")
     filters = [
-        TelegramChat.title.ilike(f"%{escaped}%", escape="\\"),
-        TelegramChat.username.ilike(f"%{username}%", escape="\\"),
+        folded_contains(TelegramChat.title, query),
+        folded_contains(TelegramChat.username, query.removeprefix("@")),
     ]
     try:
         filters.append(TelegramChat.chat_id == int(query.replace(",", "")))

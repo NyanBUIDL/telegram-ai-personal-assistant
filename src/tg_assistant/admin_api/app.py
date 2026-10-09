@@ -20,7 +20,7 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 from .. import __version__
 from ..ai.vector import LocalVectorStore
 from ..config import Settings
-from ..db.base import Database
+from ..db.base import Database, folded_contains
 from ..db.models import (
     AiUsage,
     AppSetting,
@@ -743,13 +743,11 @@ def create_admin_app(context: AdminContext) -> FastAPI:
         if query.strip():
             normalized_query = query.strip()
             username_query = normalized_query.lstrip("@")
-            pattern = f"%{normalized_query}%"
-            username_pattern = f"%{username_query}%"
             conditions.append(
                 or_(
-                    TelegramChat.title.ilike(pattern),
-                    TelegramChat.username.ilike(username_pattern),
-                    cast(TelegramChat.chat_id, String).like(pattern),
+                    folded_contains(TelegramChat.title, normalized_query),
+                    folded_contains(TelegramChat.username, username_query),
+                    folded_contains(cast(TelegramChat.chat_id, String), normalized_query),
                 )
             )
         if chat_type:
@@ -2654,12 +2652,11 @@ def create_admin_app(context: AdminContext) -> FastAPI:
     ) -> dict:
         conditions = []
         if query:
-            pattern = f"%{query}%"
             conditions.append(
                 or_(
-                    AuditLog.action.ilike(pattern),
-                    AuditLog.target_id.ilike(pattern),
-                    AuditLog.reason.ilike(pattern),
+                    folded_contains(AuditLog.action, query),
+                    folded_contains(AuditLog.target_id, query),
+                    folded_contains(AuditLog.reason, query),
                 )
             )
         if outcome:
