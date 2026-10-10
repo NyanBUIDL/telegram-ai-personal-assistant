@@ -1,5 +1,7 @@
 # U03 — Guided first source and first answer
 
+10/10 release-readiness checkpoint: [Phase0 exact-hosted receipt](phase0-readiness-2026-10-10.md) is accepted separately. Strict durable attempt/receipt state and admitted learning association, finite catch-up continuation and endpoint identity bridge have independent scoped approvals. Actual reader/verifier/restore wiring is implemented; its first review reproduced a provider-activation ownership defect, now in fix round1 and awaiting independent rereview. Genuine selected answer SDK delivery/final receipt composition, complete stage journey and exact-candidate CI remain pending. This checkpoint does not supersede historical receipts below or accept U03.
+
 Current status: **InProgress**, 10/10/2026; no acceptance claim. Dependencies O04/V03/U02 are Verified. O04 exact candidate CB6 passed all required hosted gates in run38011226810; its receipt is recorded separately in task-O04.md.
 
 Implementation follows docs/superpowers/plans/2026-10-09-u03-first-value-plan.md. Task1 strict source intent/API/atomic metadata/retained lifecycle is independently reviewed and integrated locally. The available Task5 UI subset and Task3 vector RAM observation foundation are also independently reviewed and integrated. These slices do not complete U03. Root regenerated FirstSourceStatus with the existing generator; operations remain null and test availability false until actual producers exist.

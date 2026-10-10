@@ -1,0 +1,7 @@
+# U04 — Management and recovery implementation checkpoint
+
+Status: **InProgress**, 10/10/2026. This provisional disjoint development does not accept U04 or bypass U03/S03. Current target is the owner's private Windows11 preview under the owner-preview amendment; beta_ready and published remain false.
+
+The status/resource slice is independently spec and quality approved at commit `f7351c457dd33297871ca2e31b0e60ab866b9518`: four Node unit cases, eleven targeted browser cases and 102 existing setup/first-value regressions passed using installed Chrome. Current-resource failed refresh retains explicitly stale data; profile/dependency/reload/unmount races cannot revive former observations. Missing/future/expired evidence cannot appear ready; actual zero remains distinct from unknown. These are synthetic browser and local presentation checks, not authorization, live service, physical DPI or human-trial evidence.
+
+Daily management implementation is being tested and reviewed separately. The five canonical management cases, backup frontend/native integration, restricted support export producer, rewritten native/SQLite guide, explicit CI discovery, full frontend/native regression and exact-candidate CI remain acceptance requirements. Initial targeted results are development evidence until that task freezes and independent review passes. No installer or public artifact is supplied by this checkpoint.

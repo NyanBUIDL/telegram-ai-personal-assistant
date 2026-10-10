@@ -302,8 +302,10 @@
         "U03",
         "S03"
       ],
-      "status": "Planned",
-      "evidence": [],
+      "status": "InProgress",
+      "evidence": [
+        "docs/handoff/evidence/task-U04.md"
+      ],
       "acceptance": "Owner quản lý thường ngày không terminal, errors không leave UIstate khác backend."
     },
     {
@@ -316,8 +318,10 @@
         "U04",
         "R01"
       ],
-      "status": "Planned",
-      "evidence": [],
+      "status": "InProgress",
+      "evidence": [
+        "docs/handoff/evidence/task-P01.md"
+      ],
       "acceptance": "Artifact độc lập máy dev và tái build traceable commit/dependencyhash."
     },
     {
