@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-10-09",
+  "updated_at": "2026-10-10",
   "scope": "Windows per-user local application",
   "baseline_commit": "7429fcffd61860e9502f066e0b6a921df72fe176",
   "documents_ready": true,
@@ -238,7 +238,7 @@
       "dependencies": [
         "O03"
       ],
-      "status": "InReview",
+      "status": "Verified",
       "evidence": [
         "docs/handoff/evidence/task-O04.md",
         "docs/handoff/evidence/o04-review.json"
@@ -287,8 +287,10 @@
         "V03",
         "U02"
       ],
-      "status": "Planned",
-      "evidence": [],
+      "status": "InProgress",
+      "evidence": [
+        "docs/handoff/evidence/task-U03.md"
+      ],
       "acceptance": "Journey đầu hoàn thành tới answer verified; status không chuyển xanh khi unknown/partial."
     },
     {

@@ -2,7 +2,7 @@
   "schema_version": 1,
   "date": "2026-10-10",
   "task": "O04",
-  "status": "InReview",
+  "status": "Verified",
   "base_commit": "aec0c7d3135032d47786445ccbab76f69274cdb2",
   "product_commit": "4e42d612bc76b7e7907b5ab1fc08aecc5f88ff41",
   "full_python": "PassedWithOneLocalAclSkip",
@@ -662,8 +662,8 @@
   },
   "current_candidate": {
     "base_commit": "2229f6294dbb18be8426dc0c0fc637b36d6cf698",
-    "status": "InReview",
-    "hosted_ci": "PendingNewExactRevision",
+    "status": "Verified",
+    "hosted_ci": "Passed",
     "source_sha256": {
       ".github/workflows/ci.yml": "1f3fe6a2cc3a5811a70c09fbbd74e13a82f6d7b35cea4e01955e1501e508ef1f",
       "tests/desktop/test_launcher.py": "7ac8bfb71a57fdbaea3439ca5c205bf89816f33a7e751c6b6827da877f9b958e",
@@ -837,7 +837,8 @@
       "Private base4e42 full1553pass1skip498.99s is not main/exact hosted evidence",
       "No new first-answer, live credential/SDK, installer, licensing or human UAT proof",
       "Original3f full1547pass1skip509.92s remains historical; new main full recorded separately",
-      "No overlapping suite counts added; private failed setup/fixture/full attempts retained in private root disposition"
+      "No overlapping suite counts added; private failed setup/fixture/full attempts retained in private root disposition",
+      "Overall O04 is Verified from current_candidate CB6 run38011226810. Top-level original product/count/hosted failure fields and all earlier failed runs remain historical; they are not the current acceptance result. Test acquisition allowance15->30 is explicit and is not a production performance improvement."
     ],
     "fresh_full_python": "PassedWithOneLocalAclSkip",
     "previous_exact_hosted_result": {
@@ -981,6 +982,539 @@
       "production_changes_in_followup": false,
       "frontend_repeated_locally": false,
       "qualification": "Only shared test acquisition allowance and documentation changed. All mandatory frontend/native-browser/matrix gates remain required on hosted CI."
+    },
+    "product_commit": "cb6cc9c6527a89e8924cf1c2ae8070e25085e9e8",
+    "hosted_ci_result": {
+      "run_id": 38011226810,
+      "attempt": 1,
+      "event": "pull_request",
+      "head_sha": "cb6cc9c6527a89e8924cf1c2ae8070e25085e9e8",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/NyanBUIDL/telegram-ai-personal-assistant/actions/runs/38011226810",
+      "tested_merge_commit": "d4bd23c1bd5688887092741624add39b3797d849",
+      "tested_merge_tree": "bad97cf81a40ee49a2bff5ada24417a26acec088",
+      "candidate_tree": "bad97cf81a40ee49a2bff5ada24417a26acec088",
+      "root_independently_verified_tree_equality": true,
+      "jobs": [
+        {
+          "job_id": 114091456923,
+          "name": "Node 24 / build, lint, Sites and browser art accessibility",
+          "conclusion": "success",
+          "url": "https://github.com/NyanBUIDL/telegram-ai-personal-assistant/actions/runs/38011226810/job/114091456923",
+          "counts": {
+            "sites": {
+              "passed": 4,
+              "failed": 0,
+              "skipped": 0
+            },
+            "telegram_ids": {
+              "passed": 21,
+              "failed": 0,
+              "skipped": 0
+            },
+            "native_fixture": {
+              "passed": 11,
+              "failed": 0,
+              "skipped": 0
+            },
+            "browser_art": {
+              "passed": 11,
+              "failed": 0,
+              "duration_seconds": 30
+            },
+            "setup_navigation": {
+              "passed": 16,
+              "failed": 0,
+              "duration_seconds": 34.8
+            }
+          },
+          "actual_step_conclusions": [
+            {
+              "number": 1,
+              "name": "Set up job",
+              "conclusion": "success"
+            },
+            {
+              "number": 2,
+              "name": "Run actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803",
+              "conclusion": "success"
+            },
+            {
+              "number": 3,
+              "name": "Run actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38",
+              "conclusion": "success"
+            },
+            {
+              "number": 4,
+              "name": "Run actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1",
+              "conclusion": "success"
+            },
+            {
+              "number": 5,
+              "name": "Run npm ci",
+              "conclusion": "success"
+            },
+            {
+              "number": 6,
+              "name": "Run npm run build",
+              "conclusion": "success"
+            },
+            {
+              "number": 7,
+              "name": "Run npm run lint",
+              "conclusion": "success"
+            },
+            {
+              "number": 8,
+              "name": "Run npm run test:sites",
+              "conclusion": "success"
+            },
+            {
+              "number": 9,
+              "name": "Preserve exact Telegram IDs in real API payloads",
+              "conclusion": "success"
+            },
+            {
+              "number": 10,
+              "name": "Check native fixture message and cleanup regressions",
+              "conclusion": "success"
+            },
+            {
+              "number": 11,
+              "name": "Install portable Chromium",
+              "conclusion": "success"
+            },
+            {
+              "number": 12,
+              "name": "Run browser geometry, fonts, keyboard and error regressions",
+              "conclusion": "success"
+            },
+            {
+              "number": 13,
+              "name": "Run setup navigation, native availability and stale health regressions",
+              "conclusion": "success"
+            },
+            {
+              "number": 14,
+              "name": "Stage synthetic art screenshots only",
+              "conclusion": "success"
+            },
+            {
+              "number": 15,
+              "name": "Run actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02",
+              "conclusion": "success"
+            },
+            {
+              "number": 28,
+              "name": "Post Run actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1",
+              "conclusion": "success"
+            },
+            {
+              "number": 29,
+              "name": "Post Run actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38",
+              "conclusion": "success"
+            },
+            {
+              "number": 30,
+              "name": "Post Run actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803",
+              "conclusion": "success"
+            },
+            {
+              "number": 31,
+              "name": "Complete job",
+              "conclusion": "success"
+            }
+          ],
+          "decoded_log_sha256": "366d537157e0152d3628896dc641c321ddad163ce6c03c405e47a2d71af1780e"
+        },
+        {
+          "job_id": 114091457023,
+          "name": "Windows Python 3.13 / SQLite",
+          "conclusion": "success",
+          "url": "https://github.com/NyanBUIDL/telegram-ai-personal-assistant/actions/runs/38011226810/job/114091457023",
+          "counts": {
+            "python_full_suite": {
+              "passed": 1560,
+              "failed": 0,
+              "skipped": 0,
+              "duration_seconds": 1541.28
+            },
+            "native_scale_125": {
+              "passed": 1,
+              "failed": 0,
+              "duration_seconds": 0.45
+            },
+            "native_scale_150": {
+              "passed": 1,
+              "failed": 0,
+              "duration_seconds": 0.44
+            },
+            "native_scale_200": {
+              "passed": 1,
+              "failed": 0,
+              "duration_seconds": 0.47
+            }
+          },
+          "actual_step_conclusions": [
+            {
+              "number": 1,
+              "name": "Set up job",
+              "conclusion": "success"
+            },
+            {
+              "number": 2,
+              "name": "Run actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803",
+              "conclusion": "success"
+            },
+            {
+              "number": 3,
+              "name": "Run actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1",
+              "conclusion": "success"
+            },
+            {
+              "number": 4,
+              "name": "Install declared dev and native dependencies",
+              "conclusion": "success"
+            },
+            {
+              "number": 5,
+              "name": "Lint Python including migrations",
+              "conclusion": "success"
+            },
+            {
+              "number": 6,
+              "name": "Check generated public contracts",
+              "conclusion": "success"
+            },
+            {
+              "number": 7,
+              "name": "Check generated art tokens",
+              "conclusion": "success"
+            },
+            {
+              "number": 8,
+              "name": "Run full Python regressions",
+              "conclusion": "success"
+            },
+            {
+              "number": 9,
+              "name": "Native logical scale 125 percent",
+              "conclusion": "success"
+            },
+            {
+              "number": 10,
+              "name": "Native logical scale 150 percent",
+              "conclusion": "success"
+            },
+            {
+              "number": 11,
+              "name": "Native logical scale 200 percent",
+              "conclusion": "success"
+            },
+            {
+              "number": 12,
+              "name": "Set up Node 24 for Windows native-to-browser regressions",
+              "conclusion": "skipped"
+            },
+            {
+              "number": 13,
+              "name": "Install dashboard dependencies",
+              "conclusion": "skipped"
+            },
+            {
+              "number": 14,
+              "name": "Build dashboard for the real Admin API fixture",
+              "conclusion": "skipped"
+            },
+            {
+              "number": 15,
+              "name": "Install portable Chromium for Windows regressions",
+              "conclusion": "skipped"
+            },
+            {
+              "number": 16,
+              "name": "Check native fixture message and cleanup regressions",
+              "conclusion": "skipped"
+            },
+            {
+              "number": 17,
+              "name": "Run real native-to-browser ticket and recovery regressions",
+              "conclusion": "skipped"
+            },
+            {
+              "number": 18,
+              "name": "Stage sanitized evidence",
+              "conclusion": "success"
+            },
+            {
+              "number": 19,
+              "name": "Run actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02",
+              "conclusion": "success"
+            },
+            {
+              "number": 37,
+              "name": "Post Run actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1",
+              "conclusion": "success"
+            },
+            {
+              "number": 38,
+              "name": "Post Run actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803",
+              "conclusion": "success"
+            },
+            {
+              "number": 39,
+              "name": "Complete job",
+              "conclusion": "success"
+            }
+          ],
+          "decoded_log_sha256": "824c5508963ddb74e0e433d319808950f34989ae10b4df841e0279bd67386ec8"
+        },
+        {
+          "job_id": 114091457049,
+          "name": "Windows Python 3.12 / SQLite",
+          "conclusion": "success",
+          "url": "https://github.com/NyanBUIDL/telegram-ai-personal-assistant/actions/runs/38011226810/job/114091457049",
+          "counts": {
+            "python_full_suite": {
+              "passed": 1560,
+              "failed": 0,
+              "skipped": 0,
+              "duration_seconds": 1459.43
+            },
+            "native_scale_125": {
+              "passed": 1,
+              "failed": 0,
+              "duration_seconds": 0.33
+            },
+            "native_scale_150": {
+              "passed": 1,
+              "failed": 0,
+              "duration_seconds": 0.35
+            },
+            "native_scale_200": {
+              "passed": 1,
+              "failed": 0,
+              "duration_seconds": 0.36
+            },
+            "native_fixture": {
+              "passed": 11,
+              "failed": 0,
+              "skipped": 0
+            },
+            "native_to_browser": {
+              "passed": 8,
+              "failed": 0,
+              "duration_display": "1.1m"
+            }
+          },
+          "actual_step_conclusions": [
+            {
+              "number": 1,
+              "name": "Set up job",
+              "conclusion": "success"
+            },
+            {
+              "number": 2,
+              "name": "Run actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803",
+              "conclusion": "success"
+            },
+            {
+              "number": 3,
+              "name": "Run actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1",
+              "conclusion": "success"
+            },
+            {
+              "number": 4,
+              "name": "Install declared dev and native dependencies",
+              "conclusion": "success"
+            },
+            {
+              "number": 5,
+              "name": "Lint Python including migrations",
+              "conclusion": "success"
+            },
+            {
+              "number": 6,
+              "name": "Check generated public contracts",
+              "conclusion": "success"
+            },
+            {
+              "number": 7,
+              "name": "Check generated art tokens",
+              "conclusion": "success"
+            },
+            {
+              "number": 8,
+              "name": "Run full Python regressions",
+              "conclusion": "success"
+            },
+            {
+              "number": 9,
+              "name": "Native logical scale 125 percent",
+              "conclusion": "success"
+            },
+            {
+              "number": 10,
+              "name": "Native logical scale 150 percent",
+              "conclusion": "success"
+            },
+            {
+              "number": 11,
+              "name": "Native logical scale 200 percent",
+              "conclusion": "success"
+            },
+            {
+              "number": 12,
+              "name": "Set up Node 24 for Windows native-to-browser regressions",
+              "conclusion": "success"
+            },
+            {
+              "number": 13,
+              "name": "Install dashboard dependencies",
+              "conclusion": "success"
+            },
+            {
+              "number": 14,
+              "name": "Build dashboard for the real Admin API fixture",
+              "conclusion": "success"
+            },
+            {
+              "number": 15,
+              "name": "Install portable Chromium for Windows regressions",
+              "conclusion": "success"
+            },
+            {
+              "number": 16,
+              "name": "Check native fixture message and cleanup regressions",
+              "conclusion": "success"
+            },
+            {
+              "number": 17,
+              "name": "Run real native-to-browser ticket and recovery regressions",
+              "conclusion": "success"
+            },
+            {
+              "number": 18,
+              "name": "Stage sanitized evidence",
+              "conclusion": "success"
+            },
+            {
+              "number": 19,
+              "name": "Run actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02",
+              "conclusion": "success"
+            },
+            {
+              "number": 36,
+              "name": "Post Set up Node 24 for Windows native-to-browser regressions",
+              "conclusion": "success"
+            },
+            {
+              "number": 37,
+              "name": "Post Run actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1",
+              "conclusion": "success"
+            },
+            {
+              "number": 38,
+              "name": "Post Run actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803",
+              "conclusion": "success"
+            },
+            {
+              "number": 39,
+              "name": "Complete job",
+              "conclusion": "success"
+            }
+          ],
+          "decoded_log_sha256": "65c406679cec6dc358c05cd7d4cd2a23ddbe0a2b046db6e76196c23903fef279"
+        },
+        {
+          "job_id": 114097324001,
+          "name": "Required CI",
+          "conclusion": "success",
+          "url": "https://github.com/NyanBUIDL/telegram-ai-personal-assistant/actions/runs/38011226810/job/114097324001",
+          "counts": null,
+          "actual_step_conclusions": [
+            {
+              "number": 1,
+              "name": "Set up job",
+              "conclusion": "success"
+            },
+            {
+              "number": 2,
+              "name": "Require every gate to succeed",
+              "conclusion": "success"
+            },
+            {
+              "number": 3,
+              "name": "Complete job",
+              "conclusion": "success"
+            }
+          ],
+          "decoded_log_sha256": "2ec7be03dc5a907de77e114f2e7b72a16b143b609a8b0302dc133ec16d81e2d8"
+        }
+      ],
+      "artifacts": [
+        {
+          "id": 11655646053,
+          "name": "windows-python-3.12-counts",
+          "size_in_bytes": 399448,
+          "expired": false,
+          "digest": "sha256:232c7e1cc1cabe8cd47010c9de2a80a90434a870d1c6ebbbeb46a984454081ab",
+          "html_url": "https://github.com/NyanBUIDL/telegram-ai-personal-assistant/actions/runs/38011226810/artifacts/11655646053",
+          "created_at": "2026-10-10T01:25:08Z",
+          "expires_at": "2026-10-17T01:25:07Z"
+        },
+        {
+          "id": 11655391116,
+          "name": "windows-python-3.13-counts",
+          "size_in_bytes": 129520,
+          "expired": false,
+          "digest": "sha256:ad2e1686de60ff775dd95808d34e28fc0af7090e63c0c647f216550cdbc59231",
+          "html_url": "https://github.com/NyanBUIDL/telegram-ai-personal-assistant/actions/runs/38011226810/artifacts/11655391116",
+          "created_at": "2026-10-10T01:24:57Z",
+          "expires_at": "2026-10-17T01:24:57Z"
+        },
+        {
+          "id": 11653490369,
+          "name": "synthetic-browser-art",
+          "size_in_bytes": 354576,
+          "expired": false,
+          "digest": "sha256:08fadcfbbe6d3e0de6255a8e9d1b50a8307f5ca102625b0c8205e1f8b43950bf",
+          "html_url": "https://github.com/NyanBUIDL/telegram-ai-personal-assistant/actions/runs/38011226810/artifacts/11653490369",
+          "created_at": "2026-10-10T00:59:12Z",
+          "expires_at": "2026-10-17T00:59:11Z"
+        }
+      ],
+      "mandatory_step_verification": {
+        "all_applicable_steps_and_uploads_success": true,
+        "windows_313_conditional_skips": {
+          "defined_by_existing_workflow": "if: matrix.python == '3.12'",
+          "steps": [
+            "Set up Node 24 for Windows native-to-browser regressions",
+            "Install dashboard dependencies",
+            "Build dashboard for the real Admin API fixture",
+            "Install portable Chromium for Windows regressions",
+            "Check native fixture message and cleanup regressions",
+            "Run real native-to-browser ticket and recovery regressions"
+          ]
+        },
+        "required_gate_log_inputs": {
+          "WINDOWS": "success",
+          "FRONTEND": "success"
+        },
+        "all_3_artifact_uploads_success": true
+      },
+      "private_report_sha256": "b9f97e5c6f82c70a8fc3cfd67bf62baea33b35ce876df52c67ecfc2105bb404e"
+    },
+    "coordinator_acceptance": {
+      "accepted_at_utc": "2026-10-10T01:28:44.327296+00:00",
+      "status": "Verified",
+      "basis": "Root independently checked exact completed run/attempt/head/event, all jobs/applicable steps, saved log hashes and tested merge/candidate tree equality; prior scoped implementation and evidence reviews approved.",
+      "live_telegram_or_paid_provider_checked": false,
+      "installer_checked": false,
+      "physical_dpi_human_uat_soak_checked": false,
+      "beta_ready": false,
+      "published": false
     }
   }
 }
