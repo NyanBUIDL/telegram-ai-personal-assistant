@@ -502,9 +502,21 @@ class RagService:
                     "cloud_consent": embedding.cloud_consent,
                 },
             )
+            configured_endpoint = embedding._configured_base_url
+            configured = ModelSelection.parse(
+                embedding.provider,
+                {
+                    "service": "embeddings",
+                    "model": embedding.embedding_model,
+                    "endpoint": configured_endpoint,
+                    "cloud_consent": embedding.cloud_consent,
+                },
+            )
+            if selection.endpoint != configured.endpoint:
+                raise AiPolicyError("Selected embedding identity changed")
             if (
                 embedding.provider,
-                selection.endpoint_id,
+                f"endpoint-{hashlib.sha256(configured_endpoint.encode()).hexdigest()[:32]}",
                 embedding.embedding_model,
                 profile.embedding_version,
                 embedding.embedding_dimension,

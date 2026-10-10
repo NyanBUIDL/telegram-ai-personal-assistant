@@ -128,6 +128,7 @@ class AiEngine:
         consent_check=None,
         enabled_check=None,
     ) -> None:
+        self._configured_base_url = base_url
         self.is_local = provider == "ollama"
         self.cloud_consent = cloud_consent
         self.consent_check = consent_check
