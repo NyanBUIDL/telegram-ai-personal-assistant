@@ -42,7 +42,8 @@ def resource_path(*parts: str) -> Path:
     relative = Path(*parts)
     if relative.is_absolute() or relative.drive or ".." in relative.parts:
         raise ValueError("Resource path must remain inside the asset directory")
-    root = Path(getattr(sys, "_MEIPASS", project_root()))
+    installed = Path(__file__).resolve().parent / "_resources"
+    root = Path(getattr(sys, "_MEIPASS", installed if installed.is_dir() else project_root()))
     return root / relative
 
 

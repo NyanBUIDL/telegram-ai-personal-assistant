@@ -10,6 +10,7 @@ from PySide6.QtWidgets import QApplication, QLabel, QPushButton, QVBoxLayout, QW
 
 from ..config import get_settings
 from ..paths import resource_path
+from .diagnostics import run_diagnostics
 from .runtime_controller import RuntimeController
 from .theme import ArtPanel, apply_theme
 from .tray import TrayController
@@ -256,6 +257,10 @@ class LauncherWindow(QWidget):
 
 
 def main():
+    if "--diagnostics" in sys.argv[1:]:
+        if len(sys.argv) != 3 or sys.argv[1] != "--diagnostics":
+            return 2
+        return run_diagnostics(sys.argv[2])
     if sys.argv[1:] == ["--desktop-worker"]:
         from .worker import serve_worker
 
@@ -279,4 +284,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

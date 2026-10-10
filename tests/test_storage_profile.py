@@ -27,6 +27,9 @@ installed_root = Path()
 
 @pytest.fixture(autouse=True)
 def isolated_profile(tmp_path, monkeypatch):
+    # Native modules must bind the real SID before this fixture's storage-only double.
+    from tg_assistant.desktop import instance, runtime_controller  # noqa: F401
+
     for key in list(os.environ):
         if key.startswith("TG_ASSISTANT_"):
             monkeypatch.delenv(key)
