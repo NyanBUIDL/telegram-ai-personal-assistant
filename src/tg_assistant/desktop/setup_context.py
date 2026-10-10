@@ -76,11 +76,16 @@ class SetupContext:
 
     def advance_verified(self):
         status = self.coordinator.status()
+        with self.engine.connect() as connection:
+            skip_ai = self.coordinator._read(connection)[0].options.ai_mode == "skip"
         for stage in (
             OnboardingStage.AI_CONFIGURED, OnboardingStage.TELEGRAM_VERIFIED,
             OnboardingStage.BOT_VERIFIED, OnboardingStage.OWNER_PAIRED,
+            OnboardingStage.SOURCE_SELECTED, OnboardingStage.FIRST_ANSWER, OnboardingStage.READY,
         ):
             previous = list(OnboardingStage)[: list(OnboardingStage).index(stage)]
+            if stage == OnboardingStage.READY and skip_ai:
+                previous.remove(OnboardingStage.FIRST_ANSWER)
             if stage in status.stage_evidence_ids or any(
                 item not in status.stage_evidence_ids for item in previous
             ):

@@ -7,7 +7,7 @@ import hashlib
 import json
 import re
 from contextlib import contextmanager
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
@@ -39,8 +39,22 @@ from sqlalchemy import (
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import object_session
 
-from ..contracts import ContractModel, FirstSourceStatus, OwnerId, TelegramId
-from ..db.models import AppSetting
+from ..contracts import (
+    ContractModel,
+    FirstSourceStatus,
+    OnboardingStage,
+    OperationResult,
+    OwnerId,
+    TelegramId,
+)
+from ..db.models import (
+    AppSetting,
+    BackgroundJob,
+    PendingAction,
+    TelegramChat,
+    TelegramChatPermission,
+    TelegramChatPolicy,
+)
 
 META_BYTES = 8192
 ROW_BYTES = 32768
@@ -492,9 +506,461 @@ class FirstValueService:
         self._namespace = _namespace(self._profile_id, windows_sid)
         self._key = "fv1." + self._namespace
         self._closing = False
+        self._windows_sid = windows_sid
+        self._initialized = False
+        self.reader = None
+        self.current_binding = None
+        self.configuration_fingerprint = None
+        self._configuration_owners = ()
+        self._receipt_check = None
         self._selection_tasks: set[asyncio.Task] = set()
+        self._refresh_tasks: set[asyncio.Task] = set()
+        self._answer_tasks: set[asyncio.Task] = set()
+        self._activation_tasks: set[asyncio.Task] = set()
+        self._activation_lock = asyncio.Lock()
+        self._provider_transition = False
         from .first_source_preview import FirstSourcePreviewService
         self.preview = FirstSourcePreviewService(self)
+
+    def initialize(self):
+        """Attach only after Application owns this instance, under sole worker admission."""
+        self._admit()
+        if self._initialized:
+            return
+        with self._transaction() as connection:
+            self._recover_in_transaction(connection)
+        self._attach_reader()
+        self.coordinator._verifiers[OnboardingStage.SOURCE_SELECTED] = self.source_verification
+        self.coordinator._verifiers[OnboardingStage.FIRST_ANSWER] = self.first_answer_verification
+        self._initialized = True
+
+    def _reader_enabled(self):
+        with self._fence.operation(), self._engine.connect() as connection:
+            skip = self.coordinator._read(connection)[0].options.ai_mode == "skip"
+        return not skip and self.runtime.settings.enable_embeddings and self.runtime.embedding_ai.provider != "off"
+
+    def _attach_reader(self):
+        self._admit()
+        from .first_value_index import CurrentIndexReader
+        if self._reader_enabled():
+            self.reader = CurrentIndexReader(runtime=self.runtime, first_value=self, windows_sid=self._windows_sid)
+
+    async def activate_providers(self, operation, *, needs_change):
+        """Retain activation until borrowed work drains, before its knowledge lock.
+
+        The desktop callback owns real provider replacement. No startup recovery,
+        observation, or inference occurs here; each incarnation issues new proofs.
+        """
+        self._admit()
+        async def activate():
+            async with self._activation_lock:
+                self._admit()
+                if not needs_change() and not (self.reader is None and self._reader_enabled()):
+                    return False
+                self._provider_transition = True
+                self.current_binding, self._receipt_check = None, None
+                self.configuration_fingerprint, self._configuration_owners = None, ()
+                old_reader = self.reader
+                if old_reader is not None:
+                    old_reader.withdraw()
+                try:
+                    # Never hold the knowledge lock while waiting for its users.
+                    while self._selection_tasks or self._refresh_tasks or self._answer_tasks:
+                        pending = tuple(self._selection_tasks | self._refresh_tasks | self._answer_tasks)
+                        await asyncio.gather(*pending, return_exceptions=True)
+                        for tasks in (self._selection_tasks, self._refresh_tasks, self._answer_tasks):
+                            tasks.difference_update(pending)
+                    if old_reader is not None:
+                        await old_reader.close()
+                    self.reader = None
+                    self._admit()
+                    return await operation()
+                finally:
+                    # A failed activation may have installed owners already. The
+                    # constructor must pin those actual owners; never revive old proofs.
+                    try:
+                        if self.reader is None and not self._closing:
+                            self._attach_reader()
+                    finally:
+                        self._provider_transition = False
+        task = asyncio.create_task(activate())
+        self._activation_tasks.add(task)
+        return await self._drain_operation(task, self._activation_tasks)
+
+    def _configuration(self):
+        from .first_source_preview import _json
+        identity, owners = self.preview._identity()
+        return hashlib.sha256(_json(identity).encode()).hexdigest(), owners
+
+    def _configuration_current(self):
+        fingerprint, owners = self._configuration()
+        return (fingerprint == self.configuration_fingerprint
+                and len(owners) == len(self._configuration_owners)
+                and all(a is b for a, b in zip(owners, self._configuration_owners, strict=True)))
+
+    def _source_facts(self, connection):
+        from .first_value_index import ONBOARDING_BYTES, _bounded, _setting_text
+        self._admit()
+        _require(connection.engine is self._engine, "first_value_binding_invalid")
+        with _bounded(connection, 2.0):
+            state = _read_namespace(connection, namespace=self._namespace)
+            _setting_text(connection, self.coordinator._key, ONBOARDING_BYTES)
+            options = self.coordinator._read(connection)[0].options
+            source = options.source_id
+            pair = self._bot.pairing_verification()
+            _require(state.header is not None and source is not None and pair is not None
+                     and pair.owner_id == self.runtime.user.owner_id, "source_unavailable")
+            policy = connection.execute(select(TelegramChatPolicy.__table__).where(
+                TelegramChatPolicy.chat_id == source)).first()
+            kind = connection.execute(select(TelegramChat.chat_type).where(TelegramChat.chat_id == source)).scalar_one_or_none()
+            permissions = dict(connection.execute(select(TelegramChatPermission.permission, TelegramChatPermission.enabled)
+                .where(TelegramChatPermission.chat_id == source).limit(20)).all())
+            _require(kind in {"group", "supergroup", "channel"} and policy is not None
+                     and policy.allowed is True and permissions.get("search_messages") is True,
+                     "source_unavailable")
+            return state, source, pair, policy, permissions, options
+
+    def source_verification(self):
+        from .onboarding import StageVerification
+        try:
+            if not self._initialized:
+                return None
+            with self._fence.operation(), self._engine.connect() as connection:
+                state, source, pair, policy, permissions, options = self._source_facts(connection)
+                configuration, _ = self._configuration()
+                fingerprint = hashlib.sha256(json.dumps([self._namespace, source, pair.owner_id,
+                    pair.fingerprint, state.header.selection_generation, state.header.restore_epoch,
+                    tuple(policy), sorted(permissions.items()), options.ai_mode, configuration],
+                    separators=(",", ":"), default=str).encode()).hexdigest()
+                self._admit()
+                return StageVerification(owner_id=pair.owner_id, fingerprint=fingerprint)
+        except Exception:
+            return None
+
+    def _learning(self, connection, facts):
+        state, source, pair, policy, permissions, _ = facts
+        learning = state.header.learning
+        if learning is None or (learning.source_id, learning.owner_id, learning.source_epoch) != (
+                source, pair.owner_id, policy.authorization_epoch):
+            return None, False
+        size = func.length(cast(BackgroundJob.payload, LargeBinary))
+        job = connection.execute(select(BackgroundJob.status, BackgroundJob.job_type,
+            case((size <= ROW_BYTES, cast(BackgroundJob.payload, String)), else_=None).label("payload"),
+            BackgroundJob.last_error.is_(None).label("no_error")).where(BackgroundJob.id == learning.job_id)).first()
+        action = connection.execute(select(PendingAction.action_type, PendingAction.chat_id,
+            PendingAction.requested_by, PendingAction.status).where(PendingAction.action_id == learning.action_id)).first()
+        if job is None or job.payload is None or action is None:
+            return None, False
+        payload = _strict_json(job.payload)
+        expected = dict(action_id=learning.action_id, chat_id=source, owner_id=pair.owner_id,
+                        authorization_epoch=learning.source_epoch, limit=1000)
+        if (job.job_type != "learn_group" or not isinstance(payload, dict)
+                or any(type(payload.get(key)) is not type(value) or payload.get(key) != value for key, value in expected.items())
+                or tuple(action) != ("enable_group_learning", source, pair.owner_id, "executed")):
+            return None, False
+        progress = payload.get("progress")
+        progress = progress if type(progress) is int and 0 <= progress <= 100 else None
+        status = job.status if job.status in {"queued", "running", "paused", "completed", "failed", "cancelled", "uncertain"} else "uncertain"
+        upper, after = payload.get("interval_upper"), payload.get("interval_after")
+        completed = (status == "completed" and job.no_error is True
+            and payload.get("history_completed") is True
+            and type(upper) is int and type(after) is int and 0 <= after <= upper <= MAX_COUNTER
+            and payload.get("history_stop_reason") is None
+            and permissions.get("sync_history") is True and permissions.get("auto_knowledge") is True)
+        operation = OperationResult(operation_id=learning.job_id, state=status, progress=progress,
+            code="learning_completed" if completed else "learning_pending",
+            message="Đã xử lý phạm vi lịch sử đã chọn." if completed else "Đang chờ hoàn tất phạm vi lịch sử đã chọn.",
+            next_action=None if completed else "Kiểm tra tác vụ học nguồn.")
+        return operation, completed
+
+    def _candidates(self, policy):
+        from ..ai.budget import BudgetService
+        from ..ai.observations import ChatModelCandidate, candidate_fingerprint
+        from ..ai.router import AiRoute
+        from .provider_connections import ModelSelection
+        runtime = self.runtime
+        identity, _ = self.preview._identity()
+        _require(identity[3] == identity[4], "configuration_pending")
+        _require(runtime.ai_router.default_provider == runtime.settings.ai_provider
+                 and runtime.ai_router.cloud_consent == runtime.settings.cloud_consent, "configuration_pending")
+        plan = runtime.ai_router.plan(AiRoute(policy.ai_mode, policy.preferred_cloud_provider, policy.cloud_fallback))
+        _require(bool(plan) and runtime.settings.enable_embeddings, "route_unavailable")
+        candidates = []
+        for provider in plan:
+            engine = runtime.ai_router.engines[provider]
+            _require(engine.client is not None and (provider == "ollama" or
+                (runtime.settings.cloud_consent and engine.cloud_consent))
+                and isinstance(engine.budget, BudgetService) and engine.budget.profile_id == self._profile_id,
+                "route_unavailable")
+            selected = ModelSelection.parse(provider, {"model": engine.model,
+                "endpoint": str(engine.client.base_url), "cloud_consent": engine.cloud_consent})
+            configured = ModelSelection.parse(provider, {"model": getattr(runtime.settings, provider + "_primary_model"),
+                "endpoint": getattr(runtime.settings, provider + "_base_url"), "cloud_consent": runtime.settings.cloud_consent})
+            _require((selected.model, selected.endpoint) == (configured.model, configured.endpoint), "configuration_pending")
+            candidate = ChatModelCandidate(provider, selected.endpoint_id, selected.model,
+                candidate_fingerprint(provider, selected.endpoint_id, selected.model))
+            engine._observed_identity(candidate, engine.client, engine.model)
+            candidates.append(candidate)
+        embedding = runtime.embedding_ai
+        _require(embedding.client is not None and embedding.provider != "off"
+                 and (embedding.is_local or (runtime.settings.cloud_consent and embedding.cloud_consent
+                    and policy.ai_mode in {"inherit", "local_first", "cloud_only", "cloud_first"})), "route_unavailable")
+        selected = ModelSelection.parse(embedding.provider, {"service": "embeddings",
+            "model": embedding.embedding_model, "endpoint": str(embedding.client.base_url),
+            "cloud_consent": embedding.cloud_consent})
+        configured = ModelSelection.parse(embedding.provider, {"service": "embeddings",
+            "model": embedding.embedding_model, "endpoint": embedding._configured_base_url,
+            "cloud_consent": embedding.cloud_consent})
+        profile = runtime.settings.embedding_profile
+        _require(selected.endpoint == configured.endpoint
+            and (embedding.provider, embedding.embedding_model, embedding.embedding_dimension,
+                 "endpoint-" + hashlib.sha256(embedding._configured_base_url.encode()).hexdigest()[:32])
+            == (profile.provider, profile.model, profile.dimension, profile.endpoint_id)
+            and isinstance(embedding.budget, BudgetService) and embedding.budget.profile_id == self._profile_id,
+            "embedding_identity_changed")
+        return tuple(candidates)
+
+    def authorize_current_in_transaction(self, connection, binding, checked=None):
+        """Actual owner/config/source/learning plus exact reader-issued evidence; no await."""
+        from .first_value_index import _bounded
+        try:
+            if self._provider_transition or binding is None or binding is not self.current_binding or self.reader is None or not self._configuration_current():
+                return False
+            with _bounded(connection, 2.0):
+                facts = self._source_facts(connection)
+                state, source, pair, policy, _, options = facts
+                if (options.ai_mode == "skip" or not self._learning(connection, facts)[1]
+                        or (binding.profile_id, binding.owner_id, binding.pair_fingerprint,
+                            binding.selection_generation, binding.restore_epoch, binding.selected_chat_id, binding.source_epoch)
+                        != (self._profile_id, pair.owner_id, pair.fingerprint, state.header.selection_generation,
+                            state.header.restore_epoch, source, policy.authorization_epoch)
+                        or binding.chat_candidates != self._candidates(policy)):
+                    return False
+                return (self.reader.still_current_in_transaction(connection, binding, checked)
+                        and self._configuration_current())
+        except Exception:
+            return False
+
+    async def _refresh_observation(self):
+        from ..ai.observations import SourceIndexBinding
+        self._admit()
+        if not self._initialized:
+            raise ValueError("first_value_not_initialized")
+        state = self.history()
+        if self._answer_tasks or any(attempt.phase in ACTIVE for attempt in state.attempts):
+            return
+        self.current_binding, self._receipt_check = None, None
+        self.configuration_fingerprint = None
+        if self.reader is not None:
+            self.reader.withdraw()
+        try:
+            with self._fence.operation(), self._engine.connect() as connection:
+                facts = self._source_facts(connection)
+                state, source, pair, policy, _, options = facts
+                fingerprint, owners = self._configuration()
+                candidates = self._candidates(policy) if self.reader is not None and options.ai_mode != "skip" else ()
+            if not candidates:
+                return
+            observation = await self.reader.read_source_binding(source)
+            self._admit()
+            if self._provider_transition or observation is None:
+                return
+            binding = SourceIndexBinding(profile_id=self._profile_id, owner_id=pair.owner_id,
+                pair_fingerprint=pair.fingerprint, selection_generation=state.header.selection_generation,
+                restore_epoch=state.header.restore_epoch, chat_candidates=candidates, **asdict(observation))
+            if not self.reader.bind_current(observation, binding):
+                return
+            self.current_binding = binding
+            self.configuration_fingerprint, self._configuration_owners = fingerprint, owners
+            with self._fence.operation(), self._engine.connect() as connection:
+                if not self.authorize_current_in_transaction(connection, binding):
+                    self.current_binding = None
+                    return
+            await self._refresh_receipt(state, binding)
+        except Exception:
+            self.current_binding, self._receipt_check = None, None
+
+    async def refresh_observation(self):
+        self._admit()
+        _require(not self._provider_transition, "first_value_busy")
+        # Serialize refreshes so an older awaited probe cannot replace a newer capture.
+        if self._refresh_tasks:
+            operation = next(iter(self._refresh_tasks))
+        else:
+            operation = asyncio.create_task(self._refresh_observation())
+            self._refresh_tasks.add(operation)
+        await self._drain_operation(operation, self._refresh_tasks)
+
+    async def _drain_operation(self, operation, tasks):
+        cancelled = False
+        try:
+            while not operation.done():
+                try:
+                    await asyncio.shield(operation)
+                except asyncio.CancelledError:
+                    cancelled = True
+                except Exception:
+                    break
+            if cancelled:
+                if not operation.cancelled():
+                    operation.exception()
+                raise asyncio.CancelledError
+            return operation.result()
+        finally:
+            if operation.done():
+                tasks.discard(operation)
+
+    async def _refresh_receipt(self, state, binding):
+        from ..ai.observations import CitedReference, RetrievalScope
+        stable = asdict(binding)
+        stable.pop("vector_owner_fingerprint")
+        candidates = [receipt for receipt in state.receipts
+            if receipt.configuration_fingerprint == self.configuration_fingerprint
+            and receipt.binding.model_dump(exclude={"vector_owner_fingerprint"}) == stable]
+        if not candidates:
+            return
+        # One receipt, at most eight points; refresh never walks historical vectors.
+        receipt = max(candidates, key=lambda item: item.completed_at)
+        scope = RetrievalScope(**receipt.scope.model_dump())
+        references = tuple(CitedReference(**ref.model_dump()) for ref in receipt.cited_refs)
+        checked = await self.reader.check_used_references(binding, scope, references)
+        if checked is None:
+            return
+        with self._fence.operation(), self._engine.connect() as connection:
+            if self._receipt_current(connection, receipt, binding, checked):
+                self._receipt_check = (receipt, binding, checked)
+
+    def _receipt_contexts(self, connection, receipt):
+        from types import SimpleNamespace
+
+        from ..ai.local_first import PRESETS
+        from ..ai.rag import SourceEvidence, _clean_title, source_context, telegram_message_url
+        from ..db.models import TelegramMessage
+        from ..security import redact
+
+        source = receipt.binding.selected_chat_id
+        chat = connection.execute(select(TelegramChat.chat_id, TelegramChat.chat_type,
+            func.substr(TelegramChat.title, 1, 8193).label("title"),
+            func.substr(TelegramChat.username, 1, 257).label("username")).where(TelegramChat.chat_id == source)).first()
+        if chat is None or len(chat.title or "") > 8192 or len(chat.username or "") > 256:
+            return False
+        chat = SimpleNamespace(**chat._mapping)
+        preset_name = connection.execute(select(TelegramChatPolicy.ai_efficiency_preset)
+            .where(TelegramChatPolicy.chat_id == source)).scalar_one()
+        preset = PRESETS.get(preset_name, PRESETS[self.runtime.rag.default_preset])
+        ids = [ref.reference_id for ref in receipt.cited_refs]
+        size = func.length(cast(TelegramMessage.text, LargeBinary))
+        rows = {row.id: row for row in connection.execute(select(TelegramMessage.id,
+            TelegramMessage.sent_at, case((size <= 65536, TelegramMessage.text), else_=None).label("text"))
+            .where(TelegramMessage.chat_id == source, TelegramMessage.id.in_(ids)).limit(8))}
+        ordinals = set()
+        for ref in receipt.cited_refs:
+            row = rows.get(ref.reference_id)
+            if row is None or row.text is None or hashlib.sha256(row.text.encode()).hexdigest() != ref.content_hash:
+                return False
+            evidence = SourceEvidence(ref.chat_id, ref.message_id, 0.0,
+                str(redact(row.text))[:preset.max_chunk_tokens * 4], row.sent_at,
+                _clean_title(chat.title, source), telegram_message_url(chat, ref.message_id))
+            ordinal = next((index for index in range(1, 9)
+                if hashlib.sha256(source_context(index, evidence).encode()).hexdigest() == ref.context_hash), None)
+            if ordinal is None or ordinal in ordinals:
+                return False
+            ordinals.add(ordinal)
+        return True
+
+    def _receipt_ledgers(self, connection, receipt, attempt):
+        from ..ai.budget import PricingSnapshot, pricing_for
+        from ..ai.local_first import QueryRoute, route_feature
+        from ..db.models import AiBudgetReservation as Reservation
+        from .first_source_preview import _utc
+
+        execution, binding = receipt.execution, receipt.binding
+        if execution.request_id == receipt.query_embedding_request_id:
+            return False
+        size = func.length(cast(Reservation.pricing_rates, LargeBinary))
+        columns = [column for column in Reservation.__table__.columns if column.name != "pricing_rates"]
+        columns.append(case((size <= 8192, cast(Reservation.pricing_rates, String)), else_=None).label("rates"))
+        rows = {row.request_id: row for row in connection.execute(select(*columns).where(
+            Reservation.request_id.in_((execution.request_id, receipt.query_embedding_request_id))).limit(2))}
+        stamps = {}
+        for request_id, provider, model, operation, feature, route in (
+            (execution.request_id, execution.provider, execution.requested_model, "answer",
+             route_feature(QueryRoute(receipt.scope.query_route)), receipt.scope.query_route),
+            (receipt.query_embedding_request_id, binding.embedding_provider, binding.embedding_model,
+             "embedding", "embedding", receipt.scope.embedding_route)):
+            row = rows.get(request_id)
+            if row is None or row.rates is None or row.last_error_code is not None:
+                return False
+            local = provider == "ollama"
+            if ((row.profile_id, row.provider, row.model, row.operation, row.feature, row.route, row.chat_id)
+                    != (self._profile_id, provider, model, operation, feature, route, binding.selected_chat_id)
+                    or row.state != "settled" or row.is_local is not local
+                    or row.fallback_used is not (execution.fallback_used if operation == "answer" else False)
+                    or row.submitted_at is None or row.settled_at is None):
+                return False
+            occurred, submitted, settled = (_utc(row.occurred_at), _utc(row.submitted_at), _utc(row.settled_at))
+            if not attempt.accepted_at <= occurred <= submitted <= settled <= receipt.completed_at:
+                return False
+            stamps[operation] = (occurred, settled)
+            counts = (row.actual_input_tokens, row.actual_output_tokens, row.cached_tokens, row.cache_write_tokens)
+            if (not all(type(count) is int and 0 <= count <= MAX_COUNTER for count in counts)
+                    or counts[2] + counts[3] > counts[0] or (operation == "embedding" and counts[1] != 0)):
+                return False
+            pricing = PricingSnapshot.from_dict(_strict_json(row.rates))
+            expected = (PricingSnapshot(provider, model, "local-zero-v1", "local",
+                *(Decimal(0) for _ in range(4)), datetime(9999, 1, 1, tzinfo=UTC))
+                if local else pricing_for(provider, model, now=occurred))
+            if pricing != expected or row.pricing_version != pricing.version or row.actual_cost_usd is None:
+                return False
+            cost = Decimal(row.actual_cost_usd)
+            calculated = pricing.cost(counts[0], counts[1], cached_tokens=counts[2], cache_write_tokens=counts[3])
+            if not cost.is_finite() or cost < 0 or abs(cost - calculated) > Decimal("0.000000000001"):
+                return False
+            if operation == "answer" and (
+                (counts, settled, row.pricing_version, row.route) != ((execution.input_tokens,
+                    execution.output_tokens, execution.cached_tokens, execution.cache_write_tokens),
+                    execution.settled_at, execution.pricing_version, execution.route)
+                    or abs(cost - Decimal(execution.cost_usd)) > Decimal("0.000000000001")):
+                return False
+        return stamps["embedding"][1] <= stamps["answer"][0]
+
+    def _receipt_current(self, connection, receipt, binding, checked):
+        from .first_value_index import _bounded
+        try:
+            with _bounded(connection, 2.0):
+                if not self.authorize_current_in_transaction(connection, binding, checked):
+                    return False
+                state = _read_namespace(connection, namespace=self._namespace)
+                if receipt not in state.receipts or receipt.configuration_fingerprint != self.configuration_fingerprint:
+                    return False
+                attempt = next(item for item in state.attempts if item.request_digest == receipt.request_digest)
+                self._request_authority(connection, attempt)
+                _matches(attempt, receipt)
+                semantic = any(ref.semantic_used for ref in receipt.cited_refs)
+                keyword = any(ref.keyword_used for ref in receipt.cited_refs)
+                if receipt.retrieval_mode != ("hybrid" if semantic and keyword else "semantic" if semantic else "keyword"):
+                    return False
+                stable = asdict(binding)
+                stable.pop("vector_owner_fingerprint")
+                if receipt.binding.model_dump(exclude={"vector_owner_fingerprint"}) != stable:
+                    return False
+                return self._receipt_contexts(connection, receipt) and self._receipt_ledgers(connection, receipt, attempt)
+        except Exception:
+            return False
+
+    def first_answer_verification(self):
+        from .onboarding import StageVerification
+        try:
+            if self._receipt_check is None:
+                return None
+            receipt, binding, checked = self._receipt_check
+            with self._fence.operation(), self._engine.connect() as connection:
+                if not self._receipt_current(connection, receipt, binding, checked):
+                    return None
+            return StageVerification(owner_id=binding.owner_id,
+                fingerprint=hashlib.sha256(receipt.model_dump_json().encode()).hexdigest())
+        except Exception:
+            return None
 
     def _admit(self):
         try:
@@ -567,6 +1033,7 @@ class FirstValueService:
 
     def _accept_in_transaction(self, connection, *, request, binding, accepted_at):
         self._check_connection(connection)
+        _require(not self._provider_transition, "first_value_busy")
         request = _RequestIdentity.model_validate(request.model_dump())
         pair = self._request_authority(connection, request)
         state = _read_namespace(connection, namespace=self._namespace)
@@ -783,50 +1250,66 @@ class FirstValueService:
 
     async def select_source(self, chat_id: int) -> None:
         self._admit()
+        _require(not self._provider_transition, "first_value_busy")
         if type(chat_id) is not int or chat_id == 0:
             raise ValueError("source_selection_invalid")
         operation = asyncio.create_task(asyncio.to_thread(self._select_source, chat_id))
         self._selection_tasks.add(operation)
-        cancelled = False
-        try:
-            while not operation.done():
-                try:
-                    await asyncio.shield(operation)
-                except asyncio.CancelledError:
-                    cancelled = True
-                except Exception:
-                    break
-            if cancelled:
-                # Consume a late failure while preserving the caller's cancellation.
-                if not operation.cancelled():
-                    operation.exception()
-                raise asyncio.CancelledError
-            operation.result()
-        finally:
-            if operation.done():
-                self._selection_tasks.discard(operation)
+        await self._drain_operation(operation, self._selection_tasks)
 
     def selection_status(self) -> FirstSourceStatus:
+        from .first_value_index import _bounded
         self._admit()
-        with self._engine.connect() as connection:
-            self._read_header(connection)
+        learning, available = None, False
+        with self._fence.operation(), self._engine.connect() as connection, _bounded(connection, 2.0):
+            state = _read_namespace(connection, namespace=self._namespace)
             source = self.coordinator._read(connection)[0].options.source_id
+            if self._initialized:
+                try:
+                    learning, _ = self._learning(connection, self._source_facts(connection))
+                    available = self.authorize_current_in_transaction(connection, self.current_binding)
+                except Exception:
+                    learning, available = None, False
+            available = available and not any(attempt.phase in ACTIVE for attempt in state.attempts)
+        answer = None
+        prior = [attempt for attempt in state.attempts if attempt.source_id == source]
+        if prior:
+            attempt = max(prior, key=lambda item: item.accepted_at)
+            answer_state = {"accepted": "queued", "generating": "running", "delivering": "running"}.get(attempt.phase, attempt.phase)
+            current = (attempt.phase == "completed" and self._receipt_check is not None
+                and self._receipt_check[0].request_digest == attempt.request_digest
+                and self.first_answer_verification() is not None)
+            if attempt.phase == "completed" and not current:
+                answer_state = "completed_with_warning"
+            reconcile = attempt.phase in ACTIVE and not self._answer_tasks and not self._provider_transition
+            answer = OperationResult(operation_id=attempt.request_digest, state=answer_state, progress=None,
+                code="answer_verified" if current else "answer_requires_recheck" if attempt.phase == "completed" else "answer_" + attempt.phase,
+                message="Đã xác minh câu trả lời từ nguồn hiện tại." if current else "Đã lưu trạng thái lần hỏi nguồn đã chọn.",
+                next_action=None if current else "Khởi động lại ứng dụng và kiểm tra lần gửi trước khi hỏi tiếp." if reconcile
+                    else "Kiểm tra trạng thái nguồn và lần gửi trước khi hỏi tiếp.")
         identity = self._bot.service.verified_identity
         username = identity.username if identity is not None else None
         if not isinstance(username, str) or re.fullmatch(r"[A-Za-z0-9_]{1,32}", username) is None:
             username = None
         self._admit()
         return FirstSourceStatus(profile_id=self._profile_id, source_id=source,
-            learning_operation=None, answer_operation=None, bot_username=username, test_available=False,
-            code="source_selected" if source is not None else "source_required",
-            message="Đã lưu nguồn đã chọn." if source is not None else "Chọn một nguồn Telegram.",
-            next_action="Mở quản lý nguồn để kiểm tra quyền và dữ liệu sẽ dùng.")
+            learning_operation=learning, answer_operation=answer, bot_username=username, test_available=available,
+            code="test_available" if available else "source_selected" if source is not None else "source_required",
+            message="Nguồn đã sẵn sàng cho câu hỏi thử." if available else "Đã lưu nguồn đã chọn." if source is not None else "Chọn một nguồn Telegram.",
+            next_action="Mở bot để thử hỏi nguồn đã chọn." if available else "Mở quản lý nguồn để kiểm tra quyền và dữ liệu sẽ dùng.")
 
     async def close(self) -> None:
         self._closing = True
+        for stage, callback in ((OnboardingStage.SOURCE_SELECTED, self.source_verification),
+                                (OnboardingStage.FIRST_ANSWER, self.first_answer_verification)):
+            if self.coordinator._verifiers.get(stage) == callback:
+                self.coordinator._verifiers.pop(stage)
+        self.current_binding, self._receipt_check = None, None
+        if self.reader is not None:
+            self.reader.withdraw()
         cancelled = False
-        while self._selection_tasks:
-            operations = tuple(self._selection_tasks)
+        while self._selection_tasks or self._refresh_tasks or self._answer_tasks or self._activation_tasks:
+            operations = tuple(self._selection_tasks | self._refresh_tasks | self._answer_tasks | self._activation_tasks)
             drain = asyncio.gather(*operations, return_exceptions=True)
             while not drain.done():
                 try:
@@ -834,6 +1317,12 @@ class FirstValueService:
                 except asyncio.CancelledError:
                     cancelled = True
             drain.result()
-            self._selection_tasks.difference_update(task for task in operations if task.done())
+            for tasks in (self._selection_tasks, self._refresh_tasks, self._answer_tasks, self._activation_tasks):
+                tasks.difference_update(task for task in operations if task.done())
+        if self.reader is not None:
+            try:
+                await self.reader.close()
+            except asyncio.CancelledError:
+                cancelled = True
         if cancelled:
             raise asyncio.CancelledError

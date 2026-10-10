@@ -402,6 +402,8 @@ async def _serve(settings, paths, database, listener, *, setup_context=None, ins
                 setup_context.prepare_health, active_settings=runtime.settings,
                 refresh_telegram=False,
             )
+            if runtime.first_value is not None:
+                await runtime.first_value.refresh_observation()
         else:
             await asyncio.to_thread(setup_context.prepare_health)
         await asyncio.to_thread(setup_context.coordinator.resume)
@@ -465,6 +467,7 @@ async def _serve(settings, paths, database, listener, *, setup_context=None, ins
                             runtime=runtime, coordinator=setup_context.coordinator,
                             windows_sid=current_user_sid(),
                         )
+                        runtime.first_value.initialize()
                     running["runtime"] = runtime
 
                 def bot_runtime_factory(runtime):

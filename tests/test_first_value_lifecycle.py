@@ -101,6 +101,8 @@ async def test_worker_attaches_first_value_to_actual_setup_coordinator(runtime_s
     from tg_assistant.services.onboarding import OnboardingCoordinator
 
     value = runtime_system
+    # This owner fixture has account/bot services only, with no AI/vector runtime.
+    value.settings.enable_embeddings = False
     context = value.compose()
     await context.prepare()
     value.runtime.bot_runtime = context
@@ -140,6 +142,7 @@ async def test_worker_attaches_first_value_to_actual_setup_coordinator(runtime_s
             owner = value.runtime.first_value
             assert owner is not None, "Worker did not attach actual FirstValueService"
             assert owner.coordinator is setup.coordinator
+            assert owner._initialized and owner.reader is None
             assert owner._engine is value.engine and owner._fence is value.fence
             assert setup.telegram is context.account_observation
             assert setup.bot is context.setup_observation
