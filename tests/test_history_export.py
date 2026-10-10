@@ -98,6 +98,8 @@ def fake_message(message_id: int) -> SimpleNamespace:
 
 @pytest.mark.asyncio
 async def test_backfill_page_moves_exclusive_cursor_toward_old_posts(session) -> None:
+    session.add(TelegramChat(chat_id=-100123, title="Source", chat_type="channel"))
+    await session.flush()
     policy = PolicyEngine()
     await policy.set_allowed(session, -100123, True)
     await policy.set_permission(session, -100123, PermissionName.SYNC_HISTORY, True)

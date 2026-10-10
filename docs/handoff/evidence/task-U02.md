@@ -1,0 +1,28 @@
+# U02 — dashboard onboarding and native dialog relay
+
+<!-- five-current -->
+## Integrated acceptance — 08/10/2026
+
+Current status: **Verified**. The coordinator's [integrated review](review-five-completion.md) and [execution manifest](five-completion.json) supersede historical code-integration Pending statements below. SQLite-only source follows the directly approved amendment. Live accounts/provider/downloads, physical Windows/installer, licensing, human UAT and soak remain Pending; this is not beta-ready or publication. O04 bot setup and U03 first-answer UX remain separate roadmap work.
+<!-- /five-current -->
+Status: InProgress. The isolated relay and actual HTTP/IPC/GUI bridge have independently passed review; the new setup/navigation consumer and setup-mode static delivery are in their first scoped fix round. Full integration, hosted-head verification and release acceptance remain Pending.
+
+The first isolated relay core accepts only the three native connection-dialog commands with matching profile and empty browser payload. It requires an actual native handler heartbeat, current SID, maintenance admission and a trusted issuing-session check. Session authority and request expiry are checked again at native claim. Requests are consumed atomically; the bounded spent-ID table prevents a repeated request from opening another dialog. Invalid nested DTO mutation is rejected without input echo. Shutdown/drain/authority loss withdraws pending requests. Availability reads do not renew a heartbeat or request. A queued response is never proof of a successful connection or completed setup.
+
+Synthetic tests use an actual owned profile maintenance fence. Meaningful initial behavior RED: 16 failures against the unavailable interface. GREEN: 16 passed. A callback-latency expiry regression then failed before adding the final deadline recheck. A related relay/contracts/native-ticket run passed 105 cases in 12.94s. An incorrectly named regression file produced a separate zero-test command error; it is not product RED or a pass. Two availability cases failed before implementation. Final affected relay scope: **24 passed, zero skips, 0.57s**, Ruff clean. Raw evidence is retained in the private implementation ledger.
+
+The preceding counts describe the historical isolated-core packet. Independent core review subsequently passed. The real gateway/session/CSRF/Host/Origin -> SID-authenticated pipe -> controller -> hidden launcher -> actual empty ProviderDialog bridge also passed independent spec/quality review. Its focused actual Windows run passed 56 cases with three explicit unavailable-MySQL health variants skipped; this is not a MySQL acceptance count. Logout, owner transition, replay, unavailable handler and wrong-SID boundaries are covered. Telegram/bot handlers are not supplied by this accepted bridge.
+
+The new seven-item frontend ran 12 synthetic setup cases, five real ticket/auth browser cases, 11 art cases, 25 Sites/ID cases and 76 policy/contracts cases, with build/lint passing. Its independent review found two required corrections: observe first-fetch URL/method as well as the empty fragment, and recompute observation age independently of delayed or failed refresh. These are being corrected in scoped fix round 1/5; the earlier GREEN counts do not establish approval of the repaired source.
+
+Actual setup-mode worker static delivery passed 14 focused Windows worker/native tests with zero skips. Independent review then found a required CSP correction: hash the browser-normalized inline script source for CRLF/lone-CR build HTML. The LF-only HTTP test had missed this. A separate scoped fix round 1/5 adds real compiled browser-to-native coverage; production CSP/browser execution and that combined gate remain Pending until measured on the repaired source. Existing D02 browser fixture has no production CSP, so its five passes are separate authentication evidence.
+
+Source-freeze whole regression, strict MySQL, exact-head CI, physical DPI/native interaction, clean installer/upgrade and live human UAT remain Pending. No whole-task Verified, beta-ready or publication claim.
+
+## Scoped fixes accepted — 2026-10-06
+
+Both frontend P2 findings passed independent scoped re-review. The first observed fetch is now checked by same-origin URL, POST method and empty fragment; subsequent setup GETs are allowlisted. Readiness has an independent one-second age clock and immediate focus/visibility recomputation. Previously fresh rows crossing 60 seconds withdraw the success badge even while refresh is delayed or fails. Final affected browser evidence: **15 setup cases and five auth cases passed**, build/lint passed; frozen execution hashes match the reviewed source.
+
+The static CSP P1 also passed independent scoped re-review. Actual browser script line endings are normalized before hashing. **Three actual Windows browser/native cases passed** for LF, CRLF and lone-CR HTML, requiring earliest ticket redemption, the real HttpOnly session, actual setup responses, authenticated empty-payload native command, exactly one original-title ProviderDialog with an empty API-key input, replay refusal and clean worker/Qt fixture exits. The corresponding Python regression run passed **17 cases with zero skips**. This is compiled React -> actual worker -> same-SID named pipe -> hidden Qt launcher evidence, with no fake HTTP/native handler. Offscreen visibility remains logical UI evidence; physical interaction/UAT are Pending.
+
+Exact integrated source regression and hosted-head CI are now being checked separately. O03/O04 producers, actual API activation and distribution/installer/human gates remain assigned dependencies; this acceptance does not invent their readiness.

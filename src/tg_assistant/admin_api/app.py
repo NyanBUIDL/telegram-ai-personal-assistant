@@ -12,14 +12,17 @@ from typing import Any
 from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request, Response, status
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.security import APIKeyCookie
+from pydantic import TypeAdapter, ValidationError
 from sqlalchemy import String, cast, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm.exc import StaleDataError
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from .. import __version__
 from ..ai.vector import LocalVectorStore
 from ..config import Settings
-from ..db.base import Database
+from ..contracts import OwnerId, TelegramId
+from ..db.base import Database, folded_contains
 from ..db.models import (
     AiUsage,
     AppSetting,
@@ -38,6 +41,7 @@ from ..db.models import (
     TelegramChatPolicy,
     TelegramMessage,
 )
+from ..paths import resource_path
 from ..policy import PolicyEngine
 from ..security import contains_secret, redact
 from ..services.actions import PendingActionService
@@ -51,12 +55,14 @@ from ..services.history_export import (
     promotion_reasons,
     telegram_post_url,
 )
+from ..services.jobs import StorageBusy
 from ..services.knowledge_inventory import (
     LEARNING_CHAT_TYPES,
     LearningInventoryRow,
     build_learning_inventory_csv,
     knowledge_status_reason,
 )
+from ..services.maintenance import MaintenanceBusy
 from ..services.ollama import OllamaError, OllamaService, format_model_size
 from ..services.operations import cleanup_storage
 from ..services.vector_reliability import inspect_source_coverage
@@ -64,9 +70,11 @@ from .auth import (
     SESSION_COOKIE,
     AdminAuth,
     AdminSession,
+    LegacyCodeReplayStore,
     is_loopback_origin,
     login_code_expires_at,
 )
+from .recovery_routes import create_recovery_preview, install_recovery_routes
 from .schemas import (
     AiEfficiencyUpdate,
     AiRouteUpdate,
@@ -132,6 +140,8 @@ class AdminContext:
     scheduler_getter: Callable[[], Any] | None = None
     history_ai_filter_handler: HistoryAiFilterHandler | None = None
     history_sender_lookup_handler: HistorySenderLookupHandler | None = None
+    management_admission: Callable[[], bool] | None = None
+    first_value_getter: Callable[[], Any] | None = None
 
 
 def _utc(value: datetime | None) -> datetime | None:
@@ -184,6 +194,12 @@ def _job_json(job: BackgroundJob) -> dict:
     payload = redact(job.payload or {})
     if not isinstance(payload, dict):
         payload = {}
+    for field, kind in (("chat_id", TelegramId), ("owner_id", OwnerId)):
+        if field in payload:
+            try:
+                payload[field] = str(TypeAdapter(kind).validate_python(payload[field]))
+            except ValidationError:
+                payload[field] = None
     phase = payload.get("phase")
     if not phase:
         phase = {
@@ -299,10 +315,19 @@ def _preferences_key(owner_id: int) -> str:
     return f"dashboard_preferences:{owner_id}"
 
 
+def _public_preferences(value: dict) -> dict:
+    # Keep legacy JSON integers exact in Python; serialize before JavaScript can
+    # round large Telegram IDs. Other preference fields retain their types.
+    public = dict(value)
+    for field in ("always_keep_chat_ids", "ignored_recommendation_chat_ids"):
+        public[field] = [str(chat_id) for chat_id in public[field]]
+    return public
+
+
 async def _preferences(session: AsyncSession, owner_id: int) -> dict:
     row = await session.get(AppSetting, _preferences_key(owner_id))
     stored = row.value if row and isinstance(row.value, dict) else {}
-    return {**PREFERENCES_DEFAULTS, **stored}
+    return _public_preferences({**PREFERENCES_DEFAULTS, **stored})
 
 
 async def _knowledge_inventory_snapshot(
@@ -349,8 +374,16 @@ def create_admin_app(context: AdminContext) -> FastAPI:
     auth = AdminAuth(
         context.admin_secret,
         session_minutes=settings.admin_session_minutes,
+        replay_store=LegacyCodeReplayStore(settings.data_dir / "config", profile_id=settings.profile_id),
     )
-    pending = PendingActionService(ttl_seconds=settings.confirmation_ttl_seconds)
+    async def validate_first_source(db, action):
+        owner = context.first_value_getter() if context.first_value_getter is not None else None
+        if owner is None:
+            raise PermissionError("first_source_preview_stale")
+        await owner.preview.validate(db, action)
+
+    pending = PendingActionService(ttl_seconds=settings.confirmation_ttl_seconds,
+                                   first_source_validator=validate_first_source)
     cookie = APIKeyCookie(name=SESSION_COOKIE, auto_error=False)
     app = FastAPI(
         title="Telegram AI Personal Assistant Admin API",
@@ -361,6 +394,61 @@ def create_admin_app(context: AdminContext) -> FastAPI:
     )
     app.state.admin_context = context
     app.state.admin_auth = auth
+
+    def admission_current():
+        try:
+            return (
+                type(context.owner_id) is int and context.owner_id > 0
+                and context.management_admission is not None
+                and context.management_admission() is True
+            )
+        except Exception:
+            return False
+
+    previous_database_admission = context.database.management_admission
+
+    def database_admission():
+        return admission_current() and (
+            previous_database_admission is None or previous_database_admission() is True
+        )
+
+    context.database.management_admission = database_admission
+
+    def withdraw_sessions():
+        current_auth = app.state.admin_auth
+        if hasattr(current_auth, "invalidate"):
+            current_auth.invalidate()
+        else:
+            for old_token in tuple(current_auth.sessions):
+                current_auth.revoke_session(old_token)
+
+    @app.exception_handler(MaintenanceBusy)
+    async def maintenance_busy(_request, _error):
+        return JSONResponse(
+            status_code=503,
+            content={
+                "code": "maintenance_in_progress",
+                "detail": "Ứng dụng đang bảo trì. Hãy thử lại sau.",
+            },
+        )
+
+    @app.exception_handler(StorageBusy)
+    async def storage_busy(_request, _error):
+        return JSONResponse(
+            status_code=503,
+            content={"code": "storage_busy", "detail": "Dữ liệu đang bận. Hãy thử lại sau."},
+        )
+
+    @app.exception_handler(StaleDataError)
+    async def stale_edit(_request, _error):
+        return JSONResponse(
+            status_code=409,
+            content={
+                "code": "stale_edit",
+                "detail": "Nội dung đã được cập nhật. Hãy tải lại trước khi lưu.",
+            },
+        )
+
     app.add_middleware(
         TrustedHostMiddleware,
         allowed_hosts=["127.0.0.1", "localhost", "[::1]", "testserver"],
@@ -368,7 +456,15 @@ def create_admin_app(context: AdminContext) -> FastAPI:
 
     @app.middleware("http")
     async def secure_api_headers(request: Request, call_next):
-        response = await call_next(request)
+        admitted = admission_current() if request.url.path.startswith("/api/") else False
+        if request.url.path.startswith("/api/") and not admitted:
+            withdraw_sessions()
+            response = JSONResponse(
+                status_code=403,
+                content={"code": "owner_pairing_required", "detail": "Cần xác minh và ghép bot trước khi quản lý."},
+            )
+        else:
+            response = await call_next(request)
         if request.url.path.startswith("/api/"):
             response.headers["Cache-Control"] = "no-store"
             response.headers["X-Content-Type-Options"] = "nosniff"
@@ -380,9 +476,14 @@ def create_admin_app(context: AdminContext) -> FastAPI:
     async def require_session(
         token: str | None = Depends(cookie),
     ) -> AdminSession:
-        session = auth.get_session(token)
+        if not admission_current():
+            withdraw_sessions()
+            raise HTTPException(status_code=403, detail="owner_pairing_required")
+        session = app.state.admin_auth.get_session(token)
         if not session:
             raise HTTPException(status_code=401, detail="Cần đăng nhập owner.")
+        if session.authority != "management" or session.owner_id != context.owner_id:
+            raise HTTPException(status_code=403, detail="Cần ghép owner trước khi quản lý.")
         return session
 
     async def require_write_session(
@@ -397,6 +498,13 @@ def create_admin_app(context: AdminContext) -> FastAPI:
         if not csrf_token or not secrets_compare(csrf_token, session.csrf_token):
             raise HTTPException(status_code=403, detail="CSRF token không hợp lệ.")
         return session
+
+    from .backups import install_backup_routes
+
+    install_backup_routes(app, context, require_session, require_write_session)
+    from .first_value import install_first_value_routes
+
+    install_first_value_routes(app, context, require_session, require_write_session)
 
     async def resolve_history_sender_filter(
         db: AsyncSession,
@@ -459,6 +567,9 @@ def create_admin_app(context: AdminContext) -> FastAPI:
             raise HTTPException(status_code=429, detail="Thử đăng nhập quá nhiều; chờ một phút.")
         if not auth.validate_login_code(payload.code):
             raise HTTPException(status_code=401, detail="Mã đăng nhập sai hoặc đã hết hạn.")
+        if not admission_current():
+            withdraw_sessions()
+            raise HTTPException(status_code=403, detail="owner_pairing_required")
         admin_session = auth.create_session(context.owner_id)
         response.set_cookie(
             SESSION_COOKIE,
@@ -652,13 +763,11 @@ def create_admin_app(context: AdminContext) -> FastAPI:
         if query.strip():
             normalized_query = query.strip()
             username_query = normalized_query.lstrip("@")
-            pattern = f"%{normalized_query}%"
-            username_pattern = f"%{username_query}%"
             conditions.append(
                 or_(
-                    TelegramChat.title.ilike(pattern),
-                    TelegramChat.username.ilike(username_pattern),
-                    cast(TelegramChat.chat_id, String).like(pattern),
+                    folded_contains(TelegramChat.title, normalized_query),
+                    folded_contains(TelegramChat.username, username_query),
+                    folded_contains(cast(TelegramChat.chat_id, String), normalized_query),
                 )
             )
         if chat_type:
@@ -759,7 +868,7 @@ def create_admin_app(context: AdminContext) -> FastAPI:
                     details={"saved_views": len(value["saved_views"])},
                 )
             )
-        return value
+        return _public_preferences(value)
 
     @app.get("/api/v1/groups/recommendations")
     async def inactive_group_recommendations(
@@ -778,9 +887,11 @@ def create_admin_app(context: AdminContext) -> FastAPI:
             )
             items = await _group_rows(db, chats)
             preferences = await _preferences(db, context.owner_id)
-        excluded = set(preferences["always_keep_chat_ids"]) | set(
-            preferences["ignored_recommendation_chat_ids"]
-        )
+        excluded = {
+            int(chat_id)
+            for field in ("always_keep_chat_ids", "ignored_recommendation_chat_ids")
+            for chat_id in preferences[field]
+        }
         recommendations = []
         for item in items:
             rights = item.get("account_rights") or {}
@@ -939,44 +1050,7 @@ def create_admin_app(context: AdminContext) -> FastAPI:
         chat_id: int,
         _session: AdminSession = Depends(require_write_session),
     ) -> dict:
-        vectors = context.vectors_getter()
-        if vectors is None:
-            raise HTTPException(status_code=503, detail="Local-first vector store is unavailable.")
-        async with context.database.session() as db:
-            if not await db.scalar(
-                select(TelegramChat.chat_id).where(TelegramChat.chat_id == chat_id)
-            ):
-                raise HTTPException(status_code=404, detail="Group/channel not found.")
-            report = await inspect_source_coverage(
-                db, chat_id=chat_id, settings=context.settings_getter(), vectors=vectors
-            )
-            action = await pending.create(
-                db,
-                action_type="recover_source_index",
-                requested_by=context.owner_id,
-                chat_id=chat_id,
-                payload={
-                    "coverage": report,
-                    "execution_guard": "explicit_owner_recovery_required",
-                    "estimated_batches": (report["missing_count"] + 31) // 32,
-                    "estimated_local_tokens": report["missing_count"] * 160,
-                    "rollback_strategy": "No source data is modified. Recovery must be a separately approved, append-only reindex.",
-                },
-                preview=(
-                    f"Preview only: recover {report['missing_count']} missing Local-first references "
-                    f"out of {report['expected_eligible_messages']} eligible messages for source {chat_id}."
-                ),
-                reason="Owner review is required before any source recovery; this pending action cannot execute a reindex.",
-            )
-            db.add(_audit(
-                owner_id=context.owner_id,
-                action="vector_recovery_preview_created",
-                outcome="pending",
-                target_type="knowledge_source",
-                target_id=chat_id,
-                details={"action_id": action.action_id, "missing_count": report["missing_count"]},
-            ))
-        return {"pending_action": _action_json(action), "coverage": report}
+        return await create_recovery_preview(context, pending, chat_id, action_json=_action_json)
 
     @app.post("/api/v1/groups/{chat_id}/actions", status_code=status.HTTP_201_CREATED)
     async def create_group_action(
@@ -2598,12 +2672,11 @@ def create_admin_app(context: AdminContext) -> FastAPI:
     ) -> dict:
         conditions = []
         if query:
-            pattern = f"%{query}%"
             conditions.append(
                 or_(
-                    AuditLog.action.ilike(pattern),
-                    AuditLog.target_id.ilike(pattern),
-                    AuditLog.reason.ilike(pattern),
+                    folded_contains(AuditLog.action, query),
+                    folded_contains(AuditLog.target_id, query),
+                    folded_contains(AuditLog.reason, query),
                 )
             )
         if outcome:
@@ -2703,7 +2776,7 @@ def create_admin_app(context: AdminContext) -> FastAPI:
     async def documents_catalog(
         _session: AdminSession = Depends(require_session),
     ) -> dict:
-        root = Path(__file__).resolve().parents[3]
+        root = resource_path()
         return {
             "items": [
                 {
@@ -2725,7 +2798,7 @@ def create_admin_app(context: AdminContext) -> FastAPI:
         if not document:
             raise HTTPException(status_code=404, detail="Tài liệu không tồn tại.")
         file_name, description = document
-        path = Path(__file__).resolve().parents[3] / file_name
+        path = resource_path(file_name)
         if not path.is_file():
             raise HTTPException(status_code=404, detail="Tài liệu chưa được tạo.")
         return {
@@ -2735,6 +2808,7 @@ def create_admin_app(context: AdminContext) -> FastAPI:
             "content": path.read_text(encoding="utf-8"),
         }
 
+    install_recovery_routes(app, context, require_session, require_write_session)
     static_root = settings.resolved_dashboard_dist_path.resolve()
 
     @app.get("/{path:path}", include_in_schema=False)

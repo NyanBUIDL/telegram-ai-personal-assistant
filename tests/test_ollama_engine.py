@@ -61,12 +61,45 @@ async def test_ollama_answer_costs_zero_and_omits_store() -> None:
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("indices", [[7], [False], [0.0], [0, 0]])
+async def test_local_embedding_indices_do_not_reassign_inputs(indices) -> None:
+    from tg_assistant.ai.engine import AiPolicyError
+
+    budget = LocalBudget()
+    engine = make_engine(budget)
+    engine.client.embeddings.create = AsyncMock(return_value=SimpleNamespace(
+        data=[SimpleNamespace(index=index, embedding=[0.1, 0.2]) for index in indices],
+        usage=SimpleNamespace(total_tokens=3),
+    ))
+    try:
+        with pytest.raises(AiPolicyError):
+            await engine.embed_many(object(), ["input"] * len(indices))
+        assert engine.client.embeddings.create.await_count == 1
+        assert len(budget.records) == 1
+    finally:
+        await engine.close()
+
+
+@pytest.mark.asyncio
+async def test_local_out_of_order_embedding_indices_preserve_input_mapping() -> None:
+    engine = make_engine(LocalBudget())
+    engine.client.embeddings.create = AsyncMock(return_value=SimpleNamespace(
+        data=[SimpleNamespace(index=index, embedding=[float(index)]) for index in [1, 0]],
+        usage=SimpleNamespace(total_tokens=3),
+    ))
+    try:
+        assert await engine.embed_many(object(), ["first", "second"]) == [[0.0], [1.0]]
+    finally:
+        await engine.close()
+
+
+@pytest.mark.asyncio
 async def test_ollama_embeddings_cost_zero() -> None:
     budget = LocalBudget()
     engine = make_engine(budget)
     engine.client.embeddings.create = AsyncMock(
         return_value=SimpleNamespace(
-            data=[SimpleNamespace(embedding=[0.1, 0.2, 0.3])],
+            data=[SimpleNamespace(index=0, embedding=[0.1, 0.2, 0.3])],
             usage=SimpleNamespace(total_tokens=3),
         )
     )

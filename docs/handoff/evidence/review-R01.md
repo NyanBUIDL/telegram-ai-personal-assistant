@@ -1,0 +1,9 @@
+# R01 — source audit review and scoped merge correction
+
+The fresh independent review of commit83102463 found one Important defect: bounded history scanning omitted merge-resolution-only changes. Fix commit `f7c2f139c5e2213622997806e3102fd9ce1b24f8` adds Git's per-parent merge diff mode and a real merge-only canary/removal regression. RED incorrectly exited0; GREEN35 tests passed2.43s. The exact-head GitHub run recorded in [Q01 evidence](review-Q01.md) then passed the entire committed suite on Windows3.12/3.13 plus actual MySQL/browser jobs.
+
+Scoped second-reader review approved the immutable fix package, with the original issue addressed and no new Critical/Important findings. The reader authored none of the R01 files. Fresh original-reviewer followup and replacement dispatch failed with the agent thread limit, so this scoped assessment reused the unrelated S01 agent; it is explicitly a limited-context fix review. A fresh whole-branch release review remains required later. No broad audit or repeat suite was presented as independent evidence.
+
+R01 is Verified for its canonical scope: source hygiene, masked current/bounded-history auditing, notices/inventory and explicit unresolved public-release gates. This does not approve redistribution of the project, fonts or final packaged dependencies. [Implementation and retained limits](task-R01.md) remain authoritative; the final artifact SBOM, rights decisions, Qt notices and Windows/UAT gates are pending.
+
+CI renamed its staging folder to `ci-artifacts/` to satisfy the upload filter. A focused follow-through regression proved the source audit recognized only the old hidden name: RED1 failed/14 controls passed. Adding the new generated name to the same denylist produced GREEN36 scanner tests2.47s and scoped Ruff. This keeps accidental force-staging of CI output blocked; it changes no credential disposition or release-rights gate.

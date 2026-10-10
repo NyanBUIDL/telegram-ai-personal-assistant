@@ -1,14 +1,11 @@
 from __future__ import annotations
 
 import asyncio
-import json
 import os
 import shutil
 import subprocess
 import sys
-import tempfile
 import time
-import zipfile
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -16,10 +13,9 @@ import httpx
 import typer
 from sqlalchemy import select
 
-from . import __version__
 from .admin_api import dashboard_login_code, ensure_dashboard_secret
 from .admin_api.auth import login_code_expires_at
-from .config import get_settings
+from .config import get_settings, validate_settings
 from .db.models import (
     PermissionName,
     TelegramAccount,
@@ -27,6 +23,8 @@ from .db.models import (
     TelegramChatPolicy,
     TelegramMessage,
 )
+from .desktop.instance import AlreadyRunning, InstanceGuard
+from .desktop.runtime_controller import RuntimeController
 from .paths import ensure_runtime_dirs, project_root
 from .policy import PolicyEngine
 from .runtime import (
@@ -39,9 +37,9 @@ from .runtime import (
     prompt_secrets,
     run_application,
 )
-from .security import SecretStore, contains_secret
-from .setup.mysql import detect_mysql, find_mysql_tool
-from .setup.wizard import run_setup
+from .security import SecretStore
+from .services.maintenance import FileLock, MaintenanceBusy, profile_writer
+from .services.storage import StorageService
 
 
 def _configure_console_utf8() -> None:
@@ -57,6 +55,8 @@ def _configure_console_utf8() -> None:
 _configure_console_utf8()
 
 app = typer.Typer(help="Telegram AI Personal Assistant", no_args_is_help=True)
+NATIVE_START_TIMEOUT = 20.0
+NATIVE_STOP_TIMEOUT = 20.0
 
 
 def _runtime_files() -> tuple[Path, Path, Path]:
@@ -64,11 +64,35 @@ def _runtime_files() -> tuple[Path, Path, Path]:
     return root / "assistant.pid", root / "assistant.lock", root / "stop.request"
 
 
+def _command_runtime_files() -> tuple[Path, Path, Path]:
+    try:
+        return _runtime_files()
+    except (OSError, ValueError):
+        typer.echo(
+            "Không truy cập được profile; runtime_configuration_invalid. Kiểm tra cấu hình và quyền sở hữu."
+        )
+        raise typer.Exit(code=1) from None
+
+
 def _started_file() -> Path:
     return ensure_runtime_dirs()["data"] / "started_at"
 
 
+def _legacy_pid(path: Path) -> int:
+    try:
+        with path.open(encoding="ascii") as stream:
+            content = stream.read(65)
+        if len(content) > 64:
+            return 0
+        pid = int(content.strip())
+        return pid if 0 < pid <= 0xFFFFFFFF else 0
+    except (OSError, ValueError):
+        return 0
+
+
 def _process_exists(pid: int) -> bool:
+    if type(pid) is not int or pid <= 0:
+        return False
     if os.name == "nt":
         tasklist = shutil.which("tasklist")
         if not tasklist:
@@ -90,38 +114,118 @@ def _process_exists(pid: int) -> bool:
 class InstanceLock:
     def __init__(self, path: Path) -> None:
         self.path, self.handle = path, None
+        self.guard = None
 
     def __enter__(self) -> InstanceLock:
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        self.handle = self.path.open("a+")
         try:
-            if os.name == "nt":
-                import msvcrt
-
-                msvcrt.locking(self.handle.fileno(), msvcrt.LK_NBLCK, 1)
-            else:
-                import fcntl
-
-                fcntl.flock(self.handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except OSError as exc:
-            self.handle.close()
-            raise RuntimeError("Ứng dụng đã chạy ở instance khác") from exc
+            self.guard = InstanceGuard().acquire()
+            self.path.parent.mkdir(parents=True, exist_ok=True)
+            self.handle = FileLock(self.path, exclusive=True)
+        except (AlreadyRunning, MaintenanceBusy):
+            self.__exit__()
+            raise RuntimeError("Ứng dụng đã chạy ở instance khác") from None
+        except BaseException:
+            self.__exit__()
+            raise
         return self
 
     def __exit__(self, *_: object) -> None:
         if self.handle:
             try:
-                if os.name == "nt":
-                    import msvcrt
-
-                    self.handle.seek(0)
-                    msvcrt.locking(self.handle.fileno(), msvcrt.LK_UNLCK, 1)
-                else:
-                    import fcntl
-
-                    fcntl.flock(self.handle, fcntl.LOCK_UN)
-            finally:
                 self.handle.close()
+            finally:
+                self.handle = None
+                if self.guard:
+                    self.guard.close()
+                    self.guard = None
+        elif self.guard:
+            self.guard.close()
+            self.guard = None
+
+
+def _native_controller() -> RuntimeController:
+    return RuntimeController(get_settings())
+
+
+def _echo_native_state(state) -> None:
+    typer.echo(f"Trạng thái: {state.phase}; {state.code}.")
+    if state.phase == "ready":
+        typer.echo(f"Runtime đã xác nhận (PID {state.pid}).")
+        typer.echo(f"Dashboard local: {state.url}")
+
+
+def _native_start() -> None:
+    runtime = _native_controller()
+    try:
+        started = runtime.start()
+        deadline = time.monotonic() + NATIVE_START_TIMEOUT
+        state = runtime.snapshot
+        while time.monotonic() < deadline:
+            if started.done():
+                started.result()
+            state = runtime.refresh().result(timeout=max(0.01, min(2, deadline - time.monotonic())))
+            if state.phase == "ready":
+                _echo_native_state(state)
+                return
+            if state.phase == "error" or (state.phase == "stopped" and runtime.process):
+                _echo_native_state(state)
+                raise typer.Exit(code=1)
+            time.sleep(min(0.05, max(0, deadline - time.monotonic())))
+        typer.echo(
+            f"Đang khởi động; chưa xác nhận readiness. Chạy status để kiểm tra. ({state.code})"
+        )
+        raise typer.Exit(code=1)
+    except typer.Exit:
+        raise
+    except TimeoutError:
+        typer.echo("Đang khởi động; chưa xác nhận readiness. Chạy status để kiểm tra.")
+        raise typer.Exit(code=1) from None
+    except (OSError, ValueError, RuntimeError):
+        typer.echo("Không thể khởi động; runtime_start_failed. Kiểm tra cấu hình hoặc bảo trì.")
+        raise typer.Exit(code=1) from None
+    finally:
+        runtime.close()
+
+
+def _native_status() -> None:
+    runtime = _native_controller()
+    try:
+        _echo_native_state(runtime.refresh().result(timeout=2))
+    except (OSError, ValueError, RuntimeError, TimeoutError):
+        typer.echo("Trạng thái: unknown; runtime_readiness_unavailable.")
+        raise typer.Exit(code=1) from None
+    finally:
+        runtime.close()
+
+
+def _native_stop() -> None:
+    runtime = _native_controller()
+    try:
+        state = runtime.refresh().result(timeout=2)
+        if state.phase != "ready":
+            _echo_native_state(state)
+            typer.echo("Chưa xác nhận runtime; không gửi yêu cầu dừng. Chạy status để kiểm tra.")
+            raise typer.Exit(code=1)
+        runtime.stop()
+        deadline = time.monotonic() + NATIVE_STOP_TIMEOUT
+        while time.monotonic() < deadline:
+            state = runtime.refresh().result(timeout=2)
+            if state.phase == "stopped":
+                typer.echo("Đã dừng an toàn.")
+                return
+            if state.phase == "error":
+                break
+            time.sleep(0.05)
+        _echo_native_state(state)
+        typer.echo("Chưa xác nhận đã dừng; không ép tắt. Chạy status để kiểm tra.")
+        raise typer.Exit(code=1)
+    except typer.Exit:
+        raise
+    except (OSError, ValueError, RuntimeError, TimeoutError):
+        typer.echo("Chưa xác nhận đã dừng; runtime_stop_unconfirmed. Không ép tắt.")
+        raise typer.Exit(code=1) from None
+    finally:
+        runtime.close()
 
 
 async def _is_paired() -> bool:
@@ -135,10 +239,11 @@ async def _is_paired() -> bool:
 
 
 def _ensure_ready() -> None:
-    store, paths = SecretStore(), ensure_runtime_dirs()
+    settings = validate_settings(get_settings())
+    store = SecretStore()
+    paths = ensure_runtime_dirs(settings.data_dir, profile_id=settings.profile_id)
     prompted_secrets = False
-    if not store.get("database_password"):
-        run_setup()
+    _prepare_sqlite_storage(settings, store)
     required = ("telegram_api_id", "telegram_api_hash", "telegram_phone", "telegram_bot_token")
     if any(not store.get(key) for key in required):
         prompt_secrets(store)
@@ -161,27 +266,42 @@ def _ensure_ready() -> None:
         asyncio.run(bootstrap())
 
 
+def _prepare_sqlite_storage(settings, store) -> None:
+    from .contracts import PublicProfile
+
+    service = StorageService(settings, store)
+    database = service.open(
+        PublicProfile(
+            profile_id=settings.profile_id,
+            owner_id=None,
+            storage_backend=settings.storage_backend,
+            setup_stage="welcome",
+            version=1,
+        )
+    )
+    try:
+        service.migrate()
+    finally:
+        asyncio.run(database.close())
+
+
 @app.command()
 def start() -> None:
-    """Thiết lập nếu cần rồi chạy nền, không cần Administrator."""
-    _ensure_ready()
-    pid_file, _, stop_file = _runtime_files()
+    """Mở runtime native trên Windows; giữ đường chạy nền legacy trên hệ khác."""
+    pid_file, lock_file, stop_file = _command_runtime_files()
     if pid_file.exists():
-        try:
-            pid = int(pid_file.read_text().strip())
-        except ValueError:
-            pid = 0
+        pid = _legacy_pid(pid_file)
         if pid and _process_exists(pid):
-            typer.echo(f"Đang chạy (PID {pid}).")
-            settings = get_settings()
-            if settings.admin_api_enabled:
-                typer.echo(
-                    f"Dashboard local: http://{settings.admin_api_host}:"
-                    f"{settings.admin_api_port} "
-                    "(lấy mã bằng: .\\.venv\\Scripts\\tg-assistant.exe dashboard-code)"
-                )
+            typer.echo(
+                f"Đã có tiến trình legacy (PID {pid}); chưa kiểm tra readiness. Không mở thêm."
+            )
             return
         pid_file.unlink(missing_ok=True)
+    if os.name == "nt":
+        _native_start()
+        return
+    with InstanceLock(lock_file):
+        _ensure_ready()
     stop_file.unlink(missing_ok=True)
     log_path = ensure_runtime_dirs()["logs"] / "background.log"
     flags = 0
@@ -247,10 +367,10 @@ def worker() -> None:
 @app.command()
 def run() -> None:
     """Chạy foreground và hiển thị log."""
-    _ensure_ready()
     pid_file, lock_file, stop_file = _runtime_files()
-    stop_file.unlink(missing_ok=True)
     with InstanceLock(lock_file):
+        _ensure_ready()
+        stop_file.unlink(missing_ok=True)
         pid_file.write_text(str(os.getpid()), encoding="ascii")
         _started_file().write_text(datetime.now(UTC).isoformat(), encoding="ascii")
         try:
@@ -262,11 +382,14 @@ def run() -> None:
 
 @app.command()
 def stop() -> None:
-    pid_file, _, stop_file = _runtime_files()
+    pid_file, _, stop_file = _command_runtime_files()
+    pid = _legacy_pid(pid_file)
+    if os.name == "nt" and not (pid and _process_exists(pid)):
+        _native_stop()
+        return
     if not pid_file.exists():
         typer.echo("Không chạy.")
         return
-    pid = int(pid_file.read_text().strip())
     if not _process_exists(pid):
         pid_file.unlink(missing_ok=True)
         typer.echo("Không chạy (đã dọn PID cũ).")
@@ -282,20 +405,45 @@ def stop() -> None:
 
 @app.command()
 def restart() -> None:
+    if os.name == "nt":
+        pid_file, _, _ = _command_runtime_files()
+        pid = _legacy_pid(pid_file)
+        if not (pid and _process_exists(pid)):
+            runtime = _native_controller()
+            try:
+                state = runtime.refresh().result(timeout=2)
+            except (OSError, ValueError, RuntimeError, TimeoutError):
+                typer.echo("Chưa xác nhận runtime; runtime_readiness_unavailable.")
+                raise typer.Exit(code=1) from None
+            finally:
+                runtime.close()
+            if state.phase == "ready":
+                _native_stop()
+            else:
+                # Missing/stale readiness is safe to start only if no SID worker owns the guard.
+                # Release this probe before launch; the child acquires the same singleton guard.
+                try:
+                    with InstanceGuard():
+                        pass
+                except (AlreadyRunning, OSError, ValueError):
+                    typer.echo("Chưa xác nhận runtime; runtime_restart_unconfirmed. Không mở thêm.")
+                    raise typer.Exit(code=1) from None
+            start()
+            return
     stop()
     start()
 
 
 @app.command()
 def status() -> None:
-    pid_file, _, _ = _runtime_files()
+    pid_file, _, _ = _command_runtime_files()
+    pid = _legacy_pid(pid_file)
+    if os.name == "nt" and not (pid and _process_exists(pid)):
+        _native_status()
+        return
     if not pid_file.exists():
         typer.echo("Trạng thái: stopped")
         return
-    try:
-        pid = int(pid_file.read_text().strip())
-    except ValueError:
-        pid = 0
     uptime = "-"
     try:
         started = datetime.fromisoformat(_started_file().read_text(encoding="ascii"))
@@ -303,7 +451,8 @@ def status() -> None:
     except (OSError, ValueError):
         pass
     typer.echo(
-        f"Trạng thái: {'running' if pid and _process_exists(pid) else 'stale'}; "
+        f"Trạng thái: {'legacy_process' if pid and _process_exists(pid) else 'stale'}; "
+        "readiness chưa kiểm tra; "
         f"PID: {pid or '-'}; uptime: {uptime}"
     )
 
@@ -333,37 +482,24 @@ def logs(lines: int = typer.Option(100, min=1, max=5000)) -> None:
 
 @app.command()
 def doctor() -> None:
-    settings, store, paths = get_settings(), SecretStore(), ensure_runtime_dirs()
+    settings = validate_settings(get_settings())
+    store = SecretStore()
+    paths = ensure_runtime_dirs(settings.data_dir, profile_id=settings.profile_id)
     typer.echo(
         f"Python: {sys.version.split()[0]} {'OK' if sys.version_info >= (3, 12) else 'FAIL'}"
     )
-    detection = detect_mysql(settings.database_host, settings.database_port)
-    typer.echo(f"MySQL version: {detection.version or 'không xác định'}")
-    typer.echo(
-        "MySQL services: "
-        + (
-            ", ".join(f"{name}={state}" for name, state in detection.services)
-            if detection.services
-            else "không phát hiện"
-        )
-    )
-    typer.echo(
-        f"MySQL port: {'OK' if detection.port_open else 'FAIL'}; "
-        f"process: {'OK' if detection.process_found else 'MISSING'}; "
-        f"CLI: {'OK' if detection.cli_found else 'không có'}"
-    )
-    for key in (
-        "database_password",
+    required = (
         "telegram_api_id",
         "telegram_api_hash",
         "telegram_phone",
         "telegram_bot_token",
-    ):
+    )
+    for key in required:
         typer.echo(f"Credential {key}: {'OK' if store.get(key) else 'MISSING'}")
     typer.echo(
         f"Encrypted session: {'OK' if (paths['sessions'] / 'account.session.enc').exists() else 'MISSING'}"
     )
-    if store.get("database_password"):
+    if settings.storage_backend == "sqlite":
 
         async def ping() -> bool:
             db = make_database(settings, store)
@@ -373,9 +509,11 @@ def doctor() -> None:
                 await db.close()
 
         try:
-            typer.echo(f"Database: {'OK' if asyncio.run(ping()) else 'FAIL'}")
-        except Exception as exc:
-            typer.echo(f"Database: FAIL ({exc})")
+            typer.echo(
+                f"Database ({settings.storage_backend}): {'OK' if asyncio.run(ping()) else 'FAIL'}"
+            )
+        except Exception:
+            typer.echo(f"Database ({settings.storage_backend}): FAIL (storage_unavailable)")
     selected_secret = settings.ai_secret_name
     ai_ready = settings.ai_provider == "ollama" or bool(
         selected_secret and store.get(selected_secret)
@@ -389,9 +527,7 @@ def doctor() -> None:
         f"OpenAI key: {'configured' if store.get('openai_api_key') else 'missing'}; "
         f"OpenRouter key: {'configured' if store.get('openrouter_api_key') else 'missing'}"
     )
-    typer.echo(
-        f"CoinGecko key: {'configured' if store.get('coingecko_api_key') else 'missing'}"
-    )
+    typer.echo(f"CoinGecko key: {'configured' if store.get('coingecko_api_key') else 'missing'}")
     if settings.ai_provider == "ollama":
         try:
             tags_url = f"{settings.ollama_base_url.removesuffix('/v1')}/api/tags"
@@ -412,8 +548,7 @@ def doctor() -> None:
             typer.echo(f"Ollama API: FAIL ({exc})")
     active_qdrant = settings.resolved_semantic_vector_path
     typer.echo(
-        f"Qdrant active: {active_qdrant} "
-        f"({'OK' if active_qdrant.exists() else 'chưa khởi tạo'})"
+        f"Qdrant active: {active_qdrant} ({'OK' if active_qdrant.exists() else 'chưa khởi tạo'})"
     )
     if settings.admin_api_enabled:
         health_url = f"http://{settings.admin_api_host}:{settings.admin_api_port}/healthz"
@@ -457,9 +592,7 @@ def ai_provider(
         prompt_key=True,
     )
     secret_name = settings.ai_secret_name
-    ready = settings.ai_provider == "ollama" or bool(
-        secret_name and SecretStore().get(secret_name)
-    )
+    ready = settings.ai_provider == "ollama" or bool(secret_name and SecretStore().get(secret_name))
     typer.echo(
         f"Đã chọn {settings.ai_provider}; "
         f"credential: {'không cần (local)' if settings.ai_provider == 'ollama' else ('đã có' if ready else 'chưa có/tắt')}. "
@@ -469,6 +602,7 @@ def ai_provider(
 
 
 @app.command()
+@profile_writer(lambda: get_settings())
 def sync(limit: int = typer.Option(1000, min=1, max=100000)) -> None:
     async def execute() -> None:
         settings, store, paths, policy = (
@@ -509,25 +643,30 @@ def sync(limit: int = typer.Option(1000, min=1, max=100000)) -> None:
 
 
 @app.command()
+@profile_writer(lambda: get_settings())
 def reindex() -> None:
     async def execute() -> None:
+        from types import SimpleNamespace
+
         from .ai.vector import LocalVectorStore
+        from .runtime import Application, make_budget
 
         settings, store = get_settings(), SecretStore()
         db = make_database(settings, store)
-        ai = make_local_embedding_engine(settings, store)
-        if not ai.available or not settings.enable_embeddings:
-            typer.echo(f"Embedding đang tắt hoặc chưa có key cho provider {settings.ai_provider}.")
-            await db.close()
-            return
-        vectors, count = (
-            LocalVectorStore(
-                settings.resolved_semantic_vector_path,
-                vector_size=settings.ollama_vector_size,
-            ),
-            0,
-        )
+        ai = make_local_embedding_engine(settings, store, make_budget(settings))
+        vectors = None
         try:
+            if not ai.available or not settings.enable_embeddings or settings.ai_provider == "off":
+                typer.echo("Embedding disabled or selected provider unavailable.")
+                return
+            vectors = LocalVectorStore(
+                settings.resolved_semantic_vector_path,
+                vector_size=settings.embedding_profile.dimension,
+                profile=settings.embedding_profile,
+            )
+            runtime = Application.__new__(Application)
+            runtime.settings, runtime.database, runtime.policy = settings, db, PolicyEngine()
+            runtime.embedding_ai, runtime.rag = ai, SimpleNamespace(vectors=vectors)
             async with db.session() as session:
                 allowed = (
                     select(TelegramChatPermission.chat_id)
@@ -541,182 +680,121 @@ def reindex() -> None:
                         TelegramChatPermission.enabled.is_(True),
                     )
                 )
-                rows = (
-                    await session.scalars(
-                        select(TelegramMessage).where(
-                            TelegramMessage.chat_id.in_(allowed),
-                            TelegramMessage.is_deleted.is_(False),
-                            TelegramMessage.text.is_not(None),
+                rows = list(
+                    (
+                        await session.scalars(
+                            select(TelegramMessage).where(
+                                TelegramMessage.chat_id.in_(allowed),
+                                TelegramMessage.is_deleted.is_(False),
+                                TelegramMessage.text.is_not(None),
+                            )
                         )
-                    )
-                ).all()
-                for row in rows:
-                    if contains_secret(row.text or ""):
-                        continue
-                    vector = await ai.embed(session, row.text or "")
-                    if vector:
-                        vectors.upsert(
-                            row.id, vector, chat_id=row.chat_id, message_id=row.message_id
-                        )
-                        count += 1
-            typer.echo(f"Đã lập chỉ mục {count} tin.")
+                    ).all()
+                )
+                result = await runtime._index_knowledge_rows(
+                    session, rows, permission=PermissionName.SEARCH_MESSAGES
+                )
+                typer.echo(f"Indexed {result.indexed} messages; reused {result.reused}.")
         finally:
-            vectors.close()
+            if vectors is not None:
+                vectors.close()
+            await ai.close()
             await db.close()
 
     asyncio.run(execute())
 
 
+def _portable_storage() -> StorageService:
+    """Open the explicit profile without launching writers or prompting secrets."""
+    settings = get_settings()
+    storage = StorageService(settings)
+    from .contracts import PublicProfile
+
+    database = storage.open(PublicProfile(
+        profile_id=settings.profile_id,
+        owner_id=None,
+        storage_backend=settings.storage_backend,
+        setup_stage="storage_ready",
+        version=1,
+    ))
+    try:
+        asyncio.run(database.close())
+    except BaseException:
+        storage.fence.close()
+        raise
+    return storage
+
+
 @app.command()
 def backup(output: Path | None = None) -> None:
-    settings, store, paths = get_settings(), SecretStore(), ensure_runtime_dirs()
-    dump = find_mysql_tool("mysqldump")
-    if not dump:
-        raise typer.BadParameter("Không tìm thấy mysqldump")
-    output = output or paths["backups"] / f"backup-{datetime.now().strftime('%Y%m%d-%H%M%S')}.zip"
-    if output.exists():
-        raise typer.BadParameter(f"Không ghi đè backup đã tồn tại: {output}")
-    with tempfile.NamedTemporaryFile(
-        prefix="tg-assistant-backup-", suffix=".sql", dir=paths["backups"], delete=False
-    ) as temp_file:
-        sql_path = Path(temp_file.name)
-    env = os.environ.copy()
-    env["MYSQL_PWD"] = store.get("database_password") or ""
+    """Create a portable SQLite snapshot without external SQL tools."""
+    storage = None
     try:
-        with sql_path.open("wb") as stream:
-            subprocess.run(
-                [
-                    dump,
-                    "--host",
-                    settings.database_host,
-                    "--port",
-                    str(settings.database_port),
-                    "--user",
-                    settings.database_user,
-                    "--single-transaction",
-                    "--routines",
-                    settings.database_name,
-                ],
-                stdout=stream,
-                env=env,
-                check=True,
-            )
-        with zipfile.ZipFile(output, "w", zipfile.ZIP_DEFLATED) as archive:
-            archive.write(sql_path, "database.sql")
-            archive.writestr(
-                "manifest.txt",
-                f"version={__version__}\nschema=0001\ncreated_at={datetime.now(UTC).isoformat()}\n",
-            )
-            safe_config = {
-                "TG_ASSISTANT_TIMEZONE": settings.timezone,
-                "TG_ASSISTANT_LOG_LEVEL": settings.log_level,
-                "TG_ASSISTANT_ADMIN_API_ENABLED": settings.admin_api_enabled,
-                "TG_ASSISTANT_ADMIN_API_HOST": settings.admin_api_host,
-                "TG_ASSISTANT_ADMIN_API_PORT": settings.admin_api_port,
-                "TG_ASSISTANT_ADMIN_SESSION_MINUTES": settings.admin_session_minutes,
-                "TG_ASSISTANT_DATABASE_HOST": settings.database_host,
-                "TG_ASSISTANT_DATABASE_PORT": settings.database_port,
-                "TG_ASSISTANT_DATABASE_NAME": settings.database_name,
-                "TG_ASSISTANT_DATABASE_USER": settings.database_user,
-                "TG_ASSISTANT_MEDIA_DOWNLOAD_ENABLED": settings.media_download_enabled,
-                "TG_ASSISTANT_MEDIA_MAX_SIZE_MB": settings.media_max_size_mb,
-                "TG_ASSISTANT_DAILY_AI_BUDGET_USD": settings.daily_ai_budget_usd,
-                "TG_ASSISTANT_MONTHLY_AI_BUDGET_USD": settings.monthly_ai_budget_usd,
-                "TG_ASSISTANT_MAX_AI_REQUESTS_PER_MINUTE": (settings.max_ai_requests_per_minute),
-                "TG_ASSISTANT_LEARNING_JOB_INTERVAL_SECONDS": (
-                    settings.learning_job_interval_seconds
-                ),
-                "TG_ASSISTANT_AI_PROVIDER": settings.ai_provider,
-                "TG_ASSISTANT_OPENAI_BASE_URL": settings.openai_base_url,
-                "TG_ASSISTANT_OPENAI_PRIMARY_MODEL": settings.openai_primary_model,
-                "TG_ASSISTANT_OPENAI_FAST_MODEL": settings.openai_fast_model,
-                "TG_ASSISTANT_OPENAI_DEEP_MODEL": settings.openai_deep_model,
-                "TG_ASSISTANT_OPENAI_EMBEDDING_MODEL": settings.openai_embedding_model,
-                "TG_ASSISTANT_OPENROUTER_BASE_URL": settings.openrouter_base_url,
-                "TG_ASSISTANT_OPENROUTER_PRIMARY_MODEL": settings.openrouter_primary_model,
-                "TG_ASSISTANT_OPENROUTER_EMBEDDING_MODEL": (settings.openrouter_embedding_model),
-                "TG_ASSISTANT_OLLAMA_BASE_URL": settings.ollama_base_url,
-                "TG_ASSISTANT_OLLAMA_PRIMARY_MODEL": settings.ollama_primary_model,
-                "TG_ASSISTANT_OLLAMA_EMBEDDING_MODEL": settings.ollama_embedding_model,
-                "TG_ASSISTANT_OLLAMA_VECTOR_SIZE": settings.ollama_vector_size,
-            }
-            archive.writestr(
-                "config.env",
-                "\n".join(f"{key}={value}" for key, value in safe_config.items()) + "\n",
-            )
-            qdrant_path = settings.resolved_semantic_vector_path
-            metadata = {
-                "configured": str(qdrant_path),
-                "present": qdrant_path.exists(),
-                "file_count": (
-                    sum(1 for item in qdrant_path.rglob("*") if item.is_file())
-                    if qdrant_path.exists()
-                    else 0
-                ),
-            }
-            archive.writestr(
-                "qdrant_metadata.json",
-                json.dumps(metadata, ensure_ascii=False, indent=2),
-            )
-        typer.echo(f"Backup không chứa secret: {output}")
+        storage = _portable_storage()
+        output = output or storage.settings.data_dir / "backups" / (
+            f"backup-{datetime.now(UTC).strftime('%Y%m%d-%H%M%S')}-{time.time_ns()}.zip"
+        )
+        manifest = storage.backup(output)
+        typer.echo(
+            f"Đã tạo bản sao lưu {manifest.backend}; schema {manifest.schema_revision}. "
+            "Thông tin đăng nhập và phiên Telegram không nằm trong bản sao lưu."
+        )
+    except MaintenanceBusy:
+        typer.echo("Đang bảo trì; maintenance_in_progress. Thử lại sau khi bảo trì kết thúc.")
+        raise typer.Exit(code=1) from None
+    except Exception:
+        typer.echo("Không thể tạo bản sao lưu; backup_failed. Kiểm tra quyền lưu và tệp đích.")
+        raise typer.Exit(code=1) from None
     finally:
-        env["MYSQL_PWD"] = ""
-        sql_path.unlink(missing_ok=True)
+        if storage is not None and storage.fence is not None:
+            storage.fence.close()
 
 
 @app.command()
 def restore(archive: Path) -> None:
-    if not archive.is_file() or not zipfile.is_zipfile(archive):
-        raise typer.BadParameter("Backup không hợp lệ")
-    with zipfile.ZipFile(archive) as source:
-        if "database.sql" not in source.namelist() or "manifest.txt" not in source.namelist():
-            raise typer.BadParameter("Thiếu manifest/database.sql")
-        manifest = source.read("manifest.txt").decode("utf-8")
-        if "schema=0001" not in manifest:
-            raise typer.BadParameter("Phiên bản schema không tương thích")
-        if source.getinfo("database.sql").file_size > 5 * 1024 * 1024 * 1024:
-            raise typer.BadParameter("Database backup vượt giới hạn an toàn 5 GiB.")
+    """Confirm first, then restore only while owning the actual writer fence."""
+    from .services.backup import BackupError
+
     if not typer.confirm(
-        "Restore sẽ thay đổi database. Ứng dụng sẽ tự tạo backup hiện trạng trước. Tiếp tục?",
-        default=False,
+        "Khôi phục sẽ thay đổi dữ liệu và tạo bản sao lưu hiện trạng trước. "
+        "Hãy dừng ứng dụng trước khi tiếp tục. Tiếp tục?", default=False,
     ):
         raise typer.Abort()
-    settings, store, paths = get_settings(), SecretStore(), ensure_runtime_dirs()
-    mysql = find_mysql_tool("mysql")
-    if not mysql:
-        raise typer.BadParameter("Không tìm thấy mysql CLI")
-    pre_restore = paths["backups"] / (f"pre-restore-{datetime.now().strftime('%Y%m%d-%H%M%S')}.zip")
-    backup(pre_restore)
-    with tempfile.NamedTemporaryFile(
-        prefix="tg-assistant-restore-", suffix=".sql", dir=paths["backups"], delete=False
-    ) as temp_file:
-        temp = Path(temp_file.name)
-    env = os.environ.copy()
-    env["MYSQL_PWD"] = store.get("database_password") or ""
+    storage = None
+    lease = None
     try:
-        with zipfile.ZipFile(archive) as source:
-            with source.open("database.sql") as source_sql, temp.open("wb") as target_sql:
-                shutil.copyfileobj(source_sql, target_sql, length=1024 * 1024)
-        with temp.open("rb") as stream:
-            subprocess.run(
-                [
-                    mysql,
-                    "--host",
-                    settings.database_host,
-                    "--port",
-                    str(settings.database_port),
-                    "--user",
-                    settings.database_user,
-                    settings.database_name,
-                ],
-                stdin=stream,
-                env=env,
-                check=True,
-            )
-        typer.echo("Restore hoàn tất.")
+        storage = _portable_storage()
+        lease = storage.fence.acquire("backup_restore", lease_seconds=1800, timeout=0)
+        try:
+            report = storage.restore(archive, lease)
+        except BackupError as error:
+            if error.original_preserved:
+                storage.fence.release(lease)
+                lease = None
+            raise
+        storage.fence.release(lease)
+        lease = None
+        typer.echo(
+            f"Đã khôi phục dữ liệu {report.backend}; schema {report.schema_revision}. "
+            "Ứng dụng cần khôi phục chỉ mục AI trước khi báo sẵn sàng. "
+            "Bản sao lưu trước khôi phục đã được giữ lại."
+        )
+    except MaintenanceBusy:
+        typer.echo(
+            "Chưa thể khôi phục; maintenance_in_progress. "
+            "Dừng ứng dụng và các tác vụ ghi, rồi kiểm tra lại trạng thái bảo trì."
+        )
+        raise typer.Exit(code=1) from None
+    except Exception:
+        typer.echo(
+            "Không thể khôi phục; restore_failed. "
+            "Kiểm tra bản sao lưu và trạng thái bảo trì trước khi thử lại."
+        )
+        raise typer.Exit(code=1) from None
     finally:
-        env["MYSQL_PWD"] = ""
-        temp.unlink(missing_ok=True)
+        # Failure never clears a persistent fence without verified preservation.
+        if storage is not None and storage.fence is not None:
+            storage.fence.close()
 
 
 @app.command()
@@ -834,7 +912,7 @@ def purge() -> None:
         raise typer.Abort()
     shutil.rmtree(root)
     typer.echo(
-        f"Đã xóa dữ liệu cục bộ {root} và credential; database MySQL không bị drop tự động để tránh mất dữ liệu ngoài ý muốn."
+        f"Đã xóa dữ liệu SQLite trong profile {root} và các credential của ứng dụng; database MySQL cũ không bị thay đổi."
     )
 
 

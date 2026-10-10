@@ -5,6 +5,7 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Final
+from uuid import uuid4
 
 import keyring
 from cryptography.fernet import Fernet, InvalidToken
@@ -99,11 +100,13 @@ class EncryptedSession:
     def encrypt_file(self, source: Path, target: Path) -> None:
         target.parent.mkdir(parents=True, exist_ok=True)
         encrypted = self._fernet().encrypt(source.read_bytes())
-        target.write_bytes(encrypted)
+        temporary = target.with_name(f".{target.name}-{uuid4().hex}.tmp")
         try:
-            os.chmod(target, 0o600)
-        except OSError:
-            pass
+            temporary.write_bytes(encrypted)
+            os.chmod(temporary, 0o600)
+            os.replace(temporary, target)
+        finally:
+            temporary.unlink(missing_ok=True)
 
     def decrypt_file(self, source: Path, target: Path) -> None:
         try:

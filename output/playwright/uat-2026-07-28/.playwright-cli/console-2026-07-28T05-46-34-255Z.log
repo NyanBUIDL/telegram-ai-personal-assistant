@@ -1,6 +1,0 @@
-[      70ms] [ERROR] Failed to load resource: the server responded with a status of 401 (Unauthorized) @ http://127.0.0.1:8765/api/v1/auth/session:0
-[   30784ms] [ERROR] Failed to load resource: the server responded with a status of 401 (Unauthorized) @ http://127.0.0.1:8765/api/v1/auth/login:0
-[ 1094862ms] [ERROR] Failed to load resource: the server responded with a status of 403 (Forbidden) @ http://127.0.0.1:8765/api/v1/learning-jobs/pause-all:0
-[ 1125418ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://127.0.0.1:8765/api/v1/groups?category=all&query=&page=1&page_size=10:0
-[ 1136347ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://127.0.0.1:8765/api/v1/groups?category=all&query=&page=1&page_size=10:0
-[ 1771496ms] [ERROR] Failed to load resource: the server responded with a status of 401 (Unauthorized) @ http://127.0.0.1:8765/api/v1/auth/session:0

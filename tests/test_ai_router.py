@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import pytest
 
+from tg_assistant.ai.engine import AiUnavailableError
 from tg_assistant.ai.router import AiRoute, AiRouter
 
 
@@ -14,7 +15,7 @@ class FakeEngine:
     async def answer(self, session, question, context, *, include_source_refs=True, **_kwargs):
         self.calls += 1
         if self.fail:
-            raise RuntimeError(f"{self.provider} unavailable")
+            raise AiUnavailableError(f"{self.provider} unavailable")
         return f"answer from {self.provider}"
 
     async def close(self) -> None:
@@ -28,6 +29,7 @@ async def test_local_first_falls_back_to_cloud() -> None:
     router = AiRouter(
         {"ollama": local, "openai": cloud},
         default_provider="openai",
+        cloud_consent=True,
     )
 
     answer = await router.answer(

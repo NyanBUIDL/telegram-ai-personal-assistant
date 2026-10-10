@@ -6,9 +6,9 @@ Telegram và các service hiện có.
 
 ## Ký hiệu
 
-- MySQL là nguồn dữ liệu chuẩn và mỗi database context tự `commit`; khi có lỗi sẽ
+- SQLite là nguồn dữ liệu chuẩn và mỗi database context tự `commit`; khi có lỗi sẽ
   `rollback`.
-- Qdrant local chỉ là chỉ mục vector dẫn về bản ghi MySQL.
+- Qdrant local chỉ là chỉ mục vector dẫn về bản ghi SQLite.
 - Đường đi qua `PendingAction` có nghĩa là owner phải xem trước và xác nhận trước
   khi worker thực thi.
 - Chat mặc định là `BLOCK`. Một thao tác trên chat chỉ được tiếp tục khi chat ở
@@ -35,7 +35,7 @@ flowchart TB
     end
 
     policy --> services
-    services --> mysql[("MySQL<br/>nguồn dữ liệu chuẩn")]
+    services --> mysql[("SQLite<br/>nguồn dữ liệu chuẩn")]
     services --> rag
     rag --> mysql
     rag --> qdrant[("Qdrant local<br/>vector + reference ID")]
@@ -58,8 +58,8 @@ flowchart TB
 ```mermaid
 flowchart TD
     a0(["Người dùng chạy tg-assistant start hoặc run"]) --> ready["Kiểm tra cấu hình và thư mục runtime"]
-    ready --> db_secret{"Đã có database_password?"}
-    db_secret -->|"Chưa"| setup["Chạy setup MySQL<br/>lưu mật khẩu trong Credential Manager"]
+    ready --> db_secret{"Profile đã có SQLite?"}
+    db_secret -->|"Chưa"| setup["Tạo SQLite rỗng trong profile<br/>chạy migration dưới khóa ghi"]
     db_secret -->|"Rồi"| tg_secret
     setup --> tg_secret{"Đủ API ID, API hash,<br/>phone và bot token?"}
     tg_secret -->|"Chưa"| prompt["Nhập secret ẩn trong terminal"]
@@ -166,7 +166,7 @@ flowchart TD
     input -->|"Văn bản tự nhiên"| natural{"Có chứa secret?"}
 
     ai_ops -->|"Giá coin"| price["Gọi CoinGecko<br/>không cần AI hoặc RAG"]
-    ai_ops -->|"Tìm Telegram"| keyword["Search MySQL local<br/>mặc định 7 ngày"]
+    ai_ops -->|"Tìm Telegram"| keyword["Search SQLite local<br/>mặc định 7 ngày"]
     ai_ops -->|"Hỏi AI"| rag["RAG trên chat ALLOW + search_messages"]
     ai_ops -->|"Digest"| digest["Lọc, khử trùng, phân bổ nguồn<br/>AI phân loại + dẫn chứng"]
     ai_ops -->|"Học nguồn"| learn_select["Chọn tối đa 500 group/channel<br/>review toàn bộ lựa chọn"]
@@ -228,7 +228,7 @@ flowchart TD
     route -->|"AI đang tắt hoặc unavailable"| ai_off["Thông báo AI chưa sẵn sàng"]
     route -->|"Hỏi lịch sử @username"| sender["Phân giải username thành Telegram User"]
     sender --> sender_sync["Lấy tối đa 100 tin mới nhất<br/>của đúng sender trong đúng group"]
-    sender_sync --> sender_mysql["Upsert vào MySQL"]
+    sender_sync --> sender_mysql["Upsert vào SQLite"]
     sender_mysql --> sender_context["Query lại bằng chat_id + sender_id<br/>loại tin gọi lệnh"]
     sender_context --> answer_rows["Redact, giới hạn context<br/>gọi Responses API"]
 
@@ -238,8 +238,8 @@ flowchart TD
     route -->|"Hỏi kiến thức hoặc dự án"| learned{"Liệt kê nguồn ALLOW<br/>đã bật auto_knowledge"}
     learned -->|"Không có nguồn"| no_source["Thông báo chưa có nguồn đã học"]
     learned -->|"Có"| rag_auth["Policy lọc tiếp quyền search_messages<br/>một lần cho toàn request"]
-    rag_auth --> keyword["Keyword retrieval từ MySQL<br/>cửa sổ trượt 7 ngày"]
-    rag_auth --> semantic["Embedding câu hỏi + semantic retrieval<br/>Qdrant, giới hạn ID MySQL gần đây"]
+    rag_auth --> keyword["Keyword retrieval từ SQLite<br/>cửa sổ trượt 7 ngày"]
+    rag_auth --> semantic["Embedding câu hỏi + semantic retrieval<br/>Qdrant, giới hạn ID SQLite gần đây"]
     keyword --> merge["Gộp theo chat_id + message_id<br/>xếp hạng và lấy top 10"]
     semantic --> merge
     merge --> context["Tạo context đã redact<br/>kèm mã nguồn S#"]
@@ -283,12 +283,12 @@ flowchart TD
     stale -->|"Không"| lock
     requeue_stale --> lock["Chuyển một job queued sang running<br/>tăng attempts và đặt locked_at"]
 
-    lock --> phase1["Pha 1: MySQL là nguồn chuẩn"]
+    lock --> phase1["Pha 1: SQLite là nguồn chuẩn"]
     phase1 --> policy["Bật ALLOW + template knowledge"]
     policy --> sync["Telethon sync tối đa 1.000 tin<br/>chỉ ID mới hơn SyncState checkpoint"]
     sync --> upsert["Upsert theo chat_id + message_id<br/>lưu version nếu nội dung đã sửa"]
     upsert --> counts["Đếm message và message có text"]
-    counts --> commit["Commit transaction MySQL"]
+    counts --> commit["Commit transaction SQLite"]
 
     commit --> phase2["Pha 2: tạo dữ liệu dẫn xuất"]
     phase2 --> checkpoint["Đọc knowledge_checkpoint của nguồn"]
@@ -304,7 +304,7 @@ flowchart TD
     job_error["Lưu lỗi và giải phóng lock"] --> attempts{"Đã đủ 3 lần thử?"}
     attempts -->|"Chưa"| retry["Job = queued<br/>run_after lùi 1 đến 5 phút"]
     retry --> poll
-    attempts -->|"Rồi"| failed(["Job = failed<br/>giữ nguyên dữ liệu MySQL đã commit"])
+    attempts -->|"Rồi"| failed(["Job = failed<br/>giữ nguyên dữ liệu SQLite đã commit"])
     complete --> more{"Còn job queued?"}
     more -->|"Có"| poll
     more -->|"Không"| idle(["Chờ chu kỳ tiếp theo"])
@@ -332,7 +332,7 @@ flowchart TD
 
     event -->|"NewMessage"| monitor_new{"Chat ALLOW + monitor_new_messages?"}
     monitor_new -->|"Không"| ask_only{"Vẫn kiểm tra cú pháp group /ask"}
-    monitor_new -->|"Có"| upsert_new["Upsert message vào MySQL"]
+    monitor_new -->|"Có"| upsert_new["Upsert message vào SQLite"]
     upsert_new --> auto_rule{"Đã bật rule AUTO xóa link non-admin?"}
     auto_rule -->|"Không"| ask_only
     auto_rule -->|"Có"| has_link{"Tin có external link?"}
@@ -345,7 +345,7 @@ flowchart TD
     trusted -->|"Không xác minh được"| fail_safe["Giữ tin và ghi AuditLog fail-safe"]
     rights -->|"Không"| denied["Giữ tin và ghi AuditLog denied"]
     rights -->|"Có"| delete["Xóa tin mới qua Telegram API"]
-    delete --> deleted_local["Đánh dấu bản MySQL is_deleted = true<br/>ghi AuditLog success"]
+    delete --> deleted_local["Đánh dấu bản SQLite is_deleted = true<br/>ghi AuditLog success"]
 
     event -->|"MessageEdited"| monitor_edit{"Chat ALLOW + monitor_new_messages?"}
     monitor_edit -->|"Có"| version["Lưu TelegramMessageVersion cũ<br/>cập nhật text và edited_at"]
@@ -399,7 +399,7 @@ quyền đã bị thu hồi sau lúc owner bấm xác nhận vẫn làm action t
 | Liên tục | Telegram User Client | Nghe tin mới, sửa, xóa và lệnh hỏi AI trong group |
 | 2 giây | Pending-action worker | Thực thi action đã xác nhận, cập nhật trạng thái và audit |
 | 30 giây | Reminder dispatcher | Khóa tối đa 20 reminder đến hạn, gửi owner, đánh dấu sent/failed |
-| Mặc định 2 giây | Learning worker | Lấy một job học, sync MySQL rồi embedding vào Qdrant |
+| Mặc định 2 giây | Learning worker | Lấy một job học, sync SQLite rồi embedding vào Qdrant |
 | 5 phút | Knowledge refresh | Bổ sung tối đa 100 message mới mỗi nguồn đã học |
 
 ## 10. Điểm dừng an toàn quan trọng
@@ -408,8 +408,8 @@ quyền đã bị thu hồi sau lúc owner bấm xác nhận vẫn làm action t
 2. Chat `BLOCK` không được đọc nội dung, tìm kiếm, đồng bộ hoặc thực thi action.
 3. Secret bị chặn trước khi lưu memory, tạo action gửi tin hoặc gọi AI; tìm kiếm
    keyword local không gửi nội dung ra dịch vụ bên ngoài.
-4. AI bị tắt, hết ngân sách hoặc lỗi không làm dừng tìm kiếm MySQL, task, reminder
+4. AI bị tắt, hết ngân sách hoặc lỗi không làm dừng tìm kiếm SQLite, task, reminder
    hay moderation local.
-5. MySQL được commit trước khi embedding; lỗi API không làm mất dữ liệu đã sync.
+5. SQLite được commit trước khi embedding; lỗi API không làm mất dữ liệu đã sync.
 6. Role admin hoặc quyền Telegram không xác minh được thì AUTO moderation giữ tin.
 7. Session Telethon dạng rõ chỉ tồn tại lúc chạy và được mã hóa lại khi đóng.

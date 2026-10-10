@@ -4,6 +4,7 @@ import asyncio
 import re
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
+from functools import wraps
 from pathlib import Path
 from time import monotonic
 from typing import Any, NamedTuple
@@ -29,6 +30,7 @@ from ..db.models import (
 )
 from ..policy import PolicyContext, PolicyEngine
 from ..security import EncryptedSession, SecretStore, redact
+from ..services.revocation import AuthorizationRevoked, require_authorization
 
 log = structlog.get_logger()
 
@@ -54,6 +56,11 @@ class HistoryBackfillPage(NamedTuple):
     synced_count: int
     next_before_message_id: int | None
     completed: bool
+
+
+class _AccountManagementUnavailable(PermissionError):
+    def __init__(self):
+        super().__init__("owner_pairing_required")
 
 
 def extract_group_ai_question(text: str | None, username: str | None) -> str | None:
@@ -162,13 +169,50 @@ class UserClientAdapter:
     ) -> None:
         self.session_path, self.encrypted_path = session_path, encrypted_path
         self.crypto = EncryptedSession(store)
-        if encrypted_path.exists() and not session_path.exists():
-            self.crypto.decrypt_file(encrypted_path, session_path)
-        self.client = TelegramClient(str(session_path), api_id, api_hash)
+        decrypted = False
+        try:
+            if encrypted_path.exists() and not session_path.exists():
+                decrypted = True
+                self.crypto.decrypt_file(encrypted_path, session_path)
+            self.client = TelegramClient(str(session_path), api_id, api_hash)
+        except BaseException:
+            # The original ciphertext is still intact. Remove only the working
+            # copy created by this constructor when transport creation fails.
+            if decrypted:
+                session_path.unlink(missing_ok=True)
+                Path(f"{session_path}-journal").unlink(missing_ok=True)
+            raise
         self.policy = policy
         self.owner_id: int | None = None
         self.username: str | None = None
+        self.management_admission: Callable[[], bool] | None = None
         self._trusted_admin_cache: dict[tuple[int, int], float] = {}
+
+    def _check_management(self) -> None:
+        # Setup and isolated storage callers install no management callback.
+        # The owning runtime installs this only after actual bot preparation.
+        callback = getattr(self, "management_admission", None)
+        if callback is None:
+            return
+        admitted = False
+        try:
+            admitted = callback() is True
+        except Exception:
+            admitted = False
+        if not admitted:
+            raise _AccountManagementUnavailable() from None
+
+    def _guard_management_handler(self, handler):
+        @wraps(handler)
+        async def guarded(event):
+            try:
+                self._check_management()
+                await handler(event)
+            except _AccountManagementUnavailable:
+                # Withdrawal is silent and contains no private callback error.
+                return
+
+        return guarded
 
     async def authenticate(self, phone: str, *, password_callback: Any = None) -> Any:
         await self.client.start(phone=phone, password=password_callback)
@@ -177,16 +221,41 @@ class UserClientAdapter:
         self.username = getattr(me, "username", None)
         return me
 
+    async def resume_existing(self) -> Any:
+        """Resume a stored session without Telethon's interactive login path."""
+        await self.client.connect()
+        if not await self.client.is_user_authorized():
+            raise RuntimeError("telegram_reconnect_required")
+        me = await self.client.get_me()
+        if me is None or type(me.id) is not int or me.id <= 0:
+            raise RuntimeError("telegram_reconnect_required")
+        self.owner_id = me.id
+        self.username = getattr(me, "username", None)
+        return me
+
     async def close(self) -> None:
-        await self.client.disconnect()
-        if self.session_path.exists():
-            self.crypto.encrypt_file(self.session_path, self.encrypted_path)
-            self.session_path.unlink(missing_ok=True)
-            Path(f"{self.session_path}-journal").unlink(missing_ok=True)
+        try:
+            await self.client.disconnect()
+        finally:
+            try:
+                session = getattr(self.client, "session", None)
+                if session is not None:
+                    session.close()
+            finally:
+                if self.session_path.exists():
+                    try:
+                        self.crypto.encrypt_file(self.session_path, self.encrypted_path)
+                    finally:
+                        # Atomic sealing preserves previous ciphertext on error.
+                        # Reconnect is required if the new working copy cannot seal.
+                        self.session_path.unlink(missing_ok=True)
+                        Path(f"{self.session_path}-journal").unlink(missing_ok=True)
 
     async def discover_dialogs(self, session: AsyncSession) -> int:
         count = 0
+        self._check_management()
         async for dialog in self.client.iter_dialogs():
+            self._check_management()
             entity = dialog.entity
             chat_type = classify_dialog_entity(entity)
             title = dialog_title(dialog, entity, chat_type)
@@ -225,6 +294,7 @@ class UserClientAdapter:
         query = reference.strip()
         if not query:
             raise ValueError("Nhập @handle hoặc ID người đăng.")
+        self._check_management()
         try:
             entity = await self.client.get_entity(
                 int(query) if re.fullmatch(r"-?\d+", query) else f"@{query.lstrip('@')}"
@@ -232,6 +302,7 @@ class UserClientAdapter:
         except Exception as exc:
             raise ValueError("Không tìm thấy tài khoản/channel Telegram theo handle này.") from exc
         sender_id = getattr(entity, "id", None)
+        self._check_management()
         if sender_id is None:
             raise ValueError("Telegram không trả về định danh người đăng hợp lệ.")
         username = getattr(entity, "username", None)
@@ -239,7 +310,10 @@ class UserClientAdapter:
             getattr(entity, "title", None)
             or " ".join(
                 value
-                for value in (getattr(entity, "first_name", None), getattr(entity, "last_name", None))
+                for value in (
+                    getattr(entity, "first_name", None),
+                    getattr(entity, "last_name", None),
+                )
                 if value
             )
             or (f"@{username}" if username else None)
@@ -281,10 +355,13 @@ class UserClientAdapter:
 
     async def leave_chat(self, chat_id: int) -> None:
         """Leave a group/channel without deleting history for other participants."""
+        self._check_management()
         await self.client.delete_dialog(chat_id, revoke=False)
 
     async def get_actual_rights(self, chat_id: int) -> dict[str, bool]:
+        self._check_management()
         entity = await self.client.get_entity(chat_id)
+        self._check_management()
         return self._rights(entity)
 
     async def _sender_is_trusted_admin(self, chat_id: int, message: Any) -> bool:
@@ -301,7 +378,9 @@ class UserClientAdapter:
         cached_until = cache.get((chat_id, sender_id), 0.0)
         if cached_until > monotonic():
             return True
+        self._check_management()
         permissions = await self.client.get_permissions(chat_id, sender_id)
+        self._check_management()
         trusted = bool(
             getattr(permissions, "is_admin", False) or getattr(permissions, "is_creator", False)
         )
@@ -317,6 +396,7 @@ class UserClientAdapter:
         chat_id: int,
         message: Any,
     ) -> bool:
+        self._check_management()
         if self.owner_id is None:
             return False
         rule = await session.scalar(
@@ -343,8 +423,16 @@ class UserClientAdapter:
         if not automatic.allowed:
             return False
         try:
+            epoch = await self._authorization_fence(
+                session, chat_id, PermissionName.AUTO_MODERATION
+            )
+        except AuthorizationRevoked:
+            return False
+        try:
             if await self._sender_is_trusted_admin(chat_id, message):
                 return False
+        except _AccountManagementUnavailable:
+            raise
         except Exception as exc:
             session.add(
                 AuditLog(
@@ -380,6 +468,8 @@ class UserClientAdapter:
                     confirmed=True,
                 ),
             )
+        except _AccountManagementUnavailable:
+            raise
         except Exception as exc:
             session.add(
                 AuditLog(
@@ -415,7 +505,17 @@ class UserClientAdapter:
             )
             return False
         try:
+            await self._authorization_fence(session, chat_id, PermissionName.AUTO_MODERATION, epoch)
+            await self._authorization_fence(
+                session, chat_id, PermissionName.DELETE_ANY_MESSAGES, epoch
+            )
+        except AuthorizationRevoked:
+            return False
+        try:
+            self._check_management()
             await self.client.delete_messages(chat_id, [int(message.id)])
+        except _AccountManagementUnavailable:
+            raise
         except Exception as exc:
             session.add(
                 AuditLog(
@@ -424,11 +524,12 @@ class UserClientAdapter:
                     action="auto_delete_non_admin_link",
                     target_type="telegram_message",
                     target_id=f"{chat_id}/{message.id}",
-                    outcome="failed_kept",
+                    outcome="uncertain",
                     reason=str(redact(str(exc)))[:1000],
                     details_redacted={
                         "sender_id": getattr(message, "sender_id", None),
                         "rule": rule.name,
+                        "requires_reconciliation": True,
                     },
                 )
             )
@@ -439,8 +540,10 @@ class UserClientAdapter:
                 TelegramMessage.message_id == int(message.id),
             )
         )
+        self._check_management()
         if stored:
             stored.is_deleted = True
+            await self._dirty_message(session, stored)
         session.add(
             AuditLog(
                 occurred_at=datetime.now(UTC),
@@ -467,7 +570,10 @@ class UserClientAdapter:
         *,
         group_ask_handler: GroupAskHandler | None = None,
     ) -> None:
+        self.database = database
+
         @self.client.on(events.NewMessage)
+        @self._guard_management_handler
         async def new_message(event: Any) -> None:
             if self.owner_id is None:
                 return
@@ -484,6 +590,7 @@ class UserClientAdapter:
                         self.owner_id, self.owner_id, chat_id, PermissionName.MONITOR_NEW_MESSAGES
                     ),
                 )
+                self._check_management()
                 if decision.allowed:
                     await self._upsert_message(session, event.message)
                     await session.flush()
@@ -492,11 +599,8 @@ class UserClientAdapter:
                         chat_id=chat_id,
                         message=event.message,
                     )
-            if (
-                question is not None
-                and sender_id is not None
-                and group_ask_handler is not None
-            ):
+            if question is not None and sender_id is not None and group_ask_handler is not None:
+                self._check_management()
                 await group_ask_handler(
                     chat_id,
                     int(sender_id),
@@ -505,6 +609,7 @@ class UserClientAdapter:
                 )
 
         @self.client.on(events.MessageEdited)
+        @self._guard_management_handler
         async def edited(event: Any) -> None:
             if self.owner_id is None:
                 return
@@ -518,10 +623,12 @@ class UserClientAdapter:
                         PermissionName.MONITOR_NEW_MESSAGES,
                     ),
                 )
+                self._check_management()
                 if decision.allowed:
                     await self._upsert_message(session, event.message)
 
         @self.client.on(events.MessageDeleted)
+        @self._guard_management_handler
         async def deleted(event: Any) -> None:
             if self.owner_id is None or not event.chat_id:
                 return
@@ -535,6 +642,7 @@ class UserClientAdapter:
                         PermissionName.MONITOR_NEW_MESSAGES,
                     ),
                 )
+                self._check_management()
                 if decision.allowed:
                     rows = (
                         await session.scalars(
@@ -544,8 +652,26 @@ class UserClientAdapter:
                             )
                         )
                     ).all()
+                    self._check_management()
                     for row in rows:
                         row.is_deleted = True
+                        await self._dirty_message(session, row)
+
+    async def _dirty_message(self, session: AsyncSession, row: TelegramMessage) -> None:
+        """Coalesce invalidations transactionally with the authoritative edit/delete."""
+        row.vector_dirty = True
+        row.content_hash = None  # invalidate any captured in-flight embedding fence
+        # An edited/deleted canonical may need a surviving duplicate promoted.
+        duplicates = (
+            await session.scalars(
+                select(TelegramMessage).where(
+                    TelegramMessage.chat_id == row.chat_id,
+                    TelegramMessage.embedding_skip_reason == "duplicate",
+                )
+            )
+        ).all()
+        for duplicate in duplicates:
+            duplicate.vector_dirty = True
 
     async def _upsert_message(self, session: AsyncSession, message: Any) -> None:
         row = await session.scalar(
@@ -555,6 +681,8 @@ class UserClientAdapter:
             )
         )
         if row:
+            if row.text != message.message or row.is_deleted:
+                await self._dirty_message(session, row)
             if row.text != message.message:
                 version_number = (
                     int(
@@ -602,14 +730,16 @@ class UserClientAdapter:
         update_columns = {
             key: value
             for key, value in values.items()
-            if key not in {"chat_id", "message_id"}
+            if key not in {"chat_id", "message_id", "metadata_json"}
         }
         dialect = session.get_bind().dialect.name
         if dialect == "mysql":
             statement = mysql_insert(TelegramMessage).values(**values)
             await session.execute(
                 statement.on_duplicate_key_update(
-                    **{key: getattr(statement.inserted, key) for key in update_columns}
+                    **{key: getattr(statement.inserted, key) for key in update_columns},
+                    vector_dirty=True,
+                    content_hash=None,
                 )
             )
             return
@@ -618,7 +748,11 @@ class UserClientAdapter:
             await session.execute(
                 statement.on_conflict_do_update(
                     index_elements=["chat_id", "message_id"],
-                    set_={key: getattr(statement.excluded, key) for key in update_columns},
+                    set_={
+                        **{key: getattr(statement.excluded, key) for key in update_columns},
+                        "vector_dirty": True,
+                        "content_hash": None,
+                    },
                 )
             )
             return
@@ -666,6 +800,7 @@ class UserClientAdapter:
         )
         if not decision.allowed:
             raise PermissionError(decision.reason.value)
+        epoch = await self._authorization_fence(session, chat_id, PermissionName.SYNC_HISTORY)
         state = await session.scalar(select(SyncState).where(SyncState.chat_id == chat_id))
         min_id = state.last_message_id or 0 if state else 0
         count, highest = 0, min_id
@@ -673,12 +808,22 @@ class UserClientAdapter:
         if latest_date is not None and latest_date.tzinfo is None:
             latest_date = latest_date.replace(tzinfo=UTC)
         try:
+            messages = []
+            self._check_management()
             async for message in self.client.iter_messages(
                 chat_id,
                 min_id=min_id,
                 reverse=False,
                 limit=limit,
             ):
+                await self._authorization_fence(
+                    session, chat_id, PermissionName.SYNC_HISTORY, epoch
+                )
+                messages.append(message)
+            for message in messages:
+                await self._authorization_fence(
+                    session, chat_id, PermissionName.SYNC_HISTORY, epoch
+                )
                 await self._upsert_message(session, message)
                 highest = max(highest, int(message.id))
                 message_date = message.date
@@ -690,6 +835,7 @@ class UserClientAdapter:
         except FloodWaitError as exc:
             await asyncio.sleep(min(exc.seconds, 60))
             raise RuntimeError(f"Telegram FloodWait {exc.seconds}s") from exc
+        await self._authorization_fence(session, chat_id, PermissionName.SYNC_HISTORY, epoch)
         if not state:
             state = SyncState(chat_id=chat_id)
             session.add(state)
@@ -721,16 +867,27 @@ class UserClientAdapter:
         )
         if not decision.allowed:
             raise PermissionError(decision.reason.value)
+        epoch = await self._authorization_fence(session, chat_id, PermissionName.SYNC_HISTORY)
         page_size = min(max(int(limit), 1), 1000)
         cursor = max(int(before_message_id or 0), 0)
         count = 0
         oldest_id: int | None = None
         try:
+            messages = []
+            self._check_management()
             async for message in self.client.iter_messages(
                 chat_id,
                 max_id=cursor,
                 limit=page_size,
             ):
+                await self._authorization_fence(
+                    session, chat_id, PermissionName.SYNC_HISTORY, epoch
+                )
+                messages.append(message)
+            for message in messages:
+                await self._authorization_fence(
+                    session, chat_id, PermissionName.SYNC_HISTORY, epoch
+                )
                 await self._upsert_message(session, message)
                 message_id = int(message.id)
                 oldest_id = message_id if oldest_id is None else min(oldest_id, message_id)
@@ -738,6 +895,7 @@ class UserClientAdapter:
         except FloodWaitError as exc:
             await asyncio.sleep(min(exc.seconds, 60))
             raise RuntimeError(f"Telegram FloodWait {exc.seconds}s") from exc
+        await self._authorization_fence(session, chat_id, PermissionName.SYNC_HISTORY, epoch)
         return HistoryBackfillPage(
             synced_count=count,
             next_before_message_id=oldest_id,
@@ -756,26 +914,51 @@ class UserClientAdapter:
         clean_username = username.strip().lstrip("@")
         if not re.fullmatch(r"[A-Za-z0-9_]{5,32}", clean_username):
             raise ValueError("Username Telegram không hợp lệ.")
+        epoch = await self._authorization_fence(session, chat_id, PermissionName.SYNC_HISTORY)
+        self._check_management()
         entity = await self.client.get_entity(f"@{clean_username}")
+        await self._authorization_fence(session, chat_id, PermissionName.SYNC_HISTORY, epoch)
         if not isinstance(entity, types.User):
             raise ValueError("Username không phải tài khoản Telegram.")
         sender_id = int(entity.id)
         count = 0
         try:
+            messages = []
+            self._check_management()
             async for message in self.client.iter_messages(
                 chat_id,
                 from_user=entity,
                 reverse=False,
                 limit=min(max(limit, 1), 100),
             ):
+                await self._authorization_fence(
+                    session, chat_id, PermissionName.SYNC_HISTORY, epoch
+                )
                 if int(message.sender_id or 0) != sender_id:
                     continue
+                messages.append(message)
+            for message in messages:
+                await self._authorization_fence(
+                    session, chat_id, PermissionName.SYNC_HISTORY, epoch
+                )
                 await self._upsert_message(session, message)
                 count += 1
         except FloodWaitError as exc:
             await asyncio.sleep(min(exc.seconds, 60))
             raise RuntimeError(f"Telegram FloodWait {exc.seconds}s") from exc
+        await self._authorization_fence(session, chat_id, PermissionName.SYNC_HISTORY, epoch)
         return sender_id, count
+
+    async def _authorization_fence(self, session, chat_id, permission, epoch=None):
+        self._check_management()
+        database = getattr(self, "database", None)
+        if database:
+            async with database.session() as current:
+                result = await require_authorization(current, chat_id, permission, epoch)
+        else:
+            result = await require_authorization(session, chat_id, permission, epoch)
+        self._check_management()
+        return result
 
     async def send_message(
         self,
@@ -795,7 +978,10 @@ class UserClientAdapter:
         )
         if not decision.allowed:
             raise PermissionError(decision.reason.value)
+        epoch = await self._authorization_fence(session, chat_id, PermissionName.SEND_MESSAGES)
+        self._check_management()
         message = await self.client.send_message(chat_id, text)
+        await self._authorization_fence(session, chat_id, PermissionName.SEND_MESSAGES, epoch)
         return int(message.id)
 
     async def delete_message(
@@ -819,7 +1005,10 @@ class UserClientAdapter:
         )
         if not decision.allowed:
             raise PermissionError(decision.reason.value)
+        epoch = await self._authorization_fence(session, chat_id, permission)
+        self._check_management()
         await self.client.delete_messages(chat_id, [message_id])
+        await self._authorization_fence(session, chat_id, permission, epoch)
 
     async def delete_messages_bulk(
         self,
@@ -846,7 +1035,12 @@ class UserClientAdapter:
         )
         if not decision.allowed:
             raise PermissionError(decision.reason.value)
+        epoch = await self._authorization_fence(
+            session, chat_id, PermissionName.DELETE_ANY_MESSAGES
+        )
+        self._check_management()
         await self.client.delete_messages(chat_id, message_ids)
+        await self._authorization_fence(session, chat_id, PermissionName.DELETE_ANY_MESSAGES, epoch)
 
     async def edit_message(
         self,
@@ -871,6 +1065,7 @@ class UserClientAdapter:
         )
         if not decision.allowed:
             raise PermissionError(decision.reason.value)
+        epoch = await self._authorization_fence(session, chat_id, PermissionName.EDIT_OWN_MESSAGES)
         stored = await session.scalar(
             select(TelegramMessage).where(
                 TelegramMessage.chat_id == chat_id,
@@ -880,7 +1075,10 @@ class UserClientAdapter:
         )
         if not stored:
             raise PermissionError("Chỉ được sửa tin nhắn do tài khoản này gửi.")
+        await self._authorization_fence(session, chat_id, PermissionName.EDIT_OWN_MESSAGES, epoch)
+        self._check_management()
         await self.client.edit_message(chat_id, message_id, text)
+        await self._authorization_fence(session, chat_id, PermissionName.EDIT_OWN_MESSAGES, epoch)
 
     async def pin_message(
         self,
@@ -904,4 +1102,7 @@ class UserClientAdapter:
         )
         if not decision.allowed:
             raise PermissionError(decision.reason.value)
+        epoch = await self._authorization_fence(session, chat_id, PermissionName.PIN_MESSAGES)
+        self._check_management()
         await self.client.pin_message(chat_id, message_id, notify=False)
+        await self._authorization_fence(session, chat_id, PermissionName.PIN_MESSAGES, epoch)

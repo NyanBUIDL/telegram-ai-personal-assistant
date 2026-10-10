@@ -56,7 +56,7 @@ const PERMISSION_GROUPS = [
 
 const PERMISSION_HELP = {
   read_messages: "Đọc nội dung tin nhắn đã được cấp quyền.",
-  sync_history: "Đồng bộ lịch sử gần nhất từ Telegram vào MySQL.",
+  sync_history: "Đồng bộ lịch sử gần nhất từ Telegram vào SQLite.",
   monitor_new_messages: "Theo dõi và lưu tin mới sau khi ứng dụng chạy.",
   search_messages: "Cho phép tìm kiếm nội dung trong nguồn này.",
   summarize: "Cho phép AI tóm tắt dữ liệu của nguồn.",
@@ -256,12 +256,7 @@ export function GroupsView({ refreshKey, onOpenGroup }) {
     setSavingView(true);
     try {
       const current = preferences.data || {};
-      const keepIds = new Set(current.always_keep_chat_ids || []);
-      keepIds.add(Number(chatId));
-      await api.updatePreferences({
-        ...current,
-        always_keep_chat_ids: [...keepIds],
-      });
+      await api.keepRecommendedGroup(current, chatId);
       await Promise.all([preferences.reload(), resource.reload()]);
     } finally {
       setSavingView(false);
@@ -801,7 +796,7 @@ function HistoryLinkDeletePreviewModal({
             <b>Bạn muốn AI tìm và đề xuất xóa nội dung nào?</b>
             <small>
               Chỉ gửi tối đa 25 post đang hiển thị cho OpenAI trực tiếp; kết quả không tự xóa
-              và không ghi prompt hay nội dung phân tích xuống MySQL.
+              và không ghi prompt hay nội dung phân tích xuống SQLite.
             </small>
           </div>
           <textarea
@@ -1090,7 +1085,7 @@ export function GroupDetailView({
     const report = await perform(
       "coverage-check",
       () => api.checkCoverage(chatId),
-      "Đã đối chiếu MySQL và Local-first index.",
+      "Đã đối chiếu SQLite và Local-first index.",
     );
     if (report) setCoverage(report);
   };
@@ -1775,7 +1770,7 @@ export function GroupDetailView({
                   "enable_group_learning",
                   { limit: 1000 },
                   `Bật học và lập chỉ mục ${group.title}`,
-                  "Dữ liệu được đồng bộ vào MySQL trước khi embedding.",
+                  "Dữ liệu được đồng bộ vào SQLite trước khi embedding.",
                 )
               }
             >
@@ -1798,7 +1793,7 @@ export function GroupDetailView({
         />
         <div className="knowledge-status-grid">
           <div>
-            <span>Tin trong MySQL</span>
+            <span>Tin trong SQLite</span>
             <b>{formatNumber(group.knowledge.mysql_message_count)}</b>
             <small>SOURCE OF TRUTH</small>
           </div>
@@ -1891,7 +1886,7 @@ export function GroupDetailView({
         >
           <option value="vectors_only">Chỉ vector</option>
           <option value="search_index">Chỉ mục tìm kiếm + checkpoint</option>
-          <option value="mysql_content">Nội dung MySQL + index</option>
+          <option value="mysql_content">Nội dung SQLite + index</option>
           <option value="media_only">Chỉ media local</option>
           <option value="reset_checkpoint">Chỉ reset checkpoint</option>
           <option value="all">Toàn bộ dữ liệu nguồn</option>

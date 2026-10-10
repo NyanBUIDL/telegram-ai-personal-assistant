@@ -7,8 +7,8 @@ chặn; chỉ chat được allow và bật đúng quyền con mới được đ
 ## Nguyên tắc an toàn
 
 - Không gửi API key, OTP, mật khẩu hoặc session cho Codex hay qua bot.
-- Secret chỉ nhập trong terminal và lưu bằng Windows Credential Manager.
-- MySQL là nguồn dữ liệu chuẩn; Qdrant local chỉ giữ vector và ID tham chiếu.
+- Secret chỉ nhập trong cửa sổ Windows hoặc terminal và lưu bằng Windows Credential Manager.
+- SQLite trong profile cá nhân là nguồn dữ liệu chuẩn; Qdrant local chỉ giữ vector và ID tham chiếu.
 - GPT chỉ đọc ngữ cảnh đã qua kiểm tra quyền và chỉ đề xuất hành động Telegram.
 - Xóa/kiểm duyệt luôn tạo `pending_action` có hạn dùng và cần `/confirm`.
 - Chat ngoài allowlist chỉ được đọc metadata tối thiểu để hiện danh sách.
@@ -19,7 +19,7 @@ Xem [sơ đồ hoạt động chi tiết](ACTIVITY_DIAGRAM.md) để theo dõi �
 khởi động, kiểm tra quyền, hỏi AI, học dữ liệu, pending action và worker nền.
 
 ```text
-Control Bot ──► Policy Engine ──► Services ──► MySQL
+Control Bot ──► Policy Engine ──► Services ──► SQLite
                      │                ├──────► Qdrant local
 Telegram MTProto ────┘                ├──────► OpenAI/OpenRouter API (tùy chọn)
                                       └──────► Ollama API local (tùy chọn)
@@ -39,15 +39,15 @@ Các lớp chính:
 
 - Windows 10/11.
 - Python 3.12 trở lên (nên dùng Python 3.12 hoặc 3.13 ổn định).
-- MySQL Community Server 8.0 trở lên, chỉ bind local.
+- SQLite được tạo trong profile ứng dụng; không cần cài máy chủ database.
 - Telegram API ID/API Hash từ [my.telegram.org](https://my.telegram.org).
 - Bot token tạo bằng `@BotFather`.
 - OpenAI/OpenRouter API key hoặc Ollama local là tùy chọn; không cấu hình AI thì
   đồng bộ, quyền, keyword search, task và audit vẫn hoạt động.
-- Wizard terminal lần đầu hỏi riêng OpenAI key, OpenRouter key và CoinGecko key.
-  Có thể bỏ qua key chưa có; key đã nhập được giữ qua các lần restart trong
-  Windows Credential Manager. `.env` chỉ lưu provider/model và các biến
-  `*_API_KEY_SOURCE=windows_credential_manager`, không lưu giá trị secret dạng rõ.
+- Có thể bỏ qua AI chưa cấu hình. API key được nhập trong cửa sổ Windows hoặc
+  terminal và giữ trong Windows Credential Manager. Cấu hình không bí mật nằm
+  trong `config/settings.json` của profile; ứng dụng không tự đọc `.env` trong
+  thư mục cài đặt.
 
 ## Cài và chạy lần đầu
 
@@ -57,32 +57,40 @@ Mở PowerShell tại thư mục dự án:
 .\start.bat
 ```
 
-Script kiểm tra Python, tạo `.venv`, cài package ở chế độ editable rồi chạy setup.
-Wizard sẽ:
+Script phát triển kiểm tra Python, tạo `.venv` và chạy luồng CLI. Để dùng launcher
+Windows và thiết lập bằng cửa sổ native trong bản source, cài thêm dependency desktop
+và build dashboard bằng Node.js 24 tại thư mục dự án:
 
-1. phát hiện MySQL local;
-2. hỏi mật khẩu quản trị bằng ô nhập ẩn;
-3. tạo database/user ứng dụng riêng với quyền giới hạn;
-4. chạy Alembic;
-5. hỏi Telegram API ID, API hash, số điện thoại và bot token trong terminal;
-6. hỏi chọn `openai`, `openrouter` hoặc `off`, rồi nhập API key bằng ô nhập ẩn;
-7. để Telethon hỏi OTP/2FA trực tiếp;
-8. hiện mã `/pair ABCD-1234` dùng một lần trong 5 phút.
+```powershell
+.\.venv\Scripts\python.exe -m pip install -e ".[desktop]"
+npm --prefix dashboard-prototype ci
+npm --prefix dashboard-prototype run build
+.\.venv\Scripts\tg-assistant-desktop.exe
+```
 
-Không đóng terminal trong bước pairing. Sau khi thành công, `start` chạy worker detached;
-đóng terminal không làm bot dừng.
+Bản installer cho người dùng ngoài vẫn đang được chuẩn bị; xem
+[checklist](docs/handoff/MASTER_CHECKLIST.md).
 
-## Cài MySQL
+Luồng thiết lập trên launcher:
 
-Cài MySQL Community Server bản ổn định từ trang chính thức. Không cần Workbench. Đặt
-service chỉ nghe local; ứng dụng không sửa firewall hay tự chấp nhận điều khoản cài đặt.
-Nếu MySQL ở cổng khác, sửa các biến không bí mật trong `.env` dựa trên `.env.example`.
+1. tạo SQLite rỗng trong profile mới và chạy migration;
+2. mở dashboard qua launcher bằng phiên đăng nhập local;
+3. chọn nhà cung cấp/model, nhập API key trong cửa sổ Windows và kiểm tra kết nối;
+4. nhập Telegram API ID/API hash rồi đăng nhập tài khoản qua QR hoặc số điện thoại,
+   OTP và 2FA trong cửa sổ Windows;
+5. nhập token bot, kiểm tra bot và đối chiếu owner/pairing (chưa hoàn tất — O04);
+6. chọn nguồn dữ liệu và thử câu trả lời đầu tiên (chưa hoàn tất — U03).
 
-Runtime không dùng tài khoản `root`. Wizard chỉ giữ mật khẩu root trong biến tạm khi tạo:
+Launcher source hiện có các bước 1–4. Luồng native kết nối bot/ghép owner và
+hoàn tất onboarding ở bước 5–6 chưa được nghiệm thu; dashboard phản ánh các bước
+còn thiếu thay vì hiển thị setup hoàn tất.
 
-- database `telegram_ai_assistant`, `utf8mb4`;
-- user `tg_assistant@127.0.0.1`;
-- các quyền CRUD/migration chỉ trong database ứng dụng.
+Kết nối tài khoản Telegram và kết nối bot là hai bước riêng. Luồng thiết lập chưa
+cho phép bỏ qua owner/pairing bằng trạng thái giả. Cài mới không mang theo database,
+session hay API key của người phát triển. Cài lại không tự xóa profile đang có.
+
+Ứng dụng chỉ hỗ trợ SQLite. Profile khai báo MySQL bị từ chối bằng thông báo an toàn;
+ứng dụng không kết nối, nhập hay xóa database MySQL cũ.
 
 ## Lệnh CLI
 
@@ -95,7 +103,7 @@ tg-assistant status       PID và trạng thái
 .\.venv\Scripts\tg-assistant.exe dashboard-code
 # Mã đăng nhập dashboard local, hiệu lực 5 phút
 tg-assistant logs         log nền gần nhất
-tg-assistant doctor       kiểm tra Python/MySQL/credential/session
+tg-assistant doctor       kiểm tra Python/SQLite/credential/session
 tg-assistant sync         đồng bộ chat đã được cấp quyền
 tg-assistant reindex      tạo lại embedding của chat được phép
 tg-assistant backup       backup không chứa secret
@@ -194,7 +202,7 @@ loại tin gọi `/ask`, và không truy xuất group/channel khác. Câu hỏi 
 Truy vấn có mention tài khoản và ý định lịch sử, ví dụ
 `@your_assistant_username /ask @a_member đã nói về chủ đề gì`, được xử lý theo sender:
 Telegram Client phân giải `@a_member` thành Telegram `sender_id`, lấy tối đa 100 tin
-gần nhất của sender đó trong đúng group, đồng bộ các tin lấy được vào MySQL, rồi chỉ
+gần nhất của sender đó trong đúng group, đồng bộ các tin lấy được vào SQLite, rồi chỉ
 đưa những tin có cùng `sender_id` cho AI. Tin của thành viên khác và nguồn ngoài
 group không được đưa vào ngữ cảnh.
 
@@ -230,14 +238,14 @@ Khi block, các quyền con bị tắt ngay và request mới bị Policy Engine
 - `Học từ group/channel` là flow RAG có xác nhận và hỗ trợ chọn đồng thời nhiều
   group, supergroup và channel: đánh dấu riêng lẻ, chọn cả trang hoặc chọn toàn bộ
   tối đa 500 nguồn mỗi đợt. Tất cả nguồn được hợp nhất trong cùng một kho kiến thức:
-  MySQL lưu dữ liệu gốc và collection `telegram_messages` của Qdrant lưu vector.
+  SQLite lưu dữ liệu gốc và collection `telegram_messages` của Qdrant lưu vector.
   Sau một lần xác nhận, mỗi nguồn được đưa vào một
   background job riêng để không chặn bot.
   Job bật allowlist + mẫu quyền `knowledge`, đồng bộ tối đa 1.000 tin mới nhất
-  vào `telegram_messages` và commit MySQL trước. Sau đó worker đọc lại bản ghi đã
+  vào `telegram_messages` và commit SQLite trước. Sau đó worker đọc lại bản ghi đã
   commit, bỏ qua chuỗi giống secret, tạo embedding và upsert vector vào kho Qdrant
   local. Khi học tiếp, checkpoint chỉ chọn tin chưa được lập chỉ mục; bản ghi cũ
-  không bị nhân đôi. Nếu embedding lỗi, dữ liệu MySQL vẫn được giữ và riêng bước embedding
+  không bị nhân đôi. Nếu embedding lỗi, dữ liệu SQLite vẫn được giữ và riêng bước embedding
   được thử lại.
   Màn hình `Tiến độ học` tổng hợp số job chờ/đang chạy/tạm dừng/hoàn tất/lỗi,
   đồng thời có nút dừng an toàn và tiếp tục cả hàng đợi. Worker tiếp
@@ -255,7 +263,7 @@ Khi block, các quyền con bị tắt ngay và request mới bị Policy Engine
   Mặc định bot tập trung vào cửa sổ trượt 7×24 giờ tính từ thời điểm hỏi; bộ lọc
   `after:`/`before:` có thể chọn khoảng ngày khác.
 - `Tổng hợp toàn bộ hôm nay/hôm qua` dùng đúng ngày lịch theo múi giờ Việt Nam.
-  Hệ thống rà toàn bộ tin trong MySQL từ mọi group/channel có quyền `summarize`,
+  Hệ thống rà toàn bộ tin trong SQLite từ mọi group/channel có quyền `summarize`,
   lọc nội dung quá ngắn/không phù hợp/secret, loại bản đăng trùng hoặc gần trùng,
   phân bổ ngữ cảnh công bằng giữa các nguồn rồi yêu cầu AI phân loại. Kết quả luôn
   có báo cáo phạm vi, số tin đã loại, danh sách nguồn đã tổng hợp và dẫn chứng.
@@ -267,7 +275,7 @@ Khi block, các quyền con bị tắt ngay và request mới bị Policy Engine
   supergroup/channel riêng tư dùng `https://t.me/c/<internal_id>/<message_id>`.
   Nếu không tạo được link, bot ghi tên group/channel và thời gian đăng theo giờ Việt Nam.
   Keyword và semantic retrieval đều bị giới hạn vào 7×24 giờ gần nhất; dữ liệu cũ
-  vẫn còn trong MySQL/Qdrant để dùng khi chọn khoảng ngày khác hoặc cho nghiệp vụ khác.
+  vẫn còn trong SQLite/Qdrant để dùng khi chọn khoảng ngày khác hoặc cho nghiệp vụ khác.
 - `/task_add <nội dung>` tạo task thủ công; `/task_list`, `/task_done <id>`.
 - Memory có phạm vi `private`, `chat:<id>` hoặc `global`; secret không được lưu.
 - AI mặc định dùng `gpt-5.6-terra`, tác vụ nhanh `gpt-5.6-luna`, chế độ sâu
@@ -275,7 +283,7 @@ Khi block, các quyền con bị tắt ngay và request mới bị Policy Engine
 - Provider mặc định là OpenAI trực tiếp. Chạy `tg-assistant ai-provider openrouter`
   để chọn OpenRouter và nhập key ẩn; OpenRouter dùng
   `openai/gpt-5.6-terra` và `openai/text-embedding-3-small`. Provider được lưu
-  trong `.env`, còn cả hai API key chỉ nằm trong Windows Credential Manager.
+  trong `config/settings.json` của profile, còn cả hai API key chỉ nằm trong Windows Credential Manager.
   Nếu provider đang chọn bị mất key sau khi reset, `start` sẽ hỏi lại giống flow
   credential Telegram.
 - Chạy `tg-assistant ai-provider ollama` để chọn model chat và embedding local.
@@ -290,7 +298,7 @@ Khi block, các quyền con bị tắt ngay và request mới bị Policy Engine
   kích hoạt Ollama ngay. Tải model chạy nền; bot báo lại khi hoàn tất.
 - Màn hình `Nhà cung cấp AI` có bốn lựa chọn áp dụng ngay: `OpenAI trực tiếp`,
   `OpenRouter`, `Ollama local` và `Tắt toàn bộ AI`. Chế độ tắt dừng mọi suy luận
-  và embedding AI nhưng vẫn giữ MySQL, tìm kiếm local, CoinGecko, đồng bộ và
+  và embedding AI nhưng vẫn giữ SQLite, tìm kiếm local, CoinGecko, đồng bộ và
   chống spam. Provider cloud chỉ bật được khi key tương ứng đã nằm an toàn trong
   Windows Credential Manager; bot không nhận API key qua Telegram.
 - Mỗi group đã ALLOW có mục `AI mode, fallback & quota`. Các mode gồm:
@@ -317,9 +325,16 @@ Khi block, các quyền con bị tắt ngay và request mới bị Policy Engine
 
 ## Backup và restore
 
-`tg-assistant backup` gọi `mysqldump` qua biến môi trường tạm, tạo ZIP gồm SQL và manifest.
-Credential, session và API key không nằm trong backup. `restore` kiểm tra manifest, schema
-và yêu cầu xác nhận, sau đó tự tạo backup hiện trạng trước khi thay đổi database.
+Trong launcher Windows, chọn **Dữ liệu và sao lưu** để tạo hoặc khôi phục bản sao lưu.
+Luồng CLI `tg-assistant backup` dùng cùng dịch vụ, hỗ trợ SQLite; ZIP gồm
+dữ liệu database và manifest có revision/checksum. Credential, API key, session
+Telegram và chỉ mục vector không nằm trong bản sao lưu.
+
+Khôi phục yêu cầu xác nhận, dừng và chặn các writer, kiểm tra archive trong database
+tạm và tạo bản sao hiện trạng trước khi thay đổi database. Quyền truy cập hiện tại
+được giữ; dữ liệu khôi phục cần đối chiếu lại chỉ mục vector. Runtime không tự bật
+lại sau khôi phục. Dashboard cho phép tạo và xem danh sách bản sao lưu; chọn tệp
+để khôi phục được thực hiện trong cửa sổ Windows.
 
 ## Kiểm thử
 
@@ -329,7 +344,7 @@ python -m ruff check .
 ```
 
 Unit test dùng SQLite/mock, không đăng nhập Telegram thật và không gửi/xóa tin thật.
-Integration test MySQL chỉ chạy khi cung cấp database thử nghiệm riêng.
+Kiểm thử tích hợp dùng SQLite riêng và transport giả lập; không cần máy chủ SQL.
 
 ## Dữ liệu và giới hạn
 

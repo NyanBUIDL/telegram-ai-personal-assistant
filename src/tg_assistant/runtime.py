@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import asyncio
 import getpass
+import json
 import re
 import signal
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from hashlib import sha256
 from pathlib import Path
 from time import monotonic
 
@@ -15,13 +17,12 @@ import uvicorn
 from aiogram import Bot
 from apscheduler.events import EVENT_JOB_ERROR, EVENT_JOB_EXECUTED, EVENT_JOB_MISSED
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from sqlalchemy import delete, func, select
+from sqlalchemy import case, delete, exists, func, or_, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .admin_api import AdminContext, create_admin_app, ensure_dashboard_secret
 from .ai.budget import BudgetService
-from .ai.engine import AiEngine
-from .ai.local_first import embedding_decision
+from .ai.engine import AiEngine, AiPolicyError, AiUncertainError, make_embedding_engine
 from .ai.rag import (
     RagService,
     SourceEvidence,
@@ -33,9 +34,16 @@ from .ai.rag import (
 )
 from .ai.router import AiRouter
 from .ai.vector import LocalVectorStore
-from .config import Settings, get_settings, save_settings_env
+from .config import (
+    Settings,
+    current_cloud_consent,
+    current_model_enabled,
+    get_settings,
+    save_settings_env,
+)
 from .db.base import Database
 from .db.models import (
+    AiBudgetReservation,
     AiMemory,
     AppSetting,
     AuditLog,
@@ -51,6 +59,7 @@ from .db.models import (
     TelegramChatPermission,
     TelegramChatPolicy,
     TelegramMessage,
+    VectorStore,
 )
 from .logging import configure_logging
 from .paths import ensure_runtime_dirs
@@ -65,6 +74,15 @@ from .services.coingecko import (
 )
 from .services.daily_digest import referenced_item_indexes
 from .services.history_export import matches_history_delete_message
+from .services.jobs import (
+    LeaseLost,
+    active_job_lease,
+    claim_runtime_job,
+    finish_requested_lease,
+    utc,
+    worker_lease,
+)
+from .services.maintenance import MaintenanceService
 from .services.memory import MemoryService
 from .services.ollama import OllamaPullCancelled, OllamaService
 from .services.operations import (
@@ -73,11 +91,27 @@ from .services.operations import (
     collect_runtime_metric,
     refresh_source_usage,
 )
+from .services.revocation import (
+    AuthorizationRevoked,
+    AuthorizedAnswer,
+    RevocationService,
+    require_authorization,
+    require_fresh_authorization,
+    source_epoch,
+    source_ids,
+    validate_action_epoch,
+    validate_answer,
+)
 from .services.tasks import TaskService
-from .services.vector_reliability import ensure_vector_store_registry
+from .services.vector_paths import requires_existing_vector_path, resolve_vector_path
+from .services.vector_recovery import VectorRecoveryService
+from .services.vector_reliability import (
+    SourceIndexService,
+    ensure_vector_store_registry,
+    inspect_source_coverage,
+)
 from .telegram.control_bot import ControlBot, telegram_html_chunks
-from .telegram.pairing import PairingCode
-from .telegram.user_client import UserClientAdapter, mask_phone
+from .telegram.user_client import UserClientAdapter
 
 log = structlog.get_logger()
 
@@ -171,7 +205,7 @@ def embedding_batches(
         text = (row.text or "").strip()
         if not text or contains_secret(text):
             continue
-        estimated_tokens = max(1, len(text) // 4)
+        estimated_tokens = len(text.encode("utf-8")) + 16
         if estimated_tokens > max_input_tokens:
             continue
         if current and (
@@ -204,24 +238,80 @@ def knowledge_rows_query(
     checkpoint_id: int = 0,
     since: datetime | None = None,
 ):
-    """Select rows that extend the shared corpus without re-embedding old rows."""
-    query = select(TelegramMessage).where(
-        TelegramMessage.chat_id == chat_id,
-        TelegramMessage.is_deleted.is_(False),
-        TelegramMessage.text.is_not(None),
-    )
+    """Drain invalidations before admissions in the shared deterministic order."""
+    fresh = TelegramMessage.is_deleted.is_(False) & TelegramMessage.text.is_not(None)
+    if limit <= 0:
+        fresh = TelegramMessage.id < 0  # exhausted quota: drain invalidations only
     if checkpoint_id > 0:
-        query = query.where(TelegramMessage.id > checkpoint_id)
-        if since is not None:
-            query = query.where(TelegramMessage.sent_at >= since)
-        return query.order_by(TelegramMessage.id.asc()).limit(limit)
+        fresh = fresh & or_(
+            TelegramMessage.id > checkpoint_id,
+            TelegramMessage.embedding_skip_reason == "quota_exceeded",
+            TelegramMessage.vector_status == "pending",
+        )
     if since is not None:
-        query = query.where(TelegramMessage.sent_at >= since)
-    return query.order_by(TelegramMessage.sent_at.desc()).limit(limit)
+        fresh = fresh & (TelegramMessage.sent_at >= since)
+    return (
+        select(TelegramMessage)
+        .where(
+            TelegramMessage.chat_id == chat_id, or_(TelegramMessage.vector_dirty.is_(True), fresh)
+        )
+        .order_by(
+            case(
+                (TelegramMessage.is_deleted.is_(True) & TelegramMessage.vector_dirty.is_(True), 0),
+                (
+                    TelegramMessage.vector_dirty.is_(True)
+                    & or_(
+                        TelegramMessage.embedded_at.is_not(None),
+                        TelegramMessage.vector_status == "indexed",
+                    ),
+                    1,
+                ),
+                else_=2,
+            ),
+            TelegramMessage.id.asc(),
+        )
+        .limit(limit if limit > 0 else 100)
+    )
+
+
+async def knowledge_checkpoint_after(
+    session,
+    chat_id: int,
+    previous_id: int,
+    evaluated_rows: list[TelegramMessage],
+    *,
+    since: datetime | None = None,
+) -> int:
+    """Advance only over accounted candidates; retain older pending work.
+
+    Deletions/repairs can preempt admission batches by design. Their higher row
+    ID cannot certify that intervening, untouched source rows were evaluated.
+    Pending selection below checkpoints also repairs older legacy checkpoints.
+    """
+    proposed = max(previous_id, max((row.id for row in evaluated_rows), default=previous_id))
+    first_pending = await session.scalar(
+        select(func.min(TelegramMessage.id)).where(
+            TelegramMessage.chat_id == chat_id,
+            TelegramMessage.id > previous_id,
+            TelegramMessage.id <= proposed,
+            TelegramMessage.id.not_in([row.id for row in evaluated_rows]),
+            TelegramMessage.is_deleted.is_(False),
+            TelegramMessage.text.is_not(None),
+            or_(TelegramMessage.vector_status == "pending", TelegramMessage.vector_dirty.is_(True)),
+            *([TelegramMessage.sent_at >= since] if since is not None else []),
+        )
+    )
+    return (
+        min(proposed, max(previous_id, first_pending - 1))
+        if first_pending is not None
+        else proposed
+    )
 
 
 def knowledge_checkpoint_key(provider: str, chat_id: int) -> str:
-    """Keep Ollama checkpoints independent from the cloud vector store."""
+    """Canonical stores have independent checkpoints; preserve legacy callers."""
+    if provider.startswith("embedding-"):
+        return f"knowledge_checkpoint:{provider}:{chat_id}"
     if provider == "ollama":
         return f"knowledge_checkpoint:ollama:{chat_id}"
     return f"knowledge_checkpoint:{chat_id}"
@@ -232,6 +322,8 @@ def requeue_interrupted_learning_job(
     *,
     now: datetime | None = None,
 ) -> None:
+    if job.status in {"cancelled", "uncertain"}:
+        return
     job.status = "queued"
     job.attempts = max(0, job.attempts - 1)
     job.run_after = now or datetime.now(UTC)
@@ -325,6 +417,8 @@ async def recover_interrupted_learning_jobs(session) -> int:
                 select(BackgroundJob).where(
                     BackgroundJob.job_type == "learn_group",
                     BackgroundJob.status == "running",
+                    (BackgroundJob.lease_expires_at.is_(None))
+                    | (BackgroundJob.lease_expires_at <= datetime.now(UTC)),
                 )
             )
         ).all()
@@ -487,10 +581,18 @@ async def verify_bot_token(token: str) -> str:
 
 
 def make_database(settings: Settings, store: SecretStore) -> Database:
-    password = store.get("database_password")
-    if not password:
-        raise RuntimeError("Chưa cấu hình MySQL. Chạy tg-assistant reconfigure hoặc start.bat.")
-    return Database(settings.database_url(password), pool_size=settings.database_pool_size)
+    from .contracts import PublicProfile
+    from .services.storage import StorageService
+
+    return StorageService(settings, store).open(
+        PublicProfile(
+            profile_id=settings.profile_id,
+            owner_id=None,
+            storage_backend=settings.storage_backend,
+            setup_stage="welcome",
+            version=1,
+        )
+    )
 
 
 def make_user_client(
@@ -515,7 +617,7 @@ def make_ai_engine(
     budget: BudgetService,
 ) -> AiEngine:
     secret_name = settings.ai_secret_name
-    api_key = store.get(secret_name) if secret_name else None
+    api_key = store.get(secret_name) if secret_name and settings.cloud_consent else None
     return AiEngine(
         api_key=api_key,
         budget=budget,
@@ -526,6 +628,9 @@ def make_ai_engine(
         max_output_tokens=settings.max_output_tokens_per_request,
         max_input_tokens=settings.max_input_tokens_per_request,
         max_requests_per_minute=settings.max_ai_requests_per_minute,
+        cloud_consent=settings.cloud_consent,
+        consent_check=lambda: current_cloud_consent(settings),
+        enabled_check=lambda: current_model_enabled(settings),
     )
 
 
@@ -534,8 +639,17 @@ def make_local_embedding_engine(
     store: SecretStore,
     budget: BudgetService,
 ) -> AiEngine:
-    candidate = settings.model_copy(update={"ai_provider": "ollama"})
-    return make_ai_engine(candidate, store, budget)
+    # Compatibility name used by CLI; embedding provider is independent of chat.
+    provider = settings.embedding_provider
+    key = (
+        store.get(f"{provider}_api_key")
+        if provider in {"openai", "openrouter"} and settings.cloud_consent
+        else None
+    )
+    engine = make_embedding_engine(settings, budget, key)
+    engine.consent_check = lambda: current_cloud_consent(settings)
+    engine.enabled_check = lambda: current_model_enabled(settings, embedding=True)
+    return engine
 
 
 def make_ai_router(
@@ -552,103 +666,261 @@ def make_ai_router(
             continue
         candidate = settings.model_copy(update={"ai_provider": provider})
         secret_name = candidate.ai_secret_name
-        if secret_name and not store.get(secret_name):
+        if secret_name and (not settings.cloud_consent or not store.get(secret_name)):
             continue
         engines[provider] = make_ai_engine(candidate, store, budget)
-    return AiRouter(engines, default_provider=settings.ai_provider)
+    return AiRouter(
+        engines, default_provider=settings.ai_provider, cloud_consent=settings.cloud_consent
+    )
+
+
+def make_budget(settings: Settings) -> BudgetService:
+    return BudgetService(
+        settings.daily_ai_budget_usd,
+        settings.monthly_ai_budget_usd,
+        daily_token_limit=settings.daily_token_limit,
+        monthly_token_limit=settings.monthly_token_limit,
+        group_daily_token_limit=settings.group_daily_token_limit,
+        feature_daily_token_limit=settings.feature_daily_token_limit,
+        provider_daily_token_limit=settings.provider_daily_token_limit,
+        max_cloud_fallbacks_per_day=settings.max_cloud_fallbacks_per_day,
+        profile_id=settings.profile_id,
+    )
 
 
 async def bootstrap() -> None:
-    settings, store, paths = get_settings(), SecretStore(), ensure_runtime_dirs()
-    for key in ("telegram_api_id", "telegram_api_hash", "telegram_phone", "telegram_bot_token"):
-        if not store.get(key):
-            prompt_secrets(store)
-            break
-    username = await verify_bot_token(store.get("telegram_bot_token") or "")
-    print(f"Đã xác minh bot @{username}")
-    database, policy = make_database(settings, store), PolicyEngine()
-    user = make_user_client(settings, store, policy, paths)
-    try:
-        # Telethon tự hỏi OTP/2FA trong terminal và không lưu chúng.
-        me = await user.authenticate(store.get("telegram_phone") or "")
-        async with database.session() as session:
-            account = await session.scalar(select(TelegramAccount).limit(1))
-            if not account:
-                account = TelegramAccount()
-                session.add(account)
-            account.telegram_user_id, account.username = int(me.id), me.username
-            account.phone_masked, account.last_authenticated_at = (
-                mask_phone(me.phone),
-                datetime.now(UTC),
-            )
-            await user.discover_dialogs(session)
-            paired = account.is_owner_paired
-        if not paired:
-            pairing = PairingCode.create(int(me.id), settings.pairing_ttl_seconds)
-            print(f"Mở @{username} và gửi:\n/pair {pairing.value}\nMã hết hạn sau 5 phút.")
-            control = ControlBot(
-                store.get("telegram_bot_token") or "",
-                owner_id=int(me.id),
-                database=database,
-                policy=policy,
-                pairing=pairing,
-            )
-            bot_task = asyncio.create_task(control.run())
-            try:
-                for _ in range(settings.pairing_ttl_seconds):
-                    if pairing.used:
-                        async with database.session() as session:
-                            account = await session.scalar(select(TelegramAccount).limit(1))
-                            if account:
-                                account.is_owner_paired = True
-                        print("[✓] Ghép nối chủ sở hữu thành công.")
-                        break
-                    await asyncio.sleep(1)
-                else:
-                    raise TimeoutError("Mã pairing đã hết hạn")
-            finally:
-                await control.dp.stop_polling()
-                bot_task.cancel()
-                await asyncio.gather(bot_task, return_exceptions=True)
-                await control.close()
-    finally:
-        await user.close()
-        await database.close()
+    """The retired terminal pairing flow cannot grant Windows authority."""
+    typer.echo(
+        "Mở ứng dụng Windows → Thiết lập → Đăng nhập Telegram → Kết nối bot. "
+        "Nhập token trong cửa sổ native rồi dùng liên kết Start hoặc mã /pair "
+        "để ghép tài khoản đã xác minh."
+    )
 
 
 class Application:
-    def __init__(self) -> None:
-        self.settings, self.store, self.paths = get_settings(), SecretStore(), ensure_runtime_dirs()
+    def _management_fence(self):
+        # The composed Database carries the actual current bot admission. Old
+        # isolated storage/policy callers without that private hook remain valid.
+        check = getattr(self.database, "_check_management", None)
+        if check is not None:
+            check()
+
+    async def _source_fence(
+        self, chat_id: int, permission: PermissionName, epoch: int | None = None
+    ) -> int:
+        self._management_fence()
+        # A separate transaction observes committed revocations after network I/O.
+        async with self.database.session() as authorization_session:
+            lease = active_job_lease.get()
+            observed = await require_fresh_authorization(
+                authorization_session, chat_id, permission, epoch, lease
+            )
+        self._management_fence()
+        return observed
+
+    async def _model_fence(self, epochs, permission, *, cloud, store_id=None, intent=None):
+        """Observe all current source grants/modes and the worker in one fresh read."""
+        self._management_fence()
+        async with self.database.session() as current:
+            query = (
+                select(
+                    TelegramChatPolicy.chat_id,
+                    TelegramChatPolicy.allowed,
+                    TelegramChatPolicy.authorization_epoch,
+                    TelegramChatPolicy.ai_mode,
+                    TelegramChatPermission.enabled,
+                    select(AppSetting.value)
+                    .where(AppSetting.key == "ai_enabled")
+                    .scalar_subquery()
+                    .label("ai_enabled"),
+                )
+                .outerjoin(
+                    TelegramChatPermission,
+                    (TelegramChatPermission.chat_id == TelegramChatPolicy.chat_id)
+                    & (TelegramChatPermission.permission == permission.value),
+                )
+                .where(TelegramChatPolicy.chat_id.in_(epochs))
+            )
+            lease = active_job_lease.get()
+            if lease:
+                query = query.add_columns(
+                    select(BackgroundJob.lease_expires_at)
+                    .where(
+                        BackgroundJob.id == lease.id, BackgroundJob.claim_token == lease.claim_token
+                    )
+                    .scalar_subquery()
+                    .label("worker_expires_at")
+                )
+                query = query.where(
+                    exists(
+                        select(BackgroundJob.id).where(
+                            BackgroundJob.id == lease.id,
+                            BackgroundJob.claim_token == lease.claim_token,
+                            BackgroundJob.status == "running",
+                            BackgroundJob.lease_expires_at > datetime.now(UTC),
+                        )
+                    )
+                )
+            if store_id:
+                query = query.where(
+                    exists(
+                        select(VectorStore.store_id).where(
+                            VectorStore.store_id == store_id,
+                            VectorStore.role == "semantic_active",
+                            VectorStore.state == "active",
+                        )
+                    )
+                )
+            if intent:
+                request_id, hashes = intent
+                query = query.where(
+                    select(func.count(TelegramMessage.id))
+                    .where(
+                        TelegramMessage.is_deleted.is_(False),
+                        TelegramMessage.metadata_json["embedding_request_id"].as_string()
+                        == request_id,
+                        TelegramMessage.metadata_json["embedding_store_id"].as_string() == store_id,
+                        or_(
+                            *[
+                                (TelegramMessage.id == row_id)
+                                & (TelegramMessage.content_hash == digest)
+                                for row_id, digest in hashes.items()
+                            ]
+                        ),
+                    )
+                    .scalar_subquery()
+                    == len(hashes)
+                )
+            observed = list((await current.execute(query)).all())
+        self._management_fence()
+        if lease and any(
+            not row.worker_expires_at or utc(row.worker_expires_at) <= datetime.now(UTC)
+            for row in observed
+        ):
+            raise LeaseLost("job_lease_lost")
+        if len(observed) != len(epochs) or any(
+            not row.allowed or not row.enabled or row.authorization_epoch != epochs[row.chat_id]
+            for row in observed
+        ):
+            raise AuthorizationRevoked("source_authorization_revoked")
+        if any(
+            row.ai_mode == "off"
+            or (
+                cloud and row.ai_mode not in {"inherit", "local_first", "cloud_only", "cloud_first"}
+            )
+            for row in observed
+        ):
+            raise AiPolicyError("Source model policy rejected before submission")
+        if any(row.ai_enabled is False for row in observed) or not current_model_enabled(
+            self.settings
+        ):
+            raise AiPolicyError("AI disabled before submission")
+        if cloud and not current_cloud_consent(self.settings):
+            raise AiPolicyError("Cloud consent required")
+        return {row.chat_id: row.ai_mode for row in observed}
+
+    async def _job_fence(self, session, job: BackgroundJob, permission: PermissionName) -> int:
+        payload = job.payload or {}
+        if job.status not in {"queued", "running"}:
+            raise AuthorizationRevoked("job_cancelled")
+        if int(payload.get("owner_id", -1)) != int(self.user.owner_id):
+            raise AuthorizationRevoked("not_owner")
+        return await self._source_fence(
+            int(payload["chat_id"]), permission, int(payload.get("authorization_epoch", 0))
+        )
+
+    async def _action_fence(self, action: PendingAction) -> None:
+        async with self.database.session() as current:
+            status = await current.scalar(
+                select(PendingAction.status).where(PendingAction.action_id == action.action_id)
+            )
+            if status not in {"confirmed", "executing"}:
+                raise AuthorizationRevoked("action_no_longer_executable")
+            await validate_action_epoch(current, action)
+            if action.action_id.startswith("fv1-") or "first_source_preview" in (action.payload or {}):
+                await self._validate_first_source_action(current, action)
+
+    async def _validate_first_source_action(self, session, action) -> None:
+        owner = self.first_value
+        if owner is None:
+            raise AuthorizationRevoked("first_source_preview_stale")
+        await owner.preview.validate(session, action)
+
+    async def _cancel_revoked_job(self, job_id: str) -> None:
+        async with self.database.session() as session:
+            job = await session.get(BackgroundJob, job_id)
+            if job:
+                job.status = (
+                    "uncertain"
+                    if (job.payload or {}).get("external_effect_started")
+                    else "cancelled"
+                )
+                job.last_error = "source_authorization_revoked"
+                job.locked_by = None
+                job.locked_at = None
+                chat_id = (job.payload or {}).get("chat_id")
+                source = (
+                    await session.get(KnowledgeSource, int(chat_id))
+                    if chat_id is not None
+                    else None
+                )
+                if source:
+                    source.status = "revoked"
+                    source.requested_for_learning = False
+
+    def __init__(self, *, settings: Settings | None = None, admin_app_ready=None,
+                 runtime_ready=None, bot_runtime_factory=None) -> None:
+        self.settings = settings if settings is not None else get_settings()
+        self.admin_app_ready = admin_app_ready
+        self.runtime_ready = runtime_ready
+        self.bot_runtime_factory, self.bot_runtime = bot_runtime_factory, None
+        self.first_value = None
+        self.store = self.paths = self.database = self.user = None
+        self.ai = self.embedding_ai = self.ai_router = None
+        self.coingecko = self.ollama = self.rag = None
+        self.bot = self.admin_server = self.scheduler = None
+        self.stopping = asyncio.Event()
+        self._tasks = []
+        self._closed = False
+        self._resources_released = False
+
+    def management_admitted(self):
+        try:
+            return (
+                not self._closed and getattr(self, "_close_task", None) is None
+                and not self.stopping.is_set() and self.bot_runtime is not None
+                and self.bot_runtime.management_admitted() is True
+            )
+        except Exception:
+            return False
+
+    def _initialize(self) -> None:
+        self.store = SecretStore()
+        self.paths = ensure_runtime_dirs(
+            self.settings.data_dir, profile_id=self.settings.profile_id
+        )
         configure_logging(self.settings.log_level, self.paths["logs"])
         self.database = make_database(self.settings, self.store)
         self.policy = PolicyEngine()
         self.user = make_user_client(self.settings, self.store, self.policy, self.paths)
-        self.budget = BudgetService(
-            self.settings.daily_ai_budget_usd,
-            self.settings.monthly_ai_budget_usd,
-            daily_token_limit=self.settings.daily_token_limit,
-            monthly_token_limit=self.settings.monthly_token_limit,
-            group_daily_token_limit=self.settings.group_daily_token_limit,
-            feature_daily_token_limit=self.settings.feature_daily_token_limit,
-            provider_daily_token_limit=self.settings.provider_daily_token_limit,
-            max_cloud_fallbacks_per_day=self.settings.max_cloud_fallbacks_per_day,
-        )
+        self.budget = make_budget(self.settings)
         self.ai = make_ai_engine(self.settings, self.store, self.budget)
-        self.embedding_ai = make_local_embedding_engine(
-            self.settings, self.store, self.budget
-        )
+        self.embedding_ai = make_local_embedding_engine(self.settings, self.store, self.budget)
         self.ai_router = make_ai_router(self.settings, self.store, self.budget, self.ai)
         self.coingecko = CoinGeckoClient(self.store.get("coingecko_api_key"))
         self.ollama = OllamaService(self.settings.ollama_base_url)
         vectors = None
         if self.embedding_ai.available and self.settings.enable_embeddings:
             try:
+                selected_path = resolve_vector_path(self.database, self.settings)
                 vectors = LocalVectorStore(
-                    self.settings.resolved_semantic_vector_path,
-                    vector_size=self.settings.ollama_vector_size,
+                    selected_path,
+                    vector_size=self.settings.embedding_profile.dimension,
+                    profile=self.settings.embedding_profile,
+                    require_existing=requires_existing_vector_path(self.settings, selected_path),
                 )
             except Exception as exc:
-                log.warning("qdrant_local_unavailable", error=str(exc))
+                log.warning("qdrant_local_unavailable", error_code=type(exc).__name__)
         self.rag = RagService(
             self.policy,
             self.ai,
@@ -657,6 +929,8 @@ class Application:
             embedding_ai=self.embedding_ai,
             default_preset=self.settings.ai_efficiency_preset,
         )
+        self.rag.database = self.database
+        self.rag.provider_fence = self._model_fence
         self.bot: ControlBot | None = None
         self.admin_server: uvicorn.Server | None = None
         self.scheduler = AsyncIOScheduler(timezone=self.settings.timezone)
@@ -664,7 +938,6 @@ class Application:
             self._scheduler_event,
             EVENT_JOB_EXECUTED | EVENT_JOB_ERROR | EVENT_JOB_MISSED,
         )
-        self.stopping = asyncio.Event()
         self._knowledge_lock = asyncio.Lock()
         self._group_ai_limiter = SlidingWindowLimiter(limit=3, seconds=60)
 
@@ -683,6 +956,12 @@ class Application:
             exception=str(getattr(event, "exception", "") or "") or None,
         )
 
+    def _authenticated_vector_owner(self) -> int:
+        owner_id = getattr(getattr(self, "user", None), "owner_id", None)
+        if type(owner_id) is not int or owner_id <= 0:
+            raise PermissionError("vector_owner_unverified")
+        return owner_id
+
     async def _activate_ollama(
         self,
         chat_model: str,
@@ -693,26 +972,28 @@ class Application:
         candidate = self.settings.model_copy(
             update={
                 "ai_provider": "ollama",
+                "embedding_provider": "ollama",
                 "ollama_primary_model": chat_model,
                 "ollama_embedding_model": embedding_model,
                 "ollama_vector_size": vector_size,
             }
         )
         async with self._knowledge_lock:
+            owner_id = self._authenticated_vector_owner()
             current_vectors = self.rag.vectors
-            current_path = self.settings.resolved_semantic_vector_path
-            target_path = candidate.resolved_semantic_vector_path
+            current_path = resolve_vector_path(self.database, self.settings, owner_id=owner_id)
+            target_path = resolve_vector_path(self.database, candidate, owner_id=owner_id)
             reuse_vectors = current_vectors is not None and current_path == target_path
             new_vectors = current_vectors if reuse_vectors else None
             if not reuse_vectors and candidate.enable_embeddings:
                 new_vectors = LocalVectorStore(
                     target_path,
-                    vector_size=vector_size,
+                    vector_size=candidate.embedding_profile.dimension,
+                    profile=candidate.embedding_profile,
+                    require_existing=requires_existing_vector_path(candidate, target_path),
                 )
             new_ai = make_ai_engine(candidate, self.store, self.budget)
-            new_embedding_ai = make_local_embedding_engine(
-                candidate, self.store, self.budget
-            )
+            new_embedding_ai = make_local_embedding_engine(candidate, self.store, self.budget)
             new_router = make_ai_router(candidate, self.store, self.budget, new_ai)
             new_rag = RagService(
                 self.policy,
@@ -727,6 +1008,7 @@ class Application:
             save_settings_env(
                 {
                     "TG_ASSISTANT_AI_PROVIDER": "ollama",
+                    "TG_ASSISTANT_EMBEDDING_PROVIDER": "ollama",
                     "TG_ASSISTANT_OLLAMA_PRIMARY_MODEL": chat_model,
                     "TG_ASSISTANT_OLLAMA_EMBEDDING_MODEL": embedding_model,
                     "TG_ASSISTANT_OLLAMA_VECTOR_SIZE": str(vector_size),
@@ -736,6 +1018,8 @@ class Application:
             self.ai = new_ai
             self.embedding_ai = new_embedding_ai
             self.ai_router, self.rag = new_router, new_rag
+            self.rag.database = self.database
+            self.rag.provider_fence = self._model_fence
             if self.bot:
                 self.bot.ai, self.bot.rag = new_ai, new_rag
             if old_vectors and not reuse_vectors:
@@ -747,23 +1031,17 @@ class Application:
             f"Model chat: {chat_model}\n"
             f"Embedding: {embedding_model} ({vector_size} chiều)\n"
             f"Kho vector Local-first: {self.settings.resolved_semantic_vector_path}\n\n"
-            "AI có thể trả lời ngay bằng dữ liệu keyword trong MySQL. "
-            "Kho semantic Ollama sẽ được bổ sung tự động từ các nguồn đã cấp quyền."
+            "Tìm kiếm từ khóa vẫn dùng dữ liệu đã cấp quyền. "
+            "Kho embedding mới cần kích hoạt được xác minh trước khi lập chỉ mục."
         )
 
     async def _switch_ai_provider(self, provider: str) -> str:
-        if provider == "ollama":
-            settings = get_settings()
-            dimension = await self.ollama.embedding_dimension(settings.ollama_embedding_model)
-            return await self._activate_ollama(
-                settings.ollama_primary_model,
-                settings.ollama_embedding_model,
-                dimension,
-            )
-        if provider not in {"openai", "openrouter", "off"}:
+        if provider not in {"ollama", "openai", "openrouter", "off"}:
             raise ValueError("Nhà cung cấp AI không hợp lệ.")
         candidate = self.settings.model_copy(update={"ai_provider": provider})
         secret_name = candidate.ai_secret_name
+        if secret_name and not candidate.cloud_consent:
+            raise AiPolicyError("Cloud consent required")
         if secret_name and not self.store.get(secret_name):
             label = "OpenAI" if provider == "openai" else "OpenRouter"
             raise RuntimeError(
@@ -771,14 +1049,17 @@ class Application:
                 "Không nhận API key qua Telegram để tránh lộ secret."
             )
         async with self._knowledge_lock:
+            owner_id = self._authenticated_vector_owner()
             current_vectors = self.rag.vectors
-            target_path = candidate.resolved_semantic_vector_path
+            target_path = resolve_vector_path(self.database, candidate, owner_id=owner_id)
             reuse_vectors = bool(current_vectors)
             new_vectors = current_vectors
             if not new_vectors and candidate.enable_embeddings:
                 new_vectors = LocalVectorStore(
                     target_path,
-                    vector_size=candidate.ollama_vector_size,
+                    vector_size=candidate.embedding_profile.dimension,
+                    profile=candidate.embedding_profile,
+                    require_existing=requires_existing_vector_path(candidate, target_path),
                 )
             new_ai = make_ai_engine(candidate, self.store, self.budget)
             new_router = make_ai_router(candidate, self.store, self.budget, new_ai)
@@ -794,6 +1075,8 @@ class Application:
             save_settings_env({"TG_ASSISTANT_AI_PROVIDER": provider})
             self.settings = get_settings()
             self.ai, self.ai_router, self.rag = new_ai, new_router, new_rag
+            self.rag.database = self.database
+            self.rag.provider_fence = self._model_fence
             if self.bot:
                 self.bot.ai, self.bot.rag = new_ai, new_rag
             if old_vectors and not reuse_vectors:
@@ -802,12 +1085,12 @@ class Application:
         if provider == "off":
             return (
                 "Đã tắt toàn bộ AI: OpenAI, OpenRouter, Ollama, suy luận và embedding. "
-                "MySQL, tìm kiếm local, CoinGecko, đồng bộ và chống spam vẫn hoạt động."
+                "Lưu trữ, tìm kiếm local, CoinGecko, đồng bộ và chống spam vẫn hoạt động."
             )
         return (
             f"Đã chuyển sang {provider}.\n"
             f"Model: {self.ai.model}\n"
-            f"Embedding: {self.ai.embedding_model}\n"
+            f"Embedding: {self.embedding_ai.provider} / {self.embedding_ai.embedding_model}\n"
             "Thay đổi đã áp dụng ngay, không cần khởi động lại bot."
         )
 
@@ -822,6 +1105,7 @@ class Application:
         sender_label: str | None = None,
     ) -> str:
         evidence_rows: list[SourceEvidence] = []
+        epoch = await self._source_fence(chat.chat_id, PermissionName.SEARCH_MESSAGES)
         contexts: list[str] = []
         context_chars = 0
         context_budget = min(36_000, max(6_000, self.ai.max_input_tokens * 3))
@@ -850,29 +1134,80 @@ class Application:
         if not contexts:
             return empty_message
         include_citations = question_requests_news(question)
+        await self._source_fence(chat.chat_id, PermissionName.SEARCH_MESSAGES, epoch)
         if hasattr(self, "policy") and hasattr(self, "ai_router"):
             route = await self.policy.ai_route(session, [chat.chat_id])
+            if isinstance(self.ai, AiEngine):
+                cloud = any(
+                    provider in {"openai", "openrouter"} for provider in self.ai_router.plan(route)
+                )
+                await session.commit()
+
+                async def fence():
+                    return await self._model_fence(
+                        {chat.chat_id: epoch}, PermissionName.SEARCH_MESSAGES, cloud=cloud
+                    )
+
+                modes = await fence()
+            else:
+                modes, fence = {}, None
             answer = await self.ai_router.answer(
                 session,
                 question,
                 contexts,
                 route=route,
                 include_source_refs=include_citations,
+                **(
+                    {
+                        "source_modes": list(modes.values()),
+                        "pre_submit": fence,
+                        "chat_id": chat.chat_id,
+                    }
+                    if isinstance(self.ai, AiEngine)
+                    else {}
+                ),
             )
         else:
+            if isinstance(self.ai, AiEngine):
+                await session.commit()
+
+                async def fence():
+                    return await self._model_fence(
+                        {chat.chat_id: epoch},
+                        PermissionName.SEARCH_MESSAGES,
+                        cloud=self.ai.provider in {"openai", "openrouter"},
+                    )
+
+                modes = await fence()
+            else:
+                modes, fence = {}, None
             answer = await self.ai.answer(
                 session,
                 question,
                 contexts,
                 include_source_refs=include_citations,
+                **(
+                    {
+                        "source_modes": list(modes.values()),
+                        "pre_submit": fence,
+                        "chat_id": chat.chat_id,
+                    }
+                    if isinstance(self.ai, AiEngine)
+                    else {}
+                ),
             )
         if not include_citations:
-            return without_source_references(answer)
+            await self._source_fence(chat.chat_id, PermissionName.SEARCH_MESSAGES, epoch)
+            return AuthorizedAnswer(without_source_references(answer), {chat.chat_id: epoch})
         referenced = referenced_item_indexes(answer, item_count=len(evidence_rows))
         cited = [evidence_rows[index] for index in referenced]
-        return (
-            f"{answer.rstrip()}\n\n"
-            f"{citation_appendix(cited, source_numbers=[index + 1 for index in referenced])}"
+        await self._source_fence(chat.chat_id, PermissionName.SEARCH_MESSAGES, epoch)
+        return AuthorizedAnswer(
+            (
+                f"{answer.rstrip()}\n\n"
+                f"{citation_appendix(cited, source_numbers=[index + 1 for index in referenced])}"
+            ),
+            {chat.chat_id: epoch},
         )
 
     async def _answer_from_current_group(
@@ -990,6 +1325,9 @@ class Application:
                 )
                 if not chat:
                     return
+                authorization_epoch = await require_authorization(
+                    session, chat_id, PermissionName.GROUP_AI_ASK
+                )
                 if not question:
                     answer = f"Dùng: @{username} /ask <câu hỏi>"
                 elif len(question) > 1500:
@@ -1030,6 +1368,10 @@ class Application:
                         elif not self.ai.available:
                             answer = "AI hiện chưa sẵn sàng."
                         else:
+                            await self._source_fence(
+                                chat_id, PermissionName.GROUP_AI_ASK, authorization_epoch
+                            )
+                            self._management_fence()
                             await self.user.client.send_message(
                                 chat_id,
                                 "Đã nhận câu hỏi; đang rà dữ liệu Telegram phù hợp…",
@@ -1105,12 +1447,13 @@ class Application:
                                         requester_id=requester_id,
                                         error=str(redact(str(exc))),
                                     )
-                                    answer = (
-                                        "AI tạm thời không trả lời được; "
-                                        "vui lòng thử lại sau."
-                                    )
+                                    answer = "AI tạm thời không trả lời được; vui lòng thử lại sau."
             chunks = telegram_html_chunks(answer)
             for chunk in chunks:
+                await self._source_fence(chat_id, PermissionName.GROUP_AI_ASK, authorization_epoch)
+                async with self.database.session() as current:
+                    await validate_answer(current, answer)
+                self._management_fence()
                 await self.user.client.send_message(
                     chat_id,
                     chunk,
@@ -1136,29 +1479,63 @@ class Application:
         if not self.bot:
             return
         async with self.database.session() as session:
-            reminders = (
-                await session.scalars(
-                    select(Reminder)
-                    .where(
-                        Reminder.status == "scheduled",
-                        Reminder.remind_at <= datetime.now(UTC),
-                    )
-                    .order_by(Reminder.remind_at)
-                    .limit(20)
-                    .with_for_update(skip_locked=True)
+            now = datetime.now(UTC).replace(microsecond=0)
+            # An interrupted submission needs reconciliation, never another send.
+            await session.execute(
+                update(Reminder)
+                .where(
+                    Reminder.status == "dispatching",
+                    (Reminder.delivery_started_at.is_(None))
+                    | (Reminder.delivery_started_at < now - timedelta(minutes=15)),
                 )
-            ).all()
-            for reminder in reminders:
-                try:
-                    await self.bot.bot.send_message(
-                        int(self.user.owner_id),
-                        f"⏰ Nhắc việc\n{reminder.message}",
+                .values(status="uncertain")
+                .execution_options(synchronize_session=False)
+            )
+            reminders = list(
+                (
+                    await session.scalars(
+                        select(Reminder)
+                        .where(
+                            Reminder.status == "scheduled",
+                            Reminder.remind_at <= now,
+                        )
+                        .order_by(Reminder.remind_at)
+                        .limit(20)
                     )
-                    reminder.status = "sent"
-                    reminder.sent_at = datetime.now(UTC)
-                except Exception as exc:
-                    reminder.status = "failed"
-                    log.warning("reminder_failed", reminder_id=reminder.id, error=str(exc))
+                ).all()
+            )
+            claimed = []
+            for reminder in reminders:
+                changed = await session.execute(
+                    update(Reminder)
+                    .where(
+                        Reminder.id == reminder.id,
+                        Reminder.status == "scheduled",
+                        Reminder.remind_at <= now,
+                    )
+                    .values(status="dispatching", delivery_started_at=now)
+                    .execution_options(synchronize_session=False)
+                )
+                if changed.rowcount == 1:
+                    claimed.append((reminder.id, reminder.message, now))
+        for reminder_id, message, started in claimed:
+            try:
+                await self.bot.bot.send_message(int(self.user.owner_id), f"⏰ Nhắc việc\n{message}")
+                status, sent_at = "sent", datetime.now(UTC)
+            except Exception:
+                status, sent_at = "uncertain", None
+                log.warning("reminder_requires_reconciliation", reminder_id=reminder_id)
+            async with self.database.session() as session:
+                await session.execute(
+                    update(Reminder)
+                    .where(
+                        Reminder.id == reminder_id,
+                        Reminder.status == "dispatching",
+                        Reminder.delivery_started_at == started,
+                    )
+                    .values(status=status, sent_at=sent_at)
+                    .execution_options(synchronize_session=False)
+                )
 
     async def _index_knowledge_rows(
         self,
@@ -1166,118 +1543,299 @@ class Application:
         rows: list[TelegramMessage],
         *,
         filtering_level: str = "standard",
+        authorization_epochs: dict[int, int] | None = None,
+        permission: PermissionName = PermissionName.AUTO_KNOWLEDGE,
     ) -> EmbeddingIndexResult:
-        if not self.rag.vectors or not self.embedding_ai.available:
+        if (
+            not rows
+            or not self.rag.vectors
+            or not self.embedding_ai.available
+            or self.settings.ai_provider == "off"
+        ):
             return EmbeddingIndexResult()
-        if not rows:
-            return EmbeddingIndexResult()
-
+        profile = self.settings.embedding_profile
+        cloud = profile.provider in {"openai", "openrouter"}
+        epochs = dict(authorization_epochs or {})
+        for chat_id in dict.fromkeys(row.chat_id for row in rows):
+            epochs[chat_id] = await self._source_fence(chat_id, permission, epochs.get(chat_id))
+        # Release staged ingestion/source metadata BEFORE the independent budget writer.
         row_ids = [row.id for row in rows]
-        candidate_hashes = {
-            decision.content_hash
-            for row in rows
-            if (
-                decision := embedding_decision(
-                    row.text,
-                    metadata=row.metadata_json,
-                    filtering_level=filtering_level,
-                )
-            ).content_hash
-        }
-        existing_hashes = set()
-        if candidate_hashes:
-            existing_hashes = set(
-                (
-                    await session.scalars(
-                        select(TelegramMessage.content_hash).where(
-                            TelegramMessage.content_hash.in_(candidate_hashes),
-                            TelegramMessage.id.not_in(row_ids),
-                            TelegramMessage.vector_status == "indexed",
-                            TelegramMessage.embedding_provider == "ollama",
-                            TelegramMessage.embedding_model
-                            == self.settings.ollama_embedding_model,
-                            TelegramMessage.embedding_version
-                            == self.settings.embedding_version,
-                        )
+        await session.commit()
+        # Serialize durable per-row intents, including overlapping regrouped batches.
+        if session.bind.dialect.name == "sqlite":
+            await session.execute(text("BEGIN IMMEDIATE"))
+        current_rows = list(
+            (
+                await session.scalars(
+                    select(TelegramMessage)
+                    .where(TelegramMessage.id.in_(row_ids))
+                    .order_by(
+                        case(
+                            (TelegramMessage.is_deleted.is_(True), 0),
+                            (TelegramMessage.embedded_at.is_not(None), 1),
+                            else_=2,
+                        ),
+                        TelegramMessage.id,
                     )
-                ).all()
-            )
-
-        eligible: list[TelegramMessage] = []
-        seen_hashes = set(existing_hashes)
+                    .with_for_update()
+                    .execution_options(populate_existing=True)
+                )
+            ).all()
+        )
+        registry = await ensure_vector_store_registry(session, self.settings)
+        if registry.role != "semantic_active" or registry.state != "active":
+            await session.commit()
+            raise AiPolicyError("Embedding store requires explicit verified activation")
+        # No fresh source callback while a SQLite write transaction is held.
+        policies = dict(
+            (
+                await session.execute(
+                    select(TelegramChatPolicy.chat_id, TelegramChatPolicy.ai_mode).where(
+                        TelegramChatPolicy.chat_id.in_(epochs)
+                    )
+                )
+            ).all()
+        )
+        eligible = []
+        waiting_intents = {}
         reused = filtered = duplicate = skipped = 0
-        for row in rows:
-            decision = embedding_decision(
-                row.text,
-                metadata=row.metadata_json,
-                duplicate_hashes=seen_hashes,
-                filtering_level=filtering_level,
+        seen_by_chat = {}
+        index = SourceIndexService(self.settings, self.rag.vectors)
+        source_policies = {
+            policy.chat_id: policy
+            for policy in (
+                await session.scalars(
+                    select(TelegramChatPolicy).where(TelegramChatPolicy.chat_id.in_(epochs))
+                )
+            ).all()
+        }
+        existing_rows = list(
+            (
+                await session.scalars(
+                    select(TelegramMessage).where(
+                        TelegramMessage.chat_id.in_(epochs),
+                        TelegramMessage.id.not_in(row_ids),
+                        TelegramMessage.is_deleted.is_(False),
+                    )
+                )
+            ).all()
+        )
+        for previous in sorted(existing_rows, key=lambda row: row.id):
+            decision = index.decision(previous, source_policies.get(previous.chat_id))
+            if decision.eligible and index.current(previous):
+                seen_by_chat.setdefault(previous.chat_id, {}).setdefault(
+                    decision.content_hash, previous.id
+                )
+        source_admissions = {
+            chat_id: index.admitted_canonicals(
+                [row for row in existing_rows + current_rows if row.chat_id == chat_id],
+                source_policies.get(chat_id),
             )
-            row.normalized_text = decision.normalized_text or None
-            row.content_hash = decision.content_hash
-            row.embedding_error = None
+            for chat_id in epochs
+        }
+        present_by_chat = {
+            chat_id: set(self.rag.vectors.reference_ids(chat_id=chat_id)) for chat_id in epochs
+        }
+        admitted_by_chat = {
+            chat_id: len(reference_ids) for chat_id, reference_ids in present_by_chat.items()
+        }
+        for row in current_rows:
+            seen = seen_by_chat.setdefault(row.chat_id, {})
+            mode = policies.get(row.chat_id)
+            if mode == "off" or (
+                cloud and mode not in {"inherit", "local_first", "cloud_only", "cloud_first"}
+            ):
+                skipped += 1
+                continue
+            metadata = dict(row.metadata_json or {})
+            decision = index.decision(row, source_policies.get(row.chat_id))
             if not decision.eligible:
-                row.vector_status = "skipped"
-                row.embedding_skip_reason = decision.reason
-                if decision.reason == "duplicate":
-                    duplicate += 1
-                elif decision.reason in {"empty_content", "service_message", "unsupported_content"}:
+                self.rag.vectors.delete_reference_ids([row.id])
+                if row.id in present_by_chat[row.chat_id]:
+                    present_by_chat[row.chat_id].remove(row.id)
+                    admitted_by_chat[row.chat_id] -= 1
+                row.vector_status, row.embedding_skip_reason = "skipped", decision.reason
+                row.vector_dirty = False
+                if decision.reason in {
+                    "empty_content",
+                    "service_message",
+                    "unsupported_content",
+                    "retention_excluded",
+                    "request_too_large",
+                }:
                     skipped += 1
                 else:
                     filtered += 1
                 continue
+            pending_id = metadata.get("embedding_request_id")
+            if pending_id:
+                pending = await session.get(AiBudgetReservation, pending_id)
+                # An intent without a reservation may belong to an admitted concurrent
+                # worker. Do not replace it with a regrouped/new request.
+                if pending is not None and pending.state in {"submitted", "uncertain"}:
+                    await session.commit()
+                    raise AiUncertainError("Embedding intent requires reconciliation")
+                if pending is None or pending.state == "reserved":
+                    waiting_intents[row.id] = pending_id
+                if (
+                    pending is not None
+                    and pending.state == "settled"
+                    and row.vector_status != "indexed"
+                ):
+                    await session.commit()
+                    raise AiUncertainError("Embedding outcome requires reconciliation")
+            point_current = index.current(row)
+            row.normalized_text = decision.normalized_text or None
+            row.content_hash = decision.content_hash
+            row.embedding_error = None
+            if point_current:
+                reused += 1
+                row.vector_dirty = False
+                row.metadata_json = {
+                    **metadata,
+                    "embedding_policy_version": index.policy_version(source_policies[row.chat_id]),
+                }
+                seen.setdefault(decision.content_hash, row.id)
+                continue
+            if decision.content_hash in seen:
+                row.vector_status, row.embedding_skip_reason = "skipped", "duplicate"
+                row.metadata_json = {
+                    **metadata,
+                    "duplicate_reference_id": seen[decision.content_hash],
+                    "embedding_store_id": profile.store_id,
+                    "embedding_policy_version": index.policy_version(source_policies[row.chat_id]),
+                }
+                row.vector_dirty = True
+                self.rag.vectors.delete_reference_ids([row.id])
+                duplicate += 1
+                continue
             if (
                 row.vector_status == "indexed"
-                and row.embedding_provider == "ollama"
-                and row.embedding_model == self.settings.ollama_embedding_model
-                and row.embedding_version == self.settings.embedding_version
+                and metadata.get("embedding_content_hash") == decision.content_hash
             ):
-                row.embedding_skip_reason = None
-                reused += 1
-                seen_hashes.add(decision.content_hash or "")
+                metadata["embedding_repair_generation"] = (
+                    int(metadata.get("embedding_repair_generation", 0)) + 1
+                )
+                row.metadata_json = metadata
+            source_policy = source_policies.get(row.chat_id)
+            cap = index.point_cap(source_policy)
+            canonical = source_admissions[row.chat_id].get(decision.content_hash)
+            if row.id not in present_by_chat[row.chat_id] and (
+                canonical is None
+                or canonical.id != row.id
+                or (cap is not None and admitted_by_chat[row.chat_id] >= cap)
+            ):
+                row.vector_status, row.embedding_skip_reason = "skipped", "quota_exceeded"
+                # Admission deferral is separate from the invalidation outbox.
+                # Reconsider when capacity is available, even below checkpoint.
+                row.vector_dirty = False
+                row.metadata_json = {
+                    **metadata,
+                    "embedding_store_id": profile.store_id,
+                    "embedding_policy_version": index.policy_version(source_policy),
+                }
+                skipped += 1
                 continue
-            row.vector_status = "pending"
-            row.embedding_skip_reason = None
+            row.vector_dirty = True
+            row.vector_status, row.embedding_skip_reason = "pending", None
+            if (
+                len((row.normalized_text or "").encode("utf-8")) + 16
+                > self.settings.max_input_tokens_per_request
+            ):
+                row.vector_status, row.embedding_skip_reason = "skipped", "request_too_large"
+                skipped += 1
+                continue
             eligible.append(row)
-            seen_hashes.add(decision.content_hash or "")
-
+            if row.id not in present_by_chat[row.chat_id]:
+                admitted_by_chat[row.chat_id] += 1
+            seen[decision.content_hash] = row.id
+        # Each reservation belongs to one source so per-group caps cannot be
+        # charged only to the first source of a mixed batch.
+        batches = [
+            batch
+            for chat_id in dict.fromkeys(row.chat_id for row in eligible)
+            for batch in embedding_batches(
+                [row for row in eligible if row.chat_id == chat_id],
+                max_input_tokens=self.settings.max_input_tokens_per_request,
+            )
+        ]
+        intents = []
+        for batch in batches:
+            material = [
+                profile.store_id,
+                permission.value,
+                [
+                    (
+                        row.id,
+                        row.content_hash,
+                        epochs[row.chat_id],
+                        (row.metadata_json or {}).get("embedding_repair_generation", 0),
+                    )
+                    for row in batch
+                ],
+            ]
+            request_id = sha256(json.dumps(material, separators=(",", ":")).encode()).hexdigest()
+            if any(waiting_intents.get(row.id, request_id) != request_id for row in batch):
+                await session.commit()
+                raise AiUncertainError("Overlapping embedding intent requires reconciliation")
+            for row in batch:
+                row.metadata_json = {
+                    **(row.metadata_json or {}),
+                    "embedding_request_id": request_id,
+                    "embedding_store_id": profile.store_id,
+                }
+            intents.append((batch, request_id))
+        await session.commit()
         indexed = 0
-        for batch in embedding_batches(
-            eligible,
-            max_input_tokens=self.settings.max_input_tokens_per_request,
-        ):
-            try:
-                vectors = await self.embedding_ai.embed_many(
-                    session,
-                    [
-                        row.normalized_text or (row.text or "").strip()
-                        for row in batch
-                    ],
-                    chat_id=batch[0].chat_id if batch else None,
+        for batch, request_id in intents:
+            batch_epochs = {row.chat_id: epochs[row.chat_id] for row in batch}
+            captured_intent = (request_id, {row.id: row.content_hash for row in batch})
+
+            async def fence(captured=batch_epochs, selected_intent=captured_intent):
+                return await self._model_fence(
+                    captured,
+                    permission,
+                    cloud=cloud,
+                    store_id=profile.store_id,
+                    intent=selected_intent,
                 )
-                self.rag.vectors.upsert_many(
-                    [
-                        (row.id, vector, row.chat_id, row.message_id)
-                        for row, vector in zip(batch, vectors, strict=True)
-                    ]
-                )
-                embedded_at = datetime.now(UTC)
-                for row in batch:
-                    row.embedding_provider = "ollama"
-                    row.embedding_model = self.settings.ollama_embedding_model
-                    row.embedding_version = self.settings.embedding_version
-                    row.vector_status = "indexed"
-                    row.embedded_at = embedded_at
-                    row.embedding_error = None
-                indexed += len(vectors)
-            except Exception as exc:
-                error = str(redact(str(exc)))[:1000]
-                for row in batch:
-                    row.vector_status = "error"
-                    row.embedding_error = error
-                raise
+
+            modes = await fence()
+            vectors = await self.embedding_ai.embed_many(
+                session,
+                [row.normalized_text or (row.text or "").strip() for row in batch],
+                chat_id=batch[0].chat_id,
+                source_modes=list(modes.values()),
+                request_id=request_id,
+                pre_submit=fence,
+            )
+            await fence()
+            self.rag.vectors.upsert_many(
+                [
+                    (row.id, vector, row.chat_id, row.message_id)
+                    for row, vector in zip(batch, vectors, strict=True)
+                ],
+                content_hashes={row.id: row.content_hash for row in batch},
+            )
+            for row in batch:
+                row.vector_dirty = False
+                row.embedding_provider, row.embedding_model = profile.provider, profile.model
+                row.embedding_version = profile.embedding_version
+                row.vector_status, row.embedded_at = "indexed", datetime.now(UTC)
+                row.embedding_error = None
+                row.metadata_json = {
+                    **(row.metadata_json or {}),
+                    "embedding_content_hash": row.content_hash,
+                    "embedding_policy_version": index.policy_version(source_policies[row.chat_id]),
+                }
+            indexed += len(vectors)
+            await session.commit()
+        for row in current_rows:
+            if row.embedding_skip_reason == "duplicate":
+                row.vector_dirty = False
+        await session.commit()
         return EmbeddingIndexResult(
-            processed=len(rows),
+            processed=len(current_rows),
             indexed=indexed,
             reused=reused,
             filtered=filtered,
@@ -1323,7 +1881,7 @@ class Application:
                     ).all()
                     for chat_id in learned_chats:
                         checkpoint_key = knowledge_checkpoint_key(
-                            "ollama",
+                            self.settings.embedding_profile.store_id,
                             chat_id,
                         )
                         checkpoint = await session.get(AppSetting, checkpoint_key)
@@ -1340,30 +1898,27 @@ class Application:
                         )
                         rows = (
                             await session.scalars(
-                                select(TelegramMessage)
-                                .where(
-                                    TelegramMessage.chat_id == chat_id,
-                                    TelegramMessage.id > last_id,
-                                    TelegramMessage.is_deleted.is_(False),
-                                    TelegramMessage.text.is_not(None),
-                                    *(
-                                        [TelegramMessage.sent_at >= retention_since]
-                                        if retention_since
-                                        else []
-                                    ),
+                                knowledge_rows_query(
+                                    chat_id,
+                                    limit=refresh_limit,
+                                    checkpoint_id=last_id,
+                                    since=retention_since,
                                 )
-                                .order_by(TelegramMessage.id.asc())
-                                .limit(refresh_limit)
                             )
                         ).all()
                         if not rows:
                             continue
+                        epoch = await self._source_fence(chat_id, PermissionName.AUTO_KNOWLEDGE)
                         index_result = await self._index_knowledge_rows(
                             session,
                             list(rows),
                             filtering_level=(policy.filtering_level if policy else "standard"),
+                            authorization_epochs={chat_id: epoch},
                         )
-                        newest_id = max(row.id for row in rows)
+                        await self._source_fence(chat_id, PermissionName.AUTO_KNOWLEDGE, epoch)
+                        newest_id = await knowledge_checkpoint_after(
+                            session, chat_id, last_id, list(rows), since=retention_since
+                        )
                         if checkpoint:
                             checkpoint.value = newest_id
                         else:
@@ -1438,6 +1993,7 @@ class Application:
                 payload = dict(job.payload or {})
                 chat_id = int(payload["chat_id"])
                 owner_id = int(payload["owner_id"])
+                epoch = await self._job_fence(session, job, PermissionName.SYNC_HISTORY)
                 batch_size = min(max(int(payload.get("batch_size", 500)), 1), 1000)
                 chat = await session.scalar(
                     select(TelegramChat).where(TelegramChat.chat_id == chat_id)
@@ -1453,6 +2009,7 @@ class Application:
                     limit=batch_size,
                 )
                 processed = int(payload.get("processed", 0)) + page.synced_count
+                await self._source_fence(chat_id, PermissionName.SYNC_HISTORY, epoch)
                 job.payload = {
                     **payload,
                     "phase": "completed" if page.completed else "backfilling",
@@ -1461,7 +2018,8 @@ class Application:
                     "before_message_id": page.next_before_message_id,
                     "progress": 100 if page.completed else None,
                     "progress_note": (
-                        "Đã đến bài đăng đầu tiên." if page.completed
+                        "Đã đến bài đăng đầu tiên."
+                        if page.completed
                         else "Đang quét ngược lịch sử; Telegram không cung cấp tổng số bài."
                     ),
                 }
@@ -1489,6 +2047,9 @@ class Application:
                     # Otherwise a long channel would always stop after max_attempts pages.
                     job.attempts = 0
                     job.run_after = datetime.now(UTC) + timedelta(seconds=2)
+        except AuthorizationRevoked:
+            await self._cancel_revoked_job(job_id)
+            return
         except Exception as exc:
             error = str(redact(str(exc)))[:1000]
             async with self.database.session() as session:
@@ -1532,6 +2093,7 @@ class Application:
                 chat_id = int(payload["chat_id"])
                 owner_id = int(payload["owner_id"])
                 mode = str(payload["mode"])
+                epoch = await self._job_fence(session, job, PermissionName.DELETE_ANY_MESSAGES)
                 keyword_terms = list(payload.get("keyword_terms", []))
                 sender_ids = {int(value) for value in payload.get("sender_ids", [])}
                 selection_type = str(payload.get("selection_type", "all_matching"))
@@ -1560,9 +2122,7 @@ class Application:
                     if (
                         row.sender_id in sender_ids
                         if mode == "sender"
-                        else matches_history_delete_message(
-                            row, mode, keyword_terms=keyword_terms
-                        )
+                        else matches_history_delete_message(row, mode, keyword_terms=keyword_terms)
                     )
                     and (
                         row.message_id in selected_ids
@@ -1575,6 +2135,10 @@ class Application:
                     rights = frozenset(key for key, enabled in actual_rights.items() if enabled)
                     for start in range(0, len(candidates), 100):
                         batch = candidates[start : start + 100]
+                        await self._source_fence(chat_id, PermissionName.DELETE_ANY_MESSAGES, epoch)
+                        job.payload = {**payload, "external_effect_started": True}
+                        await session.commit()
+                        await self._job_fence(session, job, PermissionName.DELETE_ANY_MESSAGES)
                         await self.user.delete_messages_bulk(
                             session,
                             chat_id=chat_id,
@@ -1585,6 +2149,7 @@ class Application:
                         )
                         for row in batch:
                             row.is_deleted = True
+                        await self._source_fence(chat_id, PermissionName.DELETE_ANY_MESSAGES, epoch)
                 scanned = int(payload.get("scanned", 0)) + len(rows)
                 deleted = int(payload.get("deleted", 0)) + len(candidates)
                 completed = len(rows) < 500
@@ -1596,9 +2161,12 @@ class Application:
                     "scanned": scanned,
                     "deleted": deleted,
                     "last_batch": len(candidates),
-                    "progress": 100 if completed else min(99, round(deleted * 100 / candidate_count)),
+                    "progress": 100
+                    if completed
+                    else min(99, round(deleted * 100 / candidate_count)),
                     "progress_note": (
-                        "Đã xử lý hết phạm vi preview." if completed
+                        "Đã xử lý hết phạm vi preview."
+                        if completed
                         else "Đang xóa theo lô; post mới sau preview không nằm trong phạm vi."
                     ),
                 }
@@ -1628,6 +2196,9 @@ class Application:
                     job.status = "queued"
                     job.attempts = 0
                     job.run_after = datetime.now(UTC) + timedelta(seconds=2)
+        except AuthorizationRevoked:
+            await self._cancel_revoked_job(job_id)
+            return
         except Exception as exc:
             error = str(redact(str(exc)))[:1000]
             async with self.database.session() as session:
@@ -1637,6 +2208,9 @@ class Application:
                 job.locked_by = None
                 job.locked_at = None
                 job.last_error = error
+                if (job.payload or {}).get("external_effect_started"):
+                    job.status = "uncertain"
+                    return
                 if job.attempts >= job.max_attempts:
                     job.status = "failed"
                     phase = "failed"
@@ -1671,13 +2245,39 @@ class Application:
         engine = self.ai_router.engines.get("openai")
         if not engine or not engine.available:
             raise RuntimeError(
-                "Chưa có OpenAI trực tiếp. Hãy cấu hình OPENAI_API_KEY trong terminal rồi thử lại."
+                "OpenAI trực tiếp chưa khả dụng; cần cấp quyền cloud và cấu hình key trong ứng dụng."
             )
+        permission = PermissionName.DELETE_ANY_MESSAGES
+        epoch = await self._source_fence(chat_id, permission)
+        await session.commit()
+
+        async def fence():
+            return await self._model_fence({chat_id: epoch}, permission, cloud=True)
+
+        modes = await fence()
+        request_id = sha256(
+            json.dumps(
+                [
+                    "history_delete_ai_filter",
+                    chat_id,
+                    epoch,
+                    engine.provider,
+                    engine.model,
+                    instruction,
+                    posts,
+                ],
+                sort_keys=True,
+                separators=(",", ":"),
+            ).encode()
+        ).hexdigest()
         return await engine.classify_history_delete_candidates(
             session,
             instruction=instruction,
             posts=posts,
             chat_id=chat_id,
+            source_modes=list(modes.values()),
+            request_id=request_id,
+            pre_submit=fence,
         )
 
     async def _resolve_history_sender_identity(self, reference: str) -> dict[str, object]:
@@ -1686,49 +2286,24 @@ class Application:
 
     async def _process_admin_jobs(self) -> None:
         """Run bounded dashboard jobs that must not block an HTTP request."""
-        job_id: str | None = None
-        async with self.database.session() as session:
-            stale_backfills = list(
-                (
-                    await session.scalars(
-                        select(BackgroundJob).where(
-                            BackgroundJob.job_type.in_(
-                                ("history_backfill", "history_link_delete")
-                            ),
-                            BackgroundJob.status == "running",
-                            BackgroundJob.locked_at < datetime.now(UTC) - timedelta(minutes=15),
-                        )
-                    )
-                ).all()
-            )
-            for stale_job in stale_backfills:
-                stale_job.status = "queued"
-                stale_job.locked_by = None
-                stale_job.locked_at = None
-                stale_job.run_after = datetime.now(UTC)
-            job = await session.scalar(
-                select(BackgroundJob)
-                .where(
-                    BackgroundJob.job_type.in_(
-                        ("ollama_pull", "history_backfill", "history_link_delete")
-                    ),
-                    BackgroundJob.status == "queued",
-                    (BackgroundJob.run_after.is_(None))
-                    | (BackgroundJob.run_after <= datetime.now(UTC)),
-                    BackgroundJob.attempts < BackgroundJob.max_attempts,
-                )
-                .order_by(BackgroundJob.created_at.asc())
-                .limit(1)
-                .with_for_update(skip_locked=True)
-            )
-            if not job:
-                return
-            job.status = "running"
-            job.attempts += 1
-            job.locked_by = "telegram-assistant-runtime"
-            job.locked_at = datetime.now(UTC)
-            job_id = job.id
-            job_type = job.job_type
+        claimed = await claim_runtime_job(
+            self.database, ("ollama_pull", "history_backfill", "history_link_delete", "vector_recovery")
+        )
+        if not claimed:
+            return
+        lease, job_type = claimed
+        try:
+            with worker_lease(lease):
+                await self._dispatch_claimed_admin_job(lease, job_type)
+        except LeaseLost:
+            await finish_requested_lease(self.database, lease)
+            log.info("obsolete_job_worker_stopped", job_id=lease.id)
+
+    async def _dispatch_claimed_admin_job(self, lease, job_type):
+        job_id = lease.id
+        if job_type == "vector_recovery":
+            await VectorRecoveryService.for_application(self).run(lease)
+            return
         if job_type == "history_backfill":
             await self._run_history_backfill_job(job_id)
             return
@@ -1741,6 +2316,7 @@ class Application:
                 if not job:
                     return
                 model = str((job.payload or {}).get("model", "")).strip()
+
             async def pull_cancelled() -> bool:
                 async with self.database.session() as progress_session:
                     current = await progress_session.get(BackgroundJob, job_id)
@@ -1848,47 +2424,23 @@ class Application:
             ai_setting = await session.get(AppSetting, "ai_enabled")
             if ai_setting and ai_setting.value is False:
                 return
-        job_id: str | None = None
+        claimed = await claim_runtime_job(self.database, ("learn_group",))
+        if not claimed:
+            return
+        lease, _ = claimed
+        try:
+            with worker_lease(lease):
+                await self._run_learning_lease(lease, cycle_started)
+        except LeaseLost:
+            await finish_requested_lease(self.database, lease)
+            log.info("obsolete_learning_worker_stopped", job_id=lease.id)
+
+    async def _run_learning_lease(self, lease, cycle_started):
+        job_id = lease.id
         async with self.database.session() as session:
-            stale_jobs = (
-                await session.scalars(
-                    select(BackgroundJob).where(
-                        BackgroundJob.job_type == "learn_group",
-                        BackgroundJob.status == "running",
-                        BackgroundJob.locked_at < datetime.now(UTC) - timedelta(minutes=15),
-                    )
-                )
-            ).all()
-            for stale in stale_jobs:
-                stale.status = "queued"
-                stale.locked_by = None
-                stale.locked_at = None
-                stale.run_after = datetime.now(UTC)
-                stale_payload = stale.payload or {}
-                if stale_payload.get("chat_id") is not None:
-                    stale_source = await session.get(KnowledgeSource, int(stale_payload["chat_id"]))
-                    if stale_source:
-                        stale_source.status = "queued"
-            job = await session.scalar(
-                select(BackgroundJob)
-                .where(
-                    BackgroundJob.job_type == "learn_group",
-                    BackgroundJob.status == "queued",
-                    (BackgroundJob.run_after.is_(None))
-                    | (BackgroundJob.run_after <= datetime.now(UTC)),
-                    BackgroundJob.attempts < BackgroundJob.max_attempts,
-                )
-                .order_by(BackgroundJob.created_at.asc())
-                .limit(1)
-                .with_for_update(skip_locked=True)
-            )
+            job = await session.get(BackgroundJob, job_id)
             if not job:
                 return
-            job.status = "running"
-            job.attempts += 1
-            job.locked_by = "telegram-assistant-runtime"
-            job.locked_at = datetime.now(UTC)
-            job_id = job.id
             payload = dict(job.payload or {})
             payload.update(
                 {
@@ -1941,8 +2493,7 @@ class Application:
                     )
                     if not chat:
                         raise LookupError(f"Không tìm thấy group/channel {chat_id}.")
-                    await self.policy.set_allowed(session, chat_id, True)
-                    await self.policy.apply_template(session, chat_id, "knowledge")
+                    epoch = await self._job_fence(session, job, PermissionName.SYNC_HISTORY)
                     policy = await session.scalar(
                         select(TelegramChatPolicy).where(TelegramChatPolicy.chat_id == chat_id)
                     )
@@ -1975,6 +2526,7 @@ class Application:
                         else 0
                     )
                     sync_duration_ms = (monotonic() - sync_started) * 1000
+                    await self._source_fence(chat_id, PermissionName.SYNC_HISTORY, epoch)
                     await session.flush()
                     mysql_message_count = int(
                         (
@@ -2036,9 +2588,10 @@ class Application:
                         return
                     payload = dict(job.payload or {})
                     chat_id = int(payload["chat_id"])
+                    epoch = await self._job_fence(session, job, PermissionName.AUTO_KNOWLEDGE)
                     limit = min(max(int(payload.get("limit", 1000)), 1), 1000)
                     checkpoint_key = knowledge_checkpoint_key(
-                        "ollama",
+                        self.settings.embedding_profile.store_id,
                         chat_id,
                     )
                     checkpoint = await session.get(AppSetting, checkpoint_key)
@@ -2071,14 +2624,18 @@ class Application:
                         session,
                         rows,
                         filtering_level=(policy.filtering_level if policy else "standard"),
+                        authorization_epochs={chat_id: epoch},
                     )
                     indexed = index_result.indexed
                     embedding_duration_ms = (monotonic() - embedding_started) * 1000
                     await session.refresh(job)
+                    await self._job_fence(session, job, PermissionName.AUTO_KNOWLEDGE)
                     if await honor_learning_pause(session, job):
                         log.info("learning_job_paused", job_id=job.id, phase="after_embedding")
                         return
-                    newest_id = max((row.id for row in rows), default=checkpoint_id)
+                    newest_id = await knowledge_checkpoint_after(
+                        session, chat_id, checkpoint_id, rows, since=retention_since
+                    )
                     if rows:
                         if checkpoint:
                             checkpoint.value = newest_id
@@ -2101,8 +2658,13 @@ class Application:
                         + index_result.skipped
                         + index_result.failed
                     )
-                    invariant_ok = evaluated == accounted
-                    coverage_warning = vectors_after < vectors_before
+                    invariant_ok = evaluated == accounted == len(rows)
+                    coverage = await inspect_source_coverage(
+                        session, chat_id=chat_id, settings=self.settings, vectors=self.rag.vectors
+                    )
+                    coverage_warning = (
+                        vectors_after < vectors_before or coverage["coverage_state"] != "healthy"
+                    )
                     final_status = (
                         "completed_with_warning"
                         if coverage_warning or not invariant_ok
@@ -2141,8 +2703,8 @@ class Application:
                         "checkpoint_after": newest_id,
                         "vectors_before": vectors_before,
                         "vectors_after": vectors_after,
-                        "active_vector_store_id": self.settings.resolved_semantic_vector_path.name,
-                        "embedding_model": self.settings.ollama_embedding_model,
+                        "active_vector_store_id": self.settings.embedding_profile.store_id,
+                        "embedding_model": self.settings.embedding_profile.model,
                         "embedding_version": self.settings.embedding_version,
                         "corpus": LocalVectorStore.COLLECTION,
                         "embedding_duration_ms": round(embedding_duration_ms, 2),
@@ -2180,6 +2742,9 @@ class Application:
                         embedding_duration_ms=embedding_duration_ms,
                         total_duration_ms=(monotonic() - cycle_started) * 1000,
                     )
+        except AuthorizationRevoked:
+            await self._cancel_revoked_job(job_id)
+            return
         except asyncio.CancelledError:
             async with self.database.session() as session:
                 job = await session.get(BackgroundJob, job_id)
@@ -2270,10 +2835,12 @@ class Application:
     async def _execute_actions(self) -> None:
         while not self.stopping.is_set():
             async with self.database.session() as session:
-                actions = list(
+                await PendingActionService().recover_interrupted(session)
+                await session.commit()
+                action_ids = list(
                     (
                         await session.scalars(
-                            select(PendingAction)
+                            select(PendingAction.action_id)
                             .where(PendingAction.status == "confirmed")
                             .order_by(PendingAction.confirmed_at)
                             .limit(10)
@@ -2281,21 +2848,36 @@ class Application:
                         )
                     ).all()
                 )
-                for action in actions:
+                for action_id in action_ids:
+                    action = await session.get(PendingAction, action_id)
+                    if action is None or action.status != "confirmed":
+                        continue
+                    guided_preview = action_id.startswith("fv1-") or "first_source_preview" in (action.payload or {})
                     try:
                         if action.requested_by != self.user.owner_id:
                             raise PermissionError("Pending action không thuộc owner hiện tại.")
+                        await self._action_fence(action)
+                        claimed = await PendingActionService(first_source_validator=self._validate_first_source_action).claim_execution(
+                            session, action.action_id, action.requested_by
+                        )
+                        if not claimed:
+                            continue
+                        action.status = "executing"
+                        await session.commit()
                         chat = await session.scalar(
                             select(TelegramChat).where(TelegramChat.chat_id == action.chat_id)
                         )
                         if action.action_type == "recover_source_index":
-                            # Confirmation records owner review; it never starts reindexing implicitly.
-                            action.status = "approved_not_executed"
-                            action.error = (
-                                "Recovery remains disabled until the owner starts an explicit "
-                                "source-recovery workflow."
+                            if session.bind.dialect.name == "sqlite":
+                                await session.execute(text("BEGIN IMMEDIATE"))
+                            operation_id = await VectorRecoveryService.for_application(self).enqueue_in_session(
+                                session, str(action.payload.get("plan_id", "")), action.requested_by
                             )
-                            session.add(self._audit_row(action, "warning", action.error))
+                            action.payload = {**action.payload, "operation_id": operation_id}
+                            action.status, action.executed_at = "executed", datetime.now(UTC)
+                            action.error = None
+                            session.add(self._audit_row(action, "queued"))
+                            await session.commit()
                             continue
                         if action.action_type in {
                             "send_message",
@@ -2314,6 +2896,30 @@ class Application:
                             )
                         else:
                             rights = frozenset()
+                        # Rights lookups yield to Telegram; a revoke can win meanwhile.
+                        await self._action_fence(action)
+                        if action.action_type in {
+                            "send_message",
+                            "edit_message",
+                            "delete_message",
+                            "pin_message",
+                            "leave_telegram_chat",
+                        }:
+                            action.payload = {**action.payload, "external_effect_started": True}
+                            await session.commit()
+                            await self._action_fence(action)
+                        elif action.action_type in {
+                            "set_chat_allowed",
+                            "set_chat_permission",
+                            "apply_permission_template",
+                            "setup_moderation",
+                            "set_admin_only_auto_moderation",
+                            "set_link_spam_auto_moderation",
+                            "set_group_ai_ask",
+                            "enable_group_learning",
+                            "enable_group_learning_bulk",
+                        }:
+                            await validate_action_epoch(session, action)
                         if action.action_type == "delete_message":
                             await self.user.delete_message(
                                 session,
@@ -2356,12 +2962,24 @@ class Application:
                             )
                         elif action.action_type == "set_chat_allowed":
                             allowed = bool(action.payload["allowed"])
-                            policy = await self.policy.set_allowed(
-                                session, int(action.chat_id), allowed
-                            )
-                            policy.revocation_memory_action = (
-                                None if allowed else str(action.payload["memory_action"])
-                            )
+                            if allowed:
+                                await self.policy.set_allowed(
+                                    session,
+                                    int(action.chat_id),
+                                    True,
+                                    expected_epoch=action.payload["authorization_epochs"][
+                                        str(action.chat_id)
+                                    ],
+                                )
+                            else:
+                                await RevocationService(
+                                    self.database, int(self.user.owner_id)
+                                ).revoke_in_session(
+                                    session,
+                                    int(action.chat_id),
+                                    action.requested_by,
+                                    str(action.payload["memory_action"]),
+                                )
                             if not allowed:
                                 memory_action = str(action.payload["memory_action"])
                                 if memory_action in {"archive", "delete"}:
@@ -2467,6 +3085,9 @@ class Application:
                                         "action_id": action.action_id,
                                         "chat_id": chat_id,
                                         "owner_id": action.requested_by,
+                                        "authorization_epoch": action.payload[
+                                            "authorization_epochs"
+                                        ][str(chat_id)],
                                         "batch_size": min(
                                             max(
                                                 int(action.payload.get("batch_size", 500)),
@@ -2519,6 +3140,9 @@ class Application:
                                         "action_id": action.action_id,
                                         "chat_id": chat_id,
                                         "owner_id": action.requested_by,
+                                        "authorization_epoch": action.payload[
+                                            "authorization_epochs"
+                                        ][str(chat_id)],
                                         "mode": str(action.payload["mode"]),
                                         "keyword_terms": list(
                                             action.payload.get("keyword_terms", [])
@@ -2534,9 +3158,7 @@ class Application:
                                             action.payload.get("excluded_message_ids", [])
                                         ),
                                         "max_message_id": int(action.payload["max_message_id"]),
-                                        "candidate_count": int(
-                                            action.payload["candidate_count"]
-                                        ),
+                                        "candidate_count": int(action.payload["candidate_count"]),
                                         "scan_cursor": 0,
                                         "scanned": 0,
                                         "deleted": 0,
@@ -2556,6 +3178,11 @@ class Application:
                             }
                         elif action.action_type == "enable_group_learning":
                             chat_id = int(action.chat_id)
+                            if guided_preview:
+                                await self._validate_first_source_action(session, action)
+                            else:
+                                await self.policy.apply_template(session, chat_id, "knowledge")
+                                authorization_epoch = await source_epoch(session, chat_id)
                             active_jobs = list(
                                 (
                                     await session.scalars(
@@ -2567,12 +3194,22 @@ class Application:
                                                     "running",
                                                     "paused",
                                                     "pause_requested",
-                                                )
+                                                ) + (("cancel_requested",) if guided_preview else ())
                                             ),
                                         )
                                     )
                                 ).all()
                             )
+                            if guided_preview:
+                                try:
+                                    for item in active_jobs:
+                                        sources = source_ids(item.payload)
+                                        if not sources or chat_id in sources:
+                                            raise ValueError("source_learning_in_progress")
+                                except (TypeError, ValueError, OverflowError, AttributeError):
+                                    raise ValueError("source_learning_in_progress") from None
+                                await self.policy.apply_template(session, chat_id, "knowledge")
+                                authorization_epoch = await source_epoch(session, chat_id)
                             active_job = next(
                                 (
                                     item
@@ -2590,6 +3227,7 @@ class Application:
                                         "action_id": action.action_id,
                                         "chat_id": chat_id,
                                         "owner_id": action.requested_by,
+                                        "authorization_epoch": authorization_epoch,
                                         "limit": min(
                                             max(int(action.payload.get("limit", 1000)), 1),
                                             1000,
@@ -2658,10 +3296,14 @@ class Application:
                             for chat_id in chat_ids:
                                 if chat_id not in valid_ids or chat_id in active_ids:
                                     continue
+                                await validate_action_epoch(session, action)
+                                await self.policy.apply_template(session, chat_id, "knowledge")
+                                authorization_epoch = await source_epoch(session, chat_id)
                                 job = BackgroundJob(
                                     job_type="learn_group",
                                     payload={
                                         "batch_action_id": action.action_id,
+                                        "authorization_epoch": authorization_epoch,
                                         "chat_id": chat_id,
                                         "owner_id": action.requested_by,
                                         "limit": min(
@@ -2712,8 +3354,9 @@ class Application:
                                     "Nguồn đang có quyền admin và chưa xác nhận ảnh hưởng."
                                 )
                             await self.user.leave_chat(chat_id)
-                            policy = await self.policy.set_allowed(session, chat_id, False)
-                            policy.revocation_memory_action = "archive"
+                            await RevocationService(
+                                self.database, int(self.user.owner_id)
+                            ).revoke_in_session(session, chat_id, action.requested_by, "archive")
                             for permission in (
                                 PermissionName.AUTO_KNOWLEDGE,
                                 PermissionName.GROUP_AI_ASK,
@@ -2783,17 +3426,19 @@ class Application:
                             removed_messages = 0
                             removed_media = 0
                             async with self._knowledge_lock:
-                                if scope in {
-                                    "vectors_only",
-                                    "search_index",
-                                    "mysql_content",
-                                    "all",
-                                } and self.rag.vectors:
-                                    reference_ids = self.rag.vectors.reference_ids(
-                                        chat_id=chat_id
-                                    )
-                                    removed_vectors = (
-                                        self.rag.vectors.delete_reference_ids(reference_ids)
+                                if (
+                                    scope
+                                    in {
+                                        "vectors_only",
+                                        "search_index",
+                                        "mysql_content",
+                                        "all",
+                                    }
+                                    and self.rag.vectors
+                                ):
+                                    reference_ids = self.rag.vectors.reference_ids(chat_id=chat_id)
+                                    removed_vectors = self.rag.vectors.delete_reference_ids(
+                                        reference_ids
                                     )
                                 if scope in {"media_only", "mysql_content", "all"}:
                                     attachments = list(
@@ -2947,9 +3592,25 @@ class Application:
                             )
                         else:
                             raise ValueError("Loại action không hỗ trợ")
+                        if action.action_type not in {
+                            "set_chat_allowed",
+                            "set_chat_permission",
+                            "apply_permission_template",
+                            "setup_moderation",
+                            "set_admin_only_auto_moderation",
+                            "set_link_spam_auto_moderation",
+                            "set_group_ai_ask",
+                            "enable_group_learning",
+                            "enable_group_learning_bulk",
+                            "leave_telegram_chat",
+                        }:
+                            await self._action_fence(action)
                         action.status, action.executed_at = "executed", datetime.now(UTC)
                         session.add(self._audit_row(action, "success"))
-                        if action.action_type == "enable_group_learning" and self.bot and chat:
+                        # Release DB grant/epoch locks before Telegram notification.
+                        # The durable result must not depend on a slow bot request.
+                        await session.commit()
+                        if action.action_type == "enable_group_learning" and not guided_preview and self.bot and chat:
                             try:
                                 await self.bot.bot.send_message(
                                     action.requested_by,
@@ -2967,20 +3628,69 @@ class Application:
                                     error=str(redact(str(exc))),
                                 )
                     except Exception as exc:
-                        action.status, action.error = "failed", str(exc)[:1000]
+                        if guided_preview:
+                            # A rejected final fence must roll back every tentative grant/job first.
+                            await session.rollback()
+                            action = await session.get(PendingAction, action_id)
+                            if action is None:
+                                continue
+                        action.status = (
+                            "uncertain"
+                            if (action.payload or {}).get("external_effect_started")
+                            else (
+                                "cancelled" if isinstance(exc, AuthorizationRevoked) else "failed"
+                            )
+                        )
+                        action.error = str(redact(str(exc)))[:1000]
                         session.add(self._audit_row(action, "failed", str(exc)[:1000]))
+                        if guided_preview:
+                            await session.commit()
                         log.warning("action_failed", action_id=action.action_id, error=str(exc))
             await asyncio.sleep(2)
 
     async def run(self) -> None:
-        me = await self.user.authenticate(self.store.get("telegram_phone") or "")
+        try:
+            self._initialize()
+            await self._run()
+        finally:
+            await self.close()
+
+    async def _run(self) -> None:
+        me = (
+            await self.user.resume_existing()
+            if self.admin_app_ready is not None
+            else await self.user.authenticate(self.store.get("telegram_phone") or "")
+        )
+        if (
+            type(getattr(me, "id", None)) is not int or me.id <= 0
+            or getattr(me, "bot", True) is not False
+            or getattr(me, "deleted", False)
+        ):
+            raise RuntimeError("telegram_reconnect_required")
+        if self.rag.vectors:
+            try:
+                resolve_vector_path(self.database, self.settings, owner_id=int(me.id))
+            except ValueError:
+                self.rag.vectors.close()
+                self.rag.vectors = None
+                log.warning("vector_generation_owner_unverified")
         async with self.database.session() as session:
             await ensure_vector_store_registry(session, self.settings)
-            account = await session.scalar(
-                select(TelegramAccount).where(TelegramAccount.telegram_user_id == int(me.id))
-            )
-            if not account or not account.is_owner_paired:
-                raise RuntimeError("Chưa pair owner; chạy tg-assistant start ở terminal")
+            accounts = list(await session.scalars(select(TelegramAccount).limit(2)))
+            if (
+                len(accounts) != 1 or not accounts[0].is_owner_paired
+                or not accounts[0].is_active or accounts[0].telegram_user_id != me.id
+            ):
+                raise RuntimeError("owner_pairing_required")
+        if self.bot_runtime_factory is None:
+            raise RuntimeError("owner_pairing_required")
+        self.bot_runtime = self.bot_runtime_factory(self)
+        await self.bot_runtime.prepare()
+        if not self.management_admitted():
+            raise RuntimeError("owner_pairing_required")
+        self.database.management_admission = self.management_admitted
+        self.user.management_admission = self.management_admitted
+        async with self.database.session() as session:
             await self.user.discover_dialogs(session)
             recovered_jobs = await recover_interrupted_learning_jobs(session)
             if recovered_jobs:
@@ -2993,7 +3703,7 @@ class Application:
             group_ask_handler=self._handle_group_ai_ask,
         )
         self.bot = ControlBot(
-            self.store.get("telegram_bot_token") or "",
+            "",
             owner_id=int(me.id),
             database=self.database,
             policy=self.policy,
@@ -3004,6 +3714,10 @@ class Application:
             ollama=self.ollama,
             ollama_activate_handler=self._activate_ollama,
             ai_provider_switch_handler=self._switch_ai_provider,
+            bot_instance=self.bot_runtime.bot,
+            admission=self.management_admitted,
+            first_source_validator=self._validate_first_source_action,
+            polling_runner=self.bot_runtime.run_updates,
         )
         self.scheduler.start()
         self.scheduler.add_job(
@@ -3055,11 +3769,15 @@ class Application:
             coalesce=True,
         )
         log.info("application_started", owner_id=int(me.id))
-        tasks = [
+        self._tasks = [
             asyncio.create_task(self.bot.run()),
             asyncio.create_task(self.user.client.run_until_disconnected()),
             asyncio.create_task(self._execute_actions()),
         ]
+        if self.runtime_ready is not None:
+            # Owning bot/account observations must precede attachment of the
+            # dashboard API and issuance of management tickets.
+            self.runtime_ready(self)
         if self.settings.admin_api_enabled:
             admin_app = create_admin_app(
                 AdminContext(
@@ -3078,59 +3796,145 @@ class Application:
                     scheduler_getter=lambda: self.scheduler,
                     history_ai_filter_handler=self._classify_history_delete_with_openai,
                     history_sender_lookup_handler=self._resolve_history_sender_identity,
+                    management_admission=self.management_admitted,
+                    first_value_getter=lambda: self.first_value,
                 )
             )
-            self.admin_server = uvicorn.Server(
-                uvicorn.Config(
-                    admin_app,
-                    host=self.settings.admin_api_host,
-                    port=self.settings.admin_api_port,
-                    access_log=False,
-                    log_config=None,
-                    server_header=False,
-                )
+            if self.admin_app_ready is not None:
+                self.admin_app_ready(admin_app)
+            else:
+                self._start_admin_server(admin_app)
+        stopped = asyncio.create_task(self.stopping.wait())
+        self._tasks.append(stopped)
+        completed, _ = await asyncio.wait(self._tasks, return_when=asyncio.FIRST_COMPLETED)
+        if stopped not in completed and not self.stopping.is_set():
+            raise RuntimeError("runtime_connection_lost")
+
+    def _start_admin_server(self, admin_app) -> None:
+        self.admin_server = uvicorn.Server(
+            uvicorn.Config(
+                admin_app,
+                host=self.settings.admin_api_host,
+                port=self.settings.admin_api_port,
+                access_log=False,
+                log_config=None,
+                server_header=False,
             )
-            self.admin_server.install_signal_handlers = lambda: None  # type: ignore[method-assign]
-            tasks.append(asyncio.create_task(self.admin_server.serve()))
-            log.info(
-                "admin_api_started",
-                url=(
-                    f"http://{self.settings.admin_api_host}:"
-                    f"{self.settings.admin_api_port}"
-                ),
-            )
-        try:
-            await self.stopping.wait()
-        finally:
-            for task in tasks:
-                task.cancel()
-            await asyncio.gather(*tasks, return_exceptions=True)
-            await self.close()
+        )
+        self.admin_server.install_signal_handlers = lambda: None  # type: ignore[method-assign]
+        self._tasks.append(asyncio.create_task(self.admin_server.serve()))
+        log.info(
+            "admin_api_started",
+            url=(f"http://{self.settings.admin_api_host}:{self.settings.admin_api_port}"),
+        )
 
     async def close(self) -> None:
+        task = getattr(self, "_close_task", None)
+        if task is None or (task.done() and not task.cancelled() and task.exception() is not None):
+            task = asyncio.create_task(self._close_resources())
+            self._close_task = task
+        cancelled = False
+        while True:
+            try:
+                await asyncio.shield(task)
+                break
+            except asyncio.CancelledError:
+                cancelled = True
+                if task.done():
+                    task.result()
+                    break
+        if cancelled:
+            raise asyncio.CancelledError
+
+    async def _close_resources(self) -> None:
+        self._closed = True
         self.stopping.set()
+        if getattr(self, "first_value", None) is not None:
+            # The retained SQL thread borrows the coordinator and runtime owners.
+            await self.first_value.close()
+        errors = []
+        for task in getattr(self, "_tasks", ()):
+            task.cancel()
+        await asyncio.gather(*getattr(self, "_tasks", ()), return_exceptions=True)
         if self.admin_server:
             self.admin_server.should_exit = True
-        if self.scheduler.running:
-            self.scheduler.shutdown(wait=False)
-        if self.bot:
-            await self.bot.close()
-        if self.rag.vectors:
-            self.rag.vectors.close()
-        await self.ai_router.close()
-        await self.ollama.close()
-        await self.coingecko.close()
-        await self.user.close()
-        await self.database.close()
+        if self.scheduler and self.scheduler.running:
+            try:
+                self.scheduler.pause()
+                # APScheduler 3's AsyncIOExecutor cancels and clears these
+                # futures on shutdown; retain ownership until writers finish
+                # their async finalizers, before closing clients/admission.
+                scheduled = tuple(
+                    future
+                    for executor in self.scheduler._executors.values()
+                    for future in getattr(executor, "_pending_futures", ())
+                )
+                self.scheduler.shutdown(wait=False)
+                await asyncio.sleep(0)
+                await asyncio.gather(*scheduled, return_exceptions=True)
+            except Exception as exc:
+                errors.append(exc)
+        if self.rag and self.rag.vectors:
+            try:
+                self.rag.vectors.close()
+            except Exception as exc:
+                errors.append(exc)
+        # Both bot borrowers and the owning SDK transport must drain before
+        # account/session/database cleanup. A failed drain keeps those owners
+        # available for the next explicit close attempt.
+        for bot_resource in (self.bot, self.bot_runtime):
+            if bot_resource is not None:
+                pending = False
+                try:
+                    await bot_resource.close()
+                except Exception:
+                    pending = True
+                if pending:
+                    raise RuntimeError("runtime_cleanup_pending") from None
+        resources = (
+            self.ai_router or self.ai,
+            self.embedding_ai,
+            self.ollama,
+            self.coingecko,
+            self.user,
+            self.database,
+        )
+        owned = {id(resource) for resource in resources if resource is not None}
+        if self.ai_router is not None:
+            owned.update(id(engine) for engine in self.ai_router.engines.values())
+        retired = []
+        for resource in getattr(self, "_native_provider_retired", ()):
+            if id(resource) not in owned:
+                retired.append(resource)
+                owned.add(id(resource))
+        resources = (*resources, *retired)
+        for resource in resources:
+            if resource:
+                try:
+                    await resource.close()
+                except Exception as exc:
+                    errors.append(exc)
+        if errors:
+            raise RuntimeError("runtime_cleanup_failed") from None
+        self._resources_released = True
         log.info("application_stopped")
 
 
-async def run_application() -> None:
-    app = Application()
-    loop = asyncio.get_running_loop()
-    for sig in (signal.SIGINT, signal.SIGTERM):
-        try:
-            loop.add_signal_handler(sig, app.stopping.set)
-        except NotImplementedError:
-            pass
-    await app.run()
+async def run_application(*, settings: Settings | None = None, admin_app_ready=None,
+                          runtime_ready=None, bot_runtime_factory=None, runtime_owned=None) -> None:
+    settings = settings if settings is not None else get_settings()
+    paths = ensure_runtime_dirs(settings.data_dir, profile_id=settings.profile_id)
+    with MaintenanceService(paths["config"], profile_id=settings.profile_id).operation():
+        app = Application(settings=settings, admin_app_ready=admin_app_ready,
+                          runtime_ready=runtime_ready, bot_runtime_factory=bot_runtime_factory)
+        # Register lifecycle ownership before initialization/authentication can
+        # await or fail. A later bot factory cannot cover those cleanup failures.
+        if runtime_owned is not None:
+            runtime_owned(app)
+        loop = asyncio.get_running_loop()
+        for sig in (signal.SIGINT, signal.SIGTERM):
+            try:
+                loop.add_signal_handler(sig, app.stopping.set)
+            except NotImplementedError:
+                pass
+        await app.run()

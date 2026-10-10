@@ -1,0 +1,34 @@
+{
+  "status": "Internal identity record; public redistribution unresolved",
+  "baseline": "docs/handoff/evidence/art-baseline.json",
+  "assets": [
+    {
+      "path": "dashboard-prototype/public/fonts/PeterObscure.ttf",
+      "sha256": "9119c8ff92b9c7e6c886e5e07cab0d997d8ca6e1c41f352b0fdc696043637314",
+      "role": "logo/main title only",
+      "redistribution": "unresolved",
+      "observed_family": "LNTH-Peter Obscure",
+      "upstream_author": "Peter Wiegel",
+      "basis": "Original author font is OFL; bundled LNTH derivative differs. Exact modification provenance, reserved-name compliance and included notice remain unverified.",
+      "source": "https://www.peter-wiegel.de/index.html",
+      "research": "docs/handoff/evidence/font-provenance-research.md"
+    },
+    {
+      "path": "dashboard-prototype/public/fonts/DarleySans-Regular.otf",
+      "sha256": "8102ebd72fe1ef445f869ffa90c7a89d997e315fd424eba52fe4da7f3d555971",
+      "role": "all other UI text",
+      "redistribution": "unresolved",
+      "observed_author": "Daniel P. Lyons / LyonsType",
+      "basis": "Related Darley22 repository claims OFL with Duong Nguyen attribution; exact LyonsType OTF rights and attribution discrepancy unresolved. Related OFL is not applied to this binary.",
+      "source": "https://github.com/darley22/darleysans",
+      "research": "docs/handoff/evidence/font-provenance-research.md"
+    },
+    {
+      "path": "dashboard-prototype/reference/neo-brutalist-reference.png",
+      "sha256": "6383acf8cbddf6a7a77c66f42c80c7d3a2c5116053275f014f319f2027f96e2e",
+      "role": "internal design reference; exclude from shipped runtime",
+      "redistribution": "unresolved",
+      "basis": "User-supplied reference identity preserved; no public redistribution grant recorded."
+    }
+  ]
+}

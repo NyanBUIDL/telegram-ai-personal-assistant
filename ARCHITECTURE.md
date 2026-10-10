@@ -6,10 +6,10 @@
 2. Policy Engine cho phép sync/listener chỉ khi chat được allow và đúng quyền.
 3. Upsert tin nhắn theo `(chat_id, message_id)`; `sync_states` và
    `knowledge_checkpoint:<chat_id>` giữ checkpoint từng nguồn.
-4. Tất cả group/channel dùng chung một kho: MySQL là dữ liệu gốc và collection
+4. Tất cả group/channel dùng chung một kho: SQLite là dữ liệu gốc và collection
    `telegram_messages` của Qdrant là chỉ mục vector hợp nhất. Học tiếp chỉ upsert tin mới.
-5. Keyword search truy vấn MySQL. Semantic search truy vấn corpus Qdrant bằng danh sách
-   Chat ID đã được phép và ID bản ghi MySQL nằm trong cửa sổ trượt 7×24 giờ tính từ lúc
+5. Keyword search truy vấn SQLite. Semantic search truy vấn corpus Qdrant bằng danh sách
+   Chat ID đã được phép và ID bản ghi SQLite nằm trong cửa sổ trượt 7×24 giờ tính từ lúc
    hỏi. Policy và rate limit được kiểm tra một lần cho mỗi yêu cầu đọc, không tính riêng
    từng nguồn.
 6. RAG gửi ngữ cảnh tối thiểu cho Responses API và trả nguồn `chat_id/message_id`.
@@ -33,7 +33,7 @@ Trước bước 4, bộ định tuyến nhận diện câu hỏi về hội tho
 
 Nếu câu hỏi có `@username` và ý định `đã nói/đã nhắn/lịch sử/chủ đề`, Telegram
 Client phân giải entity thành `sender_id`, gọi Telegram history với đồng thời
-`chat_id` và `from_user`, upsert tối đa 100 kết quả vào MySQL, rồi truy vấn lại bằng
+`chat_id` và `from_user`, upsert tối đa 100 kết quả vào SQLite, rồi truy vấn lại bằng
 cặp `(chat_id, sender_id)`. Luồng này chạy trước định tuyến group/corpus nên không
 thể trộn tin của sender khác hoặc group khác.
 
@@ -51,9 +51,10 @@ vẫn chạy trên toàn bộ danh sách.
 
 ## Tính nhất quán
 
-MySQL là source of truth. Mỗi context manager database tự commit hoặc rollback. Unique
-constraint chống sync trùng. Worker hành động dùng row lock/`skip_locked`; PID lock chặn
-hai instance trên cùng máy.
+SQLite là source of truth. Mỗi context manager database tự commit hoặc rollback. Unique
+constraint chống sync trùng. Worker dùng transaction SQLite và cập nhật có điều kiện
+để nhận claim/lease; khóa instance có kiểm tra SID và incarnation chặn hai writer
+trên cùng profile. SQLite bật WAL, foreign key và busy timeout.
 
 ## Schema
 

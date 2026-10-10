@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 from enum import Enum
 from time import monotonic
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .ai.router import AI_MODES, CLOUD_PROVIDERS, AiRoute
@@ -186,18 +186,33 @@ class PolicyEngine:
         return [chat_id for chat_id in unique_chat_ids if chat_id in permitted]
 
     async def set_allowed(
-        self, session: AsyncSession, chat_id: int, allowed: bool
+        self, session: AsyncSession, chat_id: int, allowed: bool, *, expected_epoch: int | None = None
     ) -> TelegramChatPolicy:
         policy = await session.scalar(
             select(TelegramChatPolicy).where(TelegramChatPolicy.chat_id == chat_id)
         )
+        if expected_epoch is not None:
+            from .services.revocation import AuthorizationRevoked, source_epoch
+            if await source_epoch(session, chat_id) != expected_epoch:
+                raise AuthorizationRevoked("stale_grant_authorization")
         if not policy:
-            policy = TelegramChatPolicy(chat_id=chat_id, allowed=allowed)
+            policy = TelegramChatPolicy(chat_id=chat_id, allowed=allowed, authorization_epoch=0)
             session.add(policy)
+            await session.flush()
         else:
-            policy.allowed = allowed
-            policy.revoked_at = None if allowed else datetime.now(UTC)
+            if allowed and expected_epoch is not None:
+                with session.no_autoflush:
+                    result = await session.execute(update(TelegramChatPolicy).where(TelegramChatPolicy.chat_id == chat_id, TelegramChatPolicy.authorization_epoch == expected_epoch).values(allowed=True, revoked_at=None))
+                if result.rowcount != 1:
+                    from .services.revocation import AuthorizationRevoked
+                    raise AuthorizationRevoked("stale_grant_authorization")
+                await session.refresh(policy)
+            else:
+                policy.allowed = allowed
+                policy.revoked_at = None if allowed else datetime.now(UTC)
         if not allowed:
+            await session.execute(update(TelegramChatPolicy).where(TelegramChatPolicy.chat_id == chat_id).values(authorization_epoch=TelegramChatPolicy.authorization_epoch + 1, allowed=False, revoked_at=datetime.now(UTC)))
+            await session.refresh(policy)
             permissions = (
                 await session.scalars(
                     select(TelegramChatPermission).where(TelegramChatPermission.chat_id == chat_id)
@@ -205,6 +220,8 @@ class PolicyEngine:
             ).all()
             for permission in permissions:
                 permission.enabled = False
+            from .services.revocation import fence_source_work
+            session.info["revocation_cancelled_jobs"] = await fence_source_work(session, chat_id)
         return policy
 
     async def ai_route(
@@ -318,6 +335,11 @@ class PolicyEngine:
             )
         )
         if row:
+            if row.enabled and not enabled and policy:
+                await session.execute(update(TelegramChatPolicy).where(TelegramChatPolicy.chat_id == chat_id).values(authorization_epoch=TelegramChatPolicy.authorization_epoch + 1))
+                await session.refresh(policy)
+                from .services.revocation import fence_source_work
+                await fence_source_work(session, chat_id)
             row.enabled = enabled
         else:
             session.add(

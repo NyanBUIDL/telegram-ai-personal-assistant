@@ -32,12 +32,18 @@ def test_embedding_batches_are_bounded_and_skip_secrets() -> None:
 
     batches = embedding_batches(
         [safe_one, secret, safe_two, oversized],
-        max_input_tokens=10,
+        max_input_tokens=58,
         max_items=100,
     )
 
     assert [[row.id for row in batch] for batch in batches] == [[1], [3]]
-    assert all(sum(max(1, len(row.text or "") // 4) for row in batch) <= 10 for batch in batches)
+    assert all(
+        sum(len((row.text or "").encode("utf-8")) + 16 for row in batch) <= 58 for batch in batches
+    )
+
+
+def test_embedding_batches_bound_multibyte_input_before_engine_submission() -> None:
+    assert embedding_batches([_message(1, "Đ" * 30)], max_input_tokens=58) == []
 
 
 def test_embedding_batches_obey_item_limit() -> None:
@@ -119,6 +125,10 @@ async def test_continued_learning_selects_only_rows_after_checkpoint(session) ->
                 message_id=row_id,
                 text=f"tin {row_id}",
                 sent_at=now,
+                # Selection-only fixture: prior rows were accounted at the
+                # checkpoint. No actual point or vector readiness is asserted.
+                vector_status="indexed" if row_id <= 3 else "pending",
+                metadata_json={"checkpoint_accounted": True} if row_id <= 3 else None,
             )
             for row_id in range(1, 6)
         ]

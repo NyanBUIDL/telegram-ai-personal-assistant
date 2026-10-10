@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
+import sys
+from datetime import UTC, datetime, timedelta
 
 import httpx
 import pytest
@@ -84,6 +85,7 @@ async def admin_client(tmp_path):
             resume_all_handler=no_jobs,
             paths={"data": tmp_path, "downloads": tmp_path / "downloads"},
             admin_secret=secret,
+            management_admission=lambda: True,
             history_ai_filter_handler=filter_history_posts,
             history_sender_lookup_handler=lookup_history_sender,
         )
@@ -229,9 +231,7 @@ async def test_admin_api_lists_and_previews_selected_history_link_posts(admin_cl
                 ),
             ]
         )
-    login = await client.post(
-        "/api/v1/auth/login", json={"code": dashboard_login_code(secret)}
-    )
+    login = await client.post("/api/v1/auth/login", json={"code": dashboard_login_code(secret)})
     csrf = login.json()["csrf_token"]
 
     candidates = await client.get(
@@ -433,6 +433,34 @@ async def test_admin_api_operational_filters_selection_preferences_and_docs(
     assert "bộ não chung" in guide.json()["content"]
 
 
+async def test_admin_documents_follow_frozen_resource_root(
+    admin_client, tmp_path, monkeypatch,
+) -> None:
+    bundle = tmp_path / "Gói đóng gói"
+    bundle.mkdir()
+    expected = "Hướng dẫn đi cùng bản cài thử."
+    (bundle / "USER_GUIDE.md").write_text(expected, encoding="utf-8")
+    monkeypatch.setattr(sys, "_MEIPASS", str(bundle), raising=False)
+    client, secret = admin_client
+    assert (await client.get("/api/v1/docs")).status_code == 401
+    assert (await client.get("/api/v1/docs/user-guide")).status_code == 401
+    login = await client.post(
+        "/api/v1/auth/login", json={"code": dashboard_login_code(secret)},
+    )
+    assert login.status_code == 200
+
+    catalog = await client.get("/api/v1/docs")
+    assert catalog.status_code == 200
+    entries = {item["id"]: item for item in catalog.json()["items"]}
+    assert entries["user-guide"]["available"] is True
+    assert entries["readme"]["available"] is False
+    guide = await client.get("/api/v1/docs/user-guide")
+    assert guide.status_code == 200
+    assert guide.json()["content"] == expected
+    assert (await client.get("/api/v1/docs/readme")).status_code == 404
+    assert (await client.get("/api/v1/docs/unknown")).status_code == 404
+
+
 def test_retry_is_only_available_for_failed_learning_jobs() -> None:
     completed = BackgroundJob(
         job_type="learn_group",
@@ -512,3 +540,96 @@ def test_learning_job_json_preserves_reconciliation_warning_contract() -> None:
     assert payload["evaluated"] == 10
     assert payload["vectors_before"] == 257
     assert payload["vectors_after"] == 41
+
+
+@pytest.mark.parametrize("field", ["chat_id", "owner_id"])
+@pytest.mark.parametrize("value", [9007199254740997, "9007199254740997"])
+def test_job_payload_ids_are_canonical_before_browser_rounding(field, value):
+    job = BackgroundJob(job_type="learn_group", status="queued", payload={field: value})
+    public = _job_json(job)
+    assert public["payload"][field] == "9007199254740997"
+    assert job.payload[field] == value
+
+
+@pytest.mark.parametrize("field", ["chat_id", "owner_id"])
+@pytest.mark.parametrize("value", [True, 0, 1.5, "01", "-0", "1\n"])
+def test_invalid_job_payload_ids_cannot_correlate_to_selected_source(field, value):
+    job = BackgroundJob(job_type="learn_group", status="queued", payload={field: value})
+    assert _job_json(job)["payload"][field] is None
+
+
+def test_job_payload_negative_chat_id_is_preserved_but_negative_owner_denied():
+    job = BackgroundJob(job_type="learn_group", status="queued",
+                        payload={"chat_id": -9007199254740997, "owner_id": -1})
+    assert _job_json(job)["payload"] == {"chat_id": "-9007199254740997", "owner_id": None}
+
+
+async def test_admin_api_returns_sanitized_maintenance_state(admin_client, tmp_path):
+    from tg_assistant.services.maintenance import MaintenanceService
+
+    client, secret = admin_client
+    login = await client.post("/api/v1/auth/login", json={"code": dashboard_login_code(secret)})
+    assert login.status_code == 200
+    application = client._transport.app
+    database = application.state.admin_context.database
+    database.fence = MaintenanceService(tmp_path / "maintenance", profile_id="default")
+    restorer = MaintenanceService(tmp_path / "maintenance", profile_id="default")
+    lease = restorer.acquire("restore-test", lease_seconds=30)
+    client._transport.raise_app_exceptions = False
+    try:
+        response = await client.get("/api/v1/groups")
+        assert response.status_code == 503
+        assert response.json()["code"] == "maintenance_in_progress"
+        assert response.headers["Cache-Control"] == "no-store"
+    finally:
+        restorer.release(lease)
+
+
+async def test_preferences_large_chat_ids_roundtrip_and_exclude_recommendations(admin_client):
+    from tg_assistant.db.models import AppSetting
+
+    client, secret = admin_client
+    login = await client.post("/api/v1/auth/login", json={"code": dashboard_login_code(secret)})
+    assert login.status_code == 200
+    headers = {"X-CSRF-Token": login.json()["csrf_token"]}
+    ids = ["9007199254740993", "-9007199254740993"]
+    database = client._transport.app.state.admin_context.database
+    async with database.session() as session:
+        for chat_id in map(int, ids):
+            session.add(
+                TelegramChat(chat_id=chat_id, title="Synthetic old source", chat_type="supergroup")
+            )
+            session.add(
+                TelegramMessage(
+                    chat_id=chat_id,
+                    message_id=1,
+                    text="Synthetic old message",
+                    sent_at=datetime.now(UTC) - timedelta(days=180),
+                )
+            )
+    before = await client.get("/api/v1/groups/recommendations?inactive_days=60")
+    assert set(ids).issubset({item["chat_id"] for item in before.json()["items"]})
+    written = await client.put(
+        "/api/v1/preferences",
+        headers=headers,
+        json={"always_keep_chat_ids": ids[:1], "ignored_recommendation_chat_ids": ids[1:]},
+    )
+    assert written.status_code == 200
+    assert written.json()["always_keep_chat_ids"] == ids[:1]
+    assert written.json()["ignored_recommendation_chat_ids"] == ids[1:]
+    read = await client.get("/api/v1/preferences")
+    assert read.json()["always_keep_chat_ids"] == ids[:1]
+    assert read.json()["ignored_recommendation_chat_ids"] == ids[1:]
+    after = await client.get("/api/v1/groups/recommendations?inactive_days=60")
+    assert set(ids).isdisjoint({item["chat_id"] for item in after.json()["items"]})
+    # Preserve exact legacy Python integers already stored in JSON. The public
+    # boundary serializes them before JavaScript can round either sign.
+    async with database.session() as session:
+        row = await session.get(AppSetting, "dashboard_preferences:123456")
+        row.value = {
+            "always_keep_chat_ids": [int(ids[0])],
+            "ignored_recommendation_chat_ids": [int(ids[1])],
+        }
+    legacy = await client.get("/api/v1/preferences")
+    assert legacy.json()["always_keep_chat_ids"] == ids[:1]
+    assert legacy.json()["ignored_recommendation_chat_ids"] == ids[1:]

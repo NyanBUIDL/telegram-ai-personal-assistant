@@ -1,10 +1,14 @@
 from __future__ import annotations
 
+import time
+import unicodedata
 from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, nullcontext
 from datetime import datetime
 
-from sqlalchemy import DateTime, MetaData, func
+from sqlalchemy import DateTime, MetaData, String, event, func
+from sqlalchemy.engine import make_url
+from sqlalchemy.exc import ArgumentError
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -37,33 +41,129 @@ class TimestampMixin:
 
 class Database:
     def __init__(self, url: str, *, echo: bool = False, pool_size: int = 5) -> None:
-        kwargs: dict = {"echo": echo, "pool_pre_ping": True}
-        if not url.startswith("sqlite"):
-            kwargs.update(
-                pool_size=pool_size,
-                max_overflow=5,
-                pool_recycle=1800,
-                connect_args={"init_command": "SET time_zone = '+00:00'"},
-            )
-        self.engine: AsyncEngine = create_async_engine(url, **kwargs)
+        try:
+            value = make_url(url)
+        except (ArgumentError, TypeError, ValueError):
+            raise ValueError("storage_sqlite_required") from None
+        if value.drivername != "sqlite+aiosqlite":
+            raise ValueError("storage_sqlite_required")
+        self.engine: AsyncEngine = create_async_engine(value, echo=echo, pool_pre_ping=True)
+        event.listen(self.engine.sync_engine, "connect", configure_sqlite)
         self.sessions = async_sessionmaker(self.engine, expire_on_commit=False)
+        self.fence = None
+        self.management_admission = None
+
+    def _check_management(self):
+        callback = self.management_admission
+        if callback is None:
+            return
+        admitted = False
+        try:
+            admitted = callback() is True
+        except Exception:
+            admitted = False
+        if not admitted:
+            raise PermissionError("owner_pairing_required") from None
+
+    def operation(self):
+        return self.fence.operation() if self.fence else nullcontext()
 
     @asynccontextmanager
     async def session(self) -> AsyncIterator[AsyncSession]:
-        async with self.sessions() as session:
-            try:
-                yield session
-                await session.commit()
-            except Exception:
-                await session.rollback()
-                raise
+        with self.operation():
+            self._check_management()
+            async with self.sessions() as session:
+                from ..services.jobs import (
+                    active_job_lease,
+                    fence_runtime_writes,
+                    track_runtime_statement,
+                )
+
+                lease = active_job_lease.get()
+                if lease:
+                    event.listen(
+                        session.sync_session,
+                        "before_flush",
+                        lambda sync, *_: fence_runtime_writes(sync, lease, phase="flush"),
+                    )
+                    event.listen(
+                        session.sync_session,
+                        "before_commit",
+                        lambda sync: fence_runtime_writes(sync, lease),
+                    )
+                    event.listen(
+                        session.sync_session,
+                        "do_orm_execute",
+                        lambda state: track_runtime_statement(state, lease),
+                    )
+
+                    def clear_guard(sync):
+                        sync.info.pop("job_lease_fenced", None)
+                        sync.info.pop("job_core_write", None)
+                        sync.info.pop("job_orm_write", None)
+
+                    event.listen(session.sync_session, "after_commit", clear_guard)
+                    event.listen(session.sync_session, "after_rollback", clear_guard)
+                if self.management_admission is not None:
+                    # Job/source fences above issue actual SQL and can yield.
+                    # Their success must precede the final current bot check.
+                    event.listen(session.sync_session, "before_flush", lambda *_: self._check_management())
+                    event.listen(session.sync_session, "before_commit", lambda *_: self._check_management())
+                    event.listen(session.sync_session, "do_orm_execute", lambda *_: self._check_management())
+                try:
+                    yield session
+                    await session.commit()
+                except BaseException:
+                    await session.rollback()
+                    raise
 
     async def ping(self) -> bool:
         from sqlalchemy import text
 
-        async with self.engine.connect() as connection:
-            await connection.execute(text("SELECT 1"))
+        with self.operation():
+            async with self.engine.connect() as connection:
+                await connection.execute(text("SELECT 1"))
         return True
 
     async def close(self) -> None:
         await self.engine.dispose()
+
+
+FOLD_FUNCTION = "tg_fold"
+
+
+def fold_text(value: object) -> str | None:
+    """NFC + casefold; keeps diacritics (Đ/đ stay distinct from D/d)."""
+    if value is None:
+        return None
+    return unicodedata.normalize("NFC", unicodedata.normalize("NFC", str(value)).casefold())
+
+
+def folded_contains(column, needle: str):
+    """Literal (%/_ escaped) substring match on folded column and folded needle."""
+    return func.tg_fold(column, type_=String).contains(fold_text(needle) or "", autoescape=True)
+
+
+def configure_sqlite(connection, _record, *, busy_timeout: int = 5000) -> None:
+    """Enforce each SQLite connection's concurrency and referential settings."""
+    connection.create_function(FOLD_FUNCTION, 1, fold_text, deterministic=True)
+    cursor = connection.cursor()
+    try:
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.execute(f"PRAGMA busy_timeout={busy_timeout}")
+        # SQLite journal-mode changes can return BUSY immediately even with a
+        # busy handler. Two first connections must not fail a startup race.
+        deadline = time.monotonic() + min(busy_timeout / 1000, 0.5)
+        while True:
+            try:
+                cursor.execute("PRAGMA journal_mode=WAL")
+                break
+            except Exception as exc:
+                if (
+                    getattr(exc, "sqlite_errorcode", None) not in {5, 6}
+                    or time.monotonic() >= deadline
+                ):
+                    raise
+                time.sleep(0.01)
+    finally:
+        cursor.close()

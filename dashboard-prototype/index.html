@@ -2,6 +2,38 @@
 <html lang="vi">
   <head>
     <meta charset="UTF-8" />
+    <script>// Earliest inline bootstrap: erase the fragment before any resource or fetch.
+(() => {
+  let fragment = window.location.hash;
+  const eraseFragment = () => window.history.replaceState(null, '', window.location.pathname + window.location.search);
+  eraseFragment();
+  window.addEventListener('hashchange', eraseFragment);
+  let parameters = new URLSearchParams(fragment.slice(1));
+  fragment = null;
+  let values = parameters.getAll('launch_ticket');
+  const present = parameters.has('launch_ticket');
+  parameters = null;
+  if (!present) return;
+  let ticket = values.length === 1 ? values[0] : null;
+  values = null;
+  if (typeof ticket !== 'string' || !/^[A-Za-z0-9_-]{43}$/.test(ticket)) {
+    ticket = null;
+    window.__tgLaunchSession = Promise.reject(new Error('Vé đăng nhập không hợp lệ. Mở lại dashboard từ ứng dụng Windows.'));
+  } else {
+    let body = JSON.stringify({ ticket });
+    ticket = null;
+    window.__tgLaunchSession = fetch('/api/v1/auth/launch/redeem', {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' }, body,
+    }).then(async (response) => {
+      if (!response.ok) throw new Error('Vé đăng nhập đã hết hạn hoặc đã dùng. Mở lại dashboard từ ứng dụng Windows.');
+      return response.json();
+    });
+    body = null;
+  }
+  window.__tgLaunchSession.catch(() => {});
+})();
+</script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#f3efdf" />
     <meta name="description" content="Telegram AI local administration dashboard" />

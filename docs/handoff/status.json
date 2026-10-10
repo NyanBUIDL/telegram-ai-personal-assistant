@@ -1,0 +1,464 @@
+{
+  "schema_version": 1,
+  "updated_at": "2026-10-10",
+  "scope": "Windows per-user local application",
+  "baseline_commit": "7429fcffd61860e9502f066e0b6a921df72fe176",
+  "documents_ready": true,
+  "design_review": "approved_by_user_2026-10-02",
+  "implementation_started": true,
+  "beta_ready": false,
+  "published": false,
+  "canonical_plan": "docs/superpowers/plans/2026-10-02-windows-public-beta-plan.md",
+  "canonical_spec": "docs/superpowers/specs/2026-10-02-windows-public-beta-design.md",
+  "tasks": [
+    {
+      "id": "B00",
+      "title": "Chuẩn bị checkout thật và khóa contracts/baseline",
+      "milestone": "M0",
+      "owner": "Coordinator",
+      "dependencies": [],
+      "status": "Verified",
+      "evidence": [
+        "docs/handoff/evidence/task-B00.md",
+        "docs/handoff/evidence/sqlite-only-amendment.md"
+      ],
+      "acceptance": "Có Git checkout/branch rõ, baseline evidence và contracts versioned; không có product task tự đổi schema."
+    },
+    {
+      "id": "F01",
+      "title": "Thu hồi quyền thắng job đang chờ/đang chạy",
+      "milestone": "M1",
+      "owner": "Reliability",
+      "dependencies": [
+        "B00"
+      ],
+      "status": "Verified",
+      "evidence": [
+        "docs/handoff/evidence/task-F01.md",
+        "docs/handoff/evidence/review-F01.md"
+      ],
+      "acceptance": "Tái hiện probe cũ đổi thành allowed_after_job=False, sync_calls=[]; review race test và restart."
+    },
+    {
+      "id": "F02",
+      "title": "Migration immutable và đường sửa schema cũ",
+      "milestone": "M1",
+      "owner": "Platform",
+      "dependencies": [
+        "B00"
+      ],
+      "status": "Verified",
+      "evidence": [
+        "docs/handoff/evidence/task-F02.md",
+        "docs/handoff/evidence/review-F02.md",
+        "docs/handoff/evidence/sqlite-only-amendment.md"
+      ],
+      "acceptance": "Fresh SQLite install và legacy SQLite upgrade đạt; migrations immutable; MySQL cũ bị từ chối trước kết nối theo amendment 06/10."
+    },
+    {
+      "id": "S01",
+      "title": "Storage profile SQLite mặc định và config per-user",
+      "milestone": "M1",
+      "owner": "Platform",
+      "dependencies": [
+        "F02"
+      ],
+      "status": "Verified",
+      "evidence": [
+        "docs/handoff/evidence/task-S01.md",
+        "docs/handoff/evidence/review-S01.md",
+        "docs/handoff/evidence/sqlite-only-amendment.md"
+      ],
+      "acceptance": "Ứng dụng mở được storage từ bất kỳ cwd và chuẩn bị empty/new/legacy profile có bằng chứng."
+    },
+    {
+      "id": "S02",
+      "title": "Atomic claim/confirm/maintenance tương thích SQLite",
+      "milestone": "M1",
+      "owner": "Reliability",
+      "dependencies": [
+        "S01",
+        "F01"
+      ],
+      "status": "Verified",
+      "evidence": [
+        "docs/handoff/evidence/task-S02.md",
+        "docs/handoff/evidence/review-S02.md",
+        "docs/handoff/evidence/sqlite-only-amendment.md"
+      ],
+      "acceptance": "Nhiều connection thật cùng DB file SQLite đạt; CAS/lease/revocation/maintenance giữ nguyên theo amendment 06/10."
+    },
+    {
+      "id": "S03",
+      "title": "Backup/restore có kiểm chứng và fence runtime",
+      "milestone": "M2",
+      "owner": "Reliability",
+      "dependencies": [
+        "S02",
+        "V01"
+      ],
+      "status": "Verified",
+      "evidence": [
+        "docs/handoff/evidence/review-S03.md",
+        "docs/handoff/evidence/sqlite-only-amendment.md"
+      ],
+      "acceptance": "Có restore drill evidence, retrieval sau restore hoặc degraded+recovery thực, không success chỉ vì import SQL."
+    },
+    {
+      "id": "V01",
+      "title": "Profile embedding cloud/local và data boundary theo nguồn",
+      "milestone": "M2",
+      "owner": "Reliability",
+      "dependencies": [
+        "S01",
+        "F01"
+      ],
+      "status": "Verified",
+      "evidence": [
+        "docs/handoff/evidence/task-V01.md"
+      ],
+      "acceptance": "Cloud/local capability matrix thực/mock riêng; không hidden provider fallback và corpus mixing."
+    },
+    {
+      "id": "V02",
+      "title": "Incremental index, chỉnh sửa/xóa/dedup và coverage cùng contract",
+      "milestone": "M2",
+      "owner": "Reliability",
+      "dependencies": [
+        "S02",
+        "V01"
+      ],
+      "status": "Verified",
+      "evidence": [
+        "docs/handoff/evidence/review-V02.md"
+      ],
+      "acceptance": "Case UAT count/drop được kiểm chứng đúng store; job thành công chỉ khi invariants/candidate accounting đạt."
+    },
+    {
+      "id": "V03",
+      "title": "Recovery từng nguồn thực thi được và có rollback",
+      "milestone": "M2",
+      "owner": "Reliability",
+      "dependencies": [
+        "V02",
+        "S02"
+      ],
+      "status": "Verified",
+      "evidence": [
+        "docs/handoff/evidence/task-V03.md",
+        "docs/handoff/evidence/review-five-completion.md",
+        "docs/handoff/evidence/five-completion.json"
+      ],
+      "acceptance": "Người dùng bấm preview->confirm->job->verified được, không còn recovery UI chỉ ghi audit."
+    },
+    {
+      "id": "D01",
+      "title": "Native launcher/tray và service lifecycle",
+      "milestone": "M2",
+      "owner": "Platform",
+      "dependencies": [
+        "S01",
+        "S02"
+      ],
+      "status": "Verified",
+      "evidence": [
+        "docs/handoff/evidence/task-D01.md",
+        "docs/handoff/evidence/task-D01-cli-adapter.md"
+      ],
+      "acceptance": "Desktop launcher dùng được với profile chưa setup và legacy, không secret in subprocess args."
+    },
+    {
+      "id": "D02",
+      "title": "Một nút đăng nhập dashboard qua IPC ticket",
+      "milestone": "M2",
+      "owner": "Platform",
+      "dependencies": [
+        "D01"
+      ],
+      "status": "Verified",
+      "evidence": [
+        "docs/handoff/evidence/review-D02.md"
+      ],
+      "acceptance": "Mở dashboard 1 nút không CLI, không thêm password, negative security cases đạt trên Windows."
+    },
+    {
+      "id": "O01",
+      "title": "Onboarding coordinator lưu/tiếp tục và health thực",
+      "milestone": "M3",
+      "owner": "Platform",
+      "dependencies": [
+        "D02",
+        "V01"
+      ],
+      "status": "Verified",
+      "evidence": [
+        "docs/handoff/evidence/task-O01.md",
+        "docs/handoff/evidence/review-five-completion.md",
+        "docs/handoff/evidence/five-completion.json"
+      ],
+      "acceptance": "Wizard complete/resume/error states UI lẫn backend phản ánh cùng contract."
+    },
+    {
+      "id": "O02",
+      "title": "Kết nối API cloud/local qua native dialogs",
+      "milestone": "M3",
+      "owner": "Platform",
+      "dependencies": [
+        "O01"
+      ],
+      "status": "Verified",
+      "evidence": [
+        "docs/handoff/evidence/task-O02.md",
+        "docs/handoff/evidence/review-five-completion.md",
+        "docs/handoff/evidence/five-completion.json"
+      ],
+      "acceptance": "Connect/test/change/disconnect OpenAI/OpenRouter/Ollama supported thật; không cần terminal hoặc hidden Ollama."
+    },
+    {
+      "id": "O03",
+      "title": "Đăng nhập tài khoản Telegram bằng QR/OTP/2FA",
+      "milestone": "M3",
+      "owner": "Platform",
+      "dependencies": [
+        "O01"
+      ],
+      "status": "Verified",
+      "evidence": [
+        "docs/handoff/evidence/task-O03.md",
+        "docs/handoff/evidence/review-five-completion.md",
+        "docs/handoff/evidence/five-completion.json"
+      ],
+      "acceptance": "GUI đủ QR và fallback; không claim autoAPIregistration hoặc email/OTP auto-read."
+    },
+    {
+      "id": "O04",
+      "title": "Kết nối bot và ghép đúng owner bằng nút Start",
+      "milestone": "M3",
+      "owner": "Platform",
+      "dependencies": [
+        "O03"
+      ],
+      "status": "Verified",
+      "evidence": [
+        "docs/handoff/evidence/task-O04.md",
+        "docs/handoff/evidence/o04-review.json"
+      ],
+      "acceptance": "Tạo/connect/pair bot không paste token qua chat, trạng thái UI cập nhật từ actual bot event."
+    },
+    {
+      "id": "U01",
+      "title": "Khóa design tokens và baseline art",
+      "milestone": "M1",
+      "owner": "Experience",
+      "dependencies": [
+        "B00"
+      ],
+      "status": "Verified",
+      "evidence": [
+        "docs/handoff/evidence/task-U01.md",
+        "docs/handoff/evidence/review-U01.md"
+      ],
+      "acceptance": "Có trước/sau evidence và art signoff; không coi đổi palette/font là redesign trong scope."
+    },
+    {
+      "id": "U02",
+      "title": "Navigation/dashboard setup và connections dễ hiểu",
+      "milestone": "M3",
+      "owner": "Experience",
+      "dependencies": [
+        "O01",
+        "U01"
+      ],
+      "status": "Verified",
+      "evidence": [
+        "docs/handoff/evidence/task-U02.md",
+        "docs/handoff/evidence/review-five-completion.md",
+        "docs/handoff/evidence/five-completion.json"
+      ],
+      "acceptance": "Người mới hiểu thiếu gì và sửa ở đâu mà không mở docs dài/terminal."
+    },
+    {
+      "id": "U03",
+      "title": "Nguồn/quyền/học/câu hỏi đầu có hướng dẫn",
+      "milestone": "M4",
+      "owner": "Experience",
+      "dependencies": [
+        "O04",
+        "V03",
+        "U02"
+      ],
+      "status": "InProgress",
+      "evidence": [
+        "docs/handoff/evidence/task-U03.md"
+      ],
+      "acceptance": "Journey đầu hoàn thành tới answer verified; status không chuyển xanh khi unknown/partial."
+    },
+    {
+      "id": "U04",
+      "title": "Quản lý, lỗi/recovery, backup và hỗ trợ trong UI",
+      "milestone": "M4",
+      "owner": "Experience",
+      "dependencies": [
+        "U03",
+        "S03"
+      ],
+      "status": "Planned",
+      "evidence": [],
+      "acceptance": "Owner quản lý thường ngày không terminal, errors không leave UIstate khác backend."
+    },
+    {
+      "id": "P01",
+      "title": "Build reproducible và đóng gói đủ resources",
+      "milestone": "M5",
+      "owner": "Platform",
+      "dependencies": [
+        "D01",
+        "U04",
+        "R01"
+      ],
+      "status": "Planned",
+      "evidence": [],
+      "acceptance": "Artifact độc lập máy dev và tái build traceable commit/dependencyhash."
+    },
+    {
+      "id": "P02",
+      "title": "Installer per-user, nâng cấp/gỡ an toàn",
+      "milestone": "M5",
+      "owner": "Platform",
+      "dependencies": [
+        "P01",
+        "S03"
+      ],
+      "status": "Planned",
+      "evidence": [],
+      "acceptance": "Real installer on cleanVM đạt; unsignedcandidate label rõ, publicdistribution certificate/license gates verified."
+    },
+    {
+      "id": "Q01",
+      "title": "CI regressions/contracts/storage/frontend/package",
+      "milestone": "M1",
+      "owner": "QA",
+      "dependencies": [
+        "B00"
+      ],
+      "status": "Verified",
+      "evidence": [
+        "docs/handoff/evidence/task-Q01.md",
+        "docs/handoff/evidence/review-Q01.md",
+        "docs/handoff/evidence/q01-github-ci.json",
+        "docs/handoff/evidence/sqlite-only-amendment.md"
+      ],
+      "acceptance": "MandatoryCI on featurebranch and finalcandidate; dependencygraph success không được coi CItest."
+    },
+    {
+      "id": "Q02",
+      "title": "Kiểm thử tích hợp artifact và security regression",
+      "milestone": "M6",
+      "owner": "QA",
+      "dependencies": [
+        "F01",
+        "F02",
+        "S03",
+        "V03",
+        "O04",
+        "U04",
+        "P02",
+        "Q01"
+      ],
+      "status": "Planned",
+      "evidence": [],
+      "acceptance": "Không có P0/P1; unresolved medium risks documented and beta scope explicit."
+    },
+    {
+      "id": "Q03",
+      "title": "UAT với 5 người mới và soak test",
+      "milestone": "M6",
+      "owner": "QA",
+      "dependencies": [
+        "Q02"
+      ],
+      "status": "Planned",
+      "evidence": [],
+      "acceptance": "Human UAT thực đạt; agents không tự coi mình là 5 người dùng độc lập."
+    },
+    {
+      "id": "R01",
+      "title": "Làm sạch source và quyền phân phối assets/dependencies",
+      "milestone": "M1",
+      "owner": "Platform",
+      "dependencies": [
+        "B00"
+      ],
+      "status": "Verified",
+      "evidence": [
+        "docs/handoff/evidence/task-R01.md",
+        "docs/handoff/evidence/review-R01.md",
+        "docs/handoff/evidence/sqlite-only-amendment.md"
+      ],
+      "acceptance": "Cleanrelease tree; licensing unresolved blockedpublicrelease; no forcepush/publicvisibilitychange."
+    },
+    {
+      "id": "R02",
+      "title": "Bàn giao release candidate và báo hoàn tất đúng mức",
+      "milestone": "M6",
+      "owner": "Coordinator",
+      "dependencies": [
+        "Q03",
+        "R01"
+      ],
+      "status": "Planned",
+      "evidence": [],
+      "acceptance": "Notify user beta-ready only when allgates satisfied; otherwise code-ready/blocked accurately with specificinputneeded."
+    }
+  ],
+  "gates": [
+    {
+      "id": "G0",
+      "milestone": "M0",
+      "status": "Verified",
+      "evidence": [
+        "docs/handoff/evidence/task-B00.md"
+      ]
+    },
+    {
+      "id": "G1",
+      "milestone": "M1",
+      "status": "Pending",
+      "evidence": []
+    },
+    {
+      "id": "G2",
+      "milestone": "M2",
+      "status": "Pending",
+      "evidence": []
+    },
+    {
+      "id": "G3",
+      "milestone": "M3",
+      "status": "Pending",
+      "evidence": []
+    },
+    {
+      "id": "G4",
+      "milestone": "M4",
+      "status": "Pending",
+      "evidence": []
+    },
+    {
+      "id": "G5",
+      "milestone": "M5",
+      "status": "Pending",
+      "evidence": []
+    },
+    {
+      "id": "G6",
+      "milestone": "M6",
+      "status": "Pending",
+      "evidence": []
+    }
+  ],
+  "completion_notification": "Báo người dùng beta-ready chỉ khi G0–G6 Verified; nêu commit, installer/hash, test evidence, limitations. Nếu bị chặn, báo điều kiện cụ thể; không coi hết lượt hoặc docs xong là product xong.",
+  "source_amendments": [
+    "docs/superpowers/specs/2026-10-06-sqlite-only-amendment.md"
+  ]
+}

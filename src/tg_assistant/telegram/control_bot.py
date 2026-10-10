@@ -11,9 +11,12 @@ from typing import TYPE_CHECKING
 from zoneinfo import ZoneInfo
 
 from aiogram import Bot, Dispatcher, F, Router
+from aiogram.client.session.middlewares.base import BaseRequestMiddleware
+from aiogram.dispatcher.middlewares.base import BaseMiddleware
 from aiogram.filters import Command, CommandObject
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
+from aiogram.methods import GetMe, GetUpdates
 from aiogram.types import (
     BufferedInputFile,
     CallbackQuery,
@@ -31,6 +34,7 @@ from ..ai.rag import (
     telegram_message_url,
 )
 from ..config import get_settings, save_settings_env
+from ..db.base import folded_contains
 from ..db.models import (
     AiMemory,
     AppSetting,
@@ -83,6 +87,7 @@ from ..services.ollama import (
     validate_model_name,
 )
 from ..services.operations import cleanup_storage, collect_runtime_metric
+from ..services.revocation import AuthorizationRevoked, validate_answer
 from ..services.search import SearchService
 from ..services.tasks import TaskService
 from ..services.timeparse import parse_vietnamese_datetime
@@ -158,7 +163,7 @@ Trong flow quản lý group, “Bật thành viên hỏi AI” cho phép thành 
 chỉ kèm nguồn khi câu hỏi mang tính tin tức hoặc cập nhật mới. Câu hỏi như
 “nhóm này đang thảo luận gì?” chỉ đọc hội thoại của chính group đang gọi.
 Câu “@a_member đã nói về chủ đề gì?” phân giải đúng tài khoản và truy cứu tối đa
-100 tin gần nhất của riêng tài khoản đó trong group, đồng thời lưu vào MySQL.
+100 tin gần nhất của riêng tài khoản đó trong group, đồng thời lưu vào SQLite.
 
 “AI mode, fallback & quota” cho phép cấu hình riêng từng group:
 inherit, LOCAL ONLY, local→cloud, cloud only, cloud→local hoặc tắt AI group.
@@ -181,7 +186,7 @@ vẫn dùng đúng ngày lịch theo giờ Việt Nam.
 /ai_budget — ngân sách AI
 /ai_model — model hiện tại
 /ai_on — bật lớp AI
-/ai_off — tắt toàn bộ AI; tìm kiếm local/MySQL vẫn hoạt động
+/ai_off — tắt toàn bộ AI; tìm kiếm local/SQLite vẫn hoạt động
 
 Trong menu AI, chỉ cần bấm nút để hỏi AI, tìm local, tóm tắt hôm nay/hôm qua,
 học từ nhiều group/channel, xem ngân sách hoặc bật/tắt AI. “Học từ group/channel”
@@ -246,7 +251,7 @@ Ollama xử lý suy luận/embedding trên máy và không cần API key.
 Trong “Nhà cung cấp AI” → “Quản lý Ollama local”, owner có thể xem, tải,
 xóa, chọn model chat/embedding và kích hoạt Ollama hoàn toàn bằng nút Telegram.
 “Tắt toàn bộ AI” dừng OpenAI, OpenRouter, Ollama, suy luận và embedding nhưng
-không dừng MySQL, tìm kiếm local, CoinGecko, đồng bộ hoặc chống spam.
+không dừng SQLite, tìm kiếm local, CoinGecko, đồng bộ hoặc chống spam.
 
 QUY ƯỚC
 <...> là giá trị bắt buộc; [...] là tùy chọn. Không nhập nguyên dấu < > hoặc [ ].
@@ -344,11 +349,9 @@ def group_search_query(
     chat_types: tuple[str, ...] = GROUP_CHAT_TYPES,
 ):
     query = raw_query.strip()
-    escaped = query.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
-    username = escaped.removeprefix("@")
     filters = [
-        TelegramChat.title.ilike(f"%{escaped}%", escape="\\"),
-        TelegramChat.username.ilike(f"%{username}%", escape="\\"),
+        folded_contains(TelegramChat.title, query),
+        folded_contains(TelegramChat.username, query.removeprefix("@")),
     ]
     try:
         filters.append(TelegramChat.chat_id == int(query.replace(",", "")))
@@ -1145,6 +1148,49 @@ def digest_window(
     return start.astimezone(UTC), end.astimezone(UTC)
 
 
+class _ManagementUnavailable(RuntimeError):
+    def __init__(self):
+        super().__init__("bot_management_unavailable")
+
+
+class _ManagementUpdateGate(BaseMiddleware):
+    def __init__(self, owner):
+        self._owner = owner
+
+    async def __call__(self, handler, event, data):
+        allowed = (
+            self._owner._owner(event)
+            if isinstance(event, Message)
+            else self._owner._owner_callback(event)
+            if isinstance(event, CallbackQuery)
+            else False
+        )
+        if not allowed:
+            return None
+        task = asyncio.create_task(handler(event, data))
+        self._owner._handler_tasks.add(task)
+        try:
+            return await task
+        except _ManagementUnavailable:
+            # Admission can expire during awaited work. Do not emit a reply or
+            # serialize the update/body while withdrawing that capability.
+            return None
+        finally:
+            self._owner._handler_tasks.discard(task)
+
+
+class _ManagementRequestGate(BaseRequestMiddleware):
+    def __init__(self, admission):
+        self._admission = admission
+
+    async def __call__(self, make_request, bot, method):
+        # Owning health measurements continue while management is withdrawn.
+        # Pairing-only setup never constructs ControlBot or installs this gate.
+        if not isinstance(method, (GetMe, GetUpdates)) and not self._admission():
+            raise _ManagementUnavailable()
+        return await make_request(bot, method)
+
+
 class ControlBot:
     def __init__(
         self,
@@ -1161,8 +1207,17 @@ class ControlBot:
         ollama: OllamaService | None = None,
         ollama_activate_handler: OllamaActivateHandler | None = None,
         ai_provider_switch_handler: AiProviderSwitchHandler | None = None,
+        bot_instance: Bot | None = None,
+        admission: Callable[[], bool] | None = None,
+        first_source_validator=None,
+        polling_runner: Callable[[Dispatcher, Bot], Awaitable[None]] | None = None,
     ) -> None:
-        self.bot, self.dp, self.router = Bot(token), Dispatcher(), Router()
+        if bot_instance is not None and not isinstance(bot_instance, Bot):
+            raise _ManagementUnavailable()
+        self._owns_bot, self._closing = bot_instance is None, False
+        self._admission, self._polling_runner = admission, polling_runner
+        self.bot = Bot(token) if self._owns_bot else bot_instance
+        self.dp, self.router = Dispatcher(), Router()
         self.owner_id, self.database, self.policy, self.pairing = (
             owner_id,
             database,
@@ -1170,24 +1225,49 @@ class ControlBot:
             pairing,
         )
         self.ai, self.rag, self.budget, self.coingecko = ai, rag, budget, coingecko
+        if self.rag:
+            self.rag.database = self.database
         self.ollama = ollama
         self.ollama_activate_handler = ollama_activate_handler
         self.ai_provider_switch_handler = ai_provider_switch_handler
         self._background_tasks: set[asyncio.Task] = set()
+        self._handler_tasks: set[asyncio.Task] = set()
         self.actions, self.tasks, self.search = (
-            PendingActionService(),
+            PendingActionService(first_source_validator=first_source_validator),
             TaskService(),
             SearchService(policy),
         )
         self.memories = MemoryService()
         self._register()
+        gate = _ManagementUpdateGate(self)
+        self.router.message.outer_middleware(gate)
+        self.router.callback_query.outer_middleware(gate)
+        self._request_gate = _ManagementRequestGate(self._admitted)
+        self.bot.session.middleware.register(self._request_gate)
         self.dp.include_router(self.router)
 
+    def _admitted(self) -> bool:
+        if self._closing or not callable(self._admission):
+            return False
+        try:
+            return self._admission() is True
+        except Exception:
+            return False
+
     def _owner(self, message: Message) -> bool:
-        return bool(message.from_user and message.from_user.id == self.owner_id)
+        sender = message.from_user
+        return (
+            type(self.owner_id) is int
+            and self.owner_id > 0
+            and sender is not None
+            and type(sender.id) is int
+            and sender.id == self.owner_id
+            and getattr(sender, "is_bot", True) is False
+            and self._admitted()
+        )
 
     def _owner_callback(self, callback: CallbackQuery) -> bool:
-        return callback.from_user.id == self.owner_id
+        return self._owner(callback)
 
     async def _deny(self, message: Message) -> None:
         # Không tiết lộ trạng thái hệ thống cho người lạ.
@@ -1526,10 +1606,22 @@ class ControlBot:
                     owner_id=self.owner_id,
                     chat_ids=chat_ids,
                 )
+            except AuthorizationRevoked:
+                return ""
             except RuntimeError as exc:
                 return str(exc)
             except Exception:
                 return "AI tạm thời không khả dụng; tìm kiếm local vẫn hoạt động."
+
+    async def _answer_still_authorized(self, answer: str) -> bool:
+        if not answer or not self._admitted():
+            return False
+        try:
+            async with self.database.session() as session:
+                await validate_answer(session, answer)
+            return self._admitted()
+        except AuthorizationRevoked:
+            return False
 
     async def _coin_price_answer(self, query: str) -> str:
         if not self.coingecko or not self.coingecko.available:
@@ -1710,11 +1802,11 @@ class ControlBot:
         async def pair(message: Message, command: CommandObject) -> None:
             if not self._owner(message):
                 return await self._deny(message)
-            code = (command.args or "").strip()
-            if not self.pairing or not self.pairing.consume(code, message.from_user.id):
-                await message.answer("Mã pairing không hợp lệ hoặc đã hết hạn.")
-                return
-            await message.answer("Đã ghép nối chủ sở hữu. Hệ thống chỉ phản hồi tài khoản này.")
+            # Legacy in-memory PairingCode cannot publish durable authority.
+            # Native enrollment's restricted client owns the actual pair flow.
+            await message.answer(
+                "Mở cửa sổ ghép bot trong ứng dụng Windows để quản lý liên kết ghép."
+            )
 
         @self.router.message(Command("start", "help"))
         async def help_command(message: Message) -> None:
@@ -1787,6 +1879,8 @@ class ControlBot:
             answer = await self._ask_ai(question)
             chunks = telegram_html_chunks(answer)
             for index, chunk in enumerate(chunks):
+                if not await self._answer_still_authorized(answer):
+                    return
                 await message.answer(
                     chunk,
                     parse_mode="HTML",
@@ -2172,8 +2266,8 @@ class ControlBot:
                 f"XEM TRƯỚC HỌC TỪ NHIỀU GROUP/CHANNEL\n\n"
                 f"Đã chọn: {len(chats)} nguồn\n{shown}{extra}\n\n"
                 f"Mỗi group/channel sẽ được xếp vào hàng đợi riêng, bật allowlist + quyền knowledge, "
-                f"đồng bộ tối đa 1.000 tin mới nhất vào MySQL và commit trước. Sau đó worker "
-                f"đọc lại từ MySQL để tạo embedding. Secret được bỏ qua; phần chữ hợp lệ "
+                f"đồng bộ tối đa 1.000 tin mới nhất vào SQLite và commit trước. Sau đó worker "
+                f"đọc lại từ SQLite để tạo embedding. Secret được bỏ qua; phần chữ hợp lệ "
                 f"dùng để tạo embedding sẽ được gửi tới provider AI đang chọn; "
                 f"nếu dùng Ollama thì phần này được xử lý hoàn toàn trên máy. "
                 f"Tất cả vector được upsert vào cùng một kho Qdrant trên máy; học tiếp chỉ "
@@ -2237,7 +2331,7 @@ class ControlBot:
                         f"Tối đa {len(valid_ids) * 1000:,} tin trong đợt đồng bộ đầu\n"
                         "Xử lý từng nguồn bằng hàng đợi nền\n"
                         "Bật allowlist + quyền knowledge cho từng nguồn\n"
-                        "Ghi và commit dữ liệu nguồn vào MySQL trước khi tạo embedding\n"
+                        "Ghi và commit dữ liệu nguồn vào SQLite trước khi tạo embedding\n"
                         "Upsert tất cả nguồn vào một kho Qdrant hợp nhất; học tiếp chỉ bổ sung tin mới\n"
                         "Nội dung hợp lệ dùng để tạo embedding sẽ được gửi tới provider đang chọn; "
                         "với Ollama, dữ liệu được xử lý trên máy."
@@ -2349,8 +2443,8 @@ class ControlBot:
                     f"Đang chờ: {counts['queued']} • Lỗi: {counts['failed']}\n"
                     f"Tạm dừng: {counts['paused']} • "
                     f"Đang dừng an toàn: {counts['pause_requested']}\n"
-                    f"Tin mới đồng bộ MySQL: {synced}\n"
-                    f"Bản ghi MySQL khả dụng: {mysql_messages}\n"
+                    f"Tin mới đồng bộ SQLite: {synced}\n"
+                    f"Bản ghi SQLite khả dụng: {mysql_messages}\n"
                     f"Tổng embedding: {indexed} tin"
                 )
                 if jobs:
@@ -2474,7 +2568,7 @@ class ControlBot:
                 "• can_hoc: điền CO cho nguồn cần học hoặc học lại; để trống/KHONG nếu bỏ qua.\n"
                 "• ghi_chu: ghi yêu cầu hoặc lưu ý của bạn.\n\n"
                 "Sau đó gửi lại chính file CSV vào đây. Bot sẽ kiểm tra file, lưu ghi chú "
-                "vào MySQL và tạo bản xem trước để bạn xác nhận trước khi học.",
+                "vào SQLite và tạo bản xem trước để bạn xác nhận trước khi học.",
                 reply_markup=InlineKeyboardMarkup(
                     inline_keyboard=[
                         [
@@ -2584,7 +2678,7 @@ class ControlBot:
             invalid_count = len(edit_by_chat) - len(valid_ids)
             if not action:
                 await message.answer(
-                    f"Đã lưu ghi chú cho {len(valid_ids)} nguồn vào MySQL. "
+                    f"Đã lưu ghi chú cho {len(valid_ids)} nguồn vào SQLite. "
                     "Không có nguồn nào được đánh dấu CO nên chưa tạo hàng đợi học."
                 )
                 return
@@ -2859,7 +2953,7 @@ class ControlBot:
                 "và dữ liệu trong 7×24 giờ gần nhất tính từ lúc bạn hỏi.\n"
                 "  Câu trả lời có mã [S1], [S2] và phần dẫn chứng: link bài Telegram nếu có; "
                 "nếu không có link thì ghi tên group/channel cùng thời gian đăng.\n"
-                "• Tìm trong Telegram: mặc định tìm 7 ngày gần nhất trong MySQL local, "
+                "• Tìm trong Telegram: mặc định tìm 7 ngày gần nhất trong SQLite local, "
                 "không gọi AI. Có thể dùng after:/before: để chọn khoảng ngày khác.\n"
                 "• Tổng hợp toàn bộ ngày: rà mọi tin đã đồng bộ từ group/channel có quyền, "
                 "lọc nội dung không phù hợp, loại tin trùng, phân loại, dẫn chứng và liệt kê "
@@ -3239,7 +3333,7 @@ class ControlBot:
                 callback.from_user.id,
                 "XÁC NHẬN XÓA MODEL OLLAMA\n\n"
                 f"Model: {model}\n\n"
-                "File model sẽ bị xóa khỏi máy. Dữ liệu Telegram/MySQL không bị xóa "
+                "File model sẽ bị xóa khỏi máy. Dữ liệu Telegram/SQLite không bị xóa "
                 "và model có thể được tải lại sau.",
                 reply_markup=InlineKeyboardMarkup(
                     inline_keyboard=[
@@ -3836,7 +3930,7 @@ class ControlBot:
                             "Nếu hỏi “nhóm này đang thảo luận gì?”, AI chỉ đọc tối đa "
                             "100 tin gần nhất trong 7 ngày của chính group này.\n"
                             "Nếu hỏi “@username đã nói về chủ đề gì?”, Telegram Client "
-                            "truy cứu và đồng bộ MySQL tối đa 100 tin gần nhất của riêng "
+                            "truy cứu và đồng bộ SQLite tối đa 100 tin gần nhất của riêng "
                             "tài khoản đó trong group.\n"
                             "Lưu ý: nội dung tổng hợp từ các nguồn đã học có thể xuất hiện "
                             "trong group này. Câu hỏi tin tức/cập nhật sẽ kèm nguồn; "
@@ -4538,12 +4632,12 @@ class ControlBot:
             if contains_secret(question):
                 await message.answer("Nội dung có vẻ chứa secret nên bot không gửi nó tới AI.")
                 return
-            await message.answer(
-                "Đã nhận câu hỏi; đang rà dữ liệu Telegram trong 7 ngày gần nhất…"
-            )
+            await message.answer("Đã nhận câu hỏi; đang rà dữ liệu Telegram trong 7 ngày gần nhất…")
             answer = await self._ask_ai(question)
             chunks = telegram_html_chunks(answer)
             for index, chunk in enumerate(chunks):
+                if not await self._answer_still_authorized(answer):
+                    return
                 await message.answer(
                     chunk,
                     parse_mode="HTML",
@@ -5095,6 +5189,8 @@ class ControlBot:
                             owner_id=self.owner_id,
                             chat_ids=chat_ids,
                         )
+                    except AuthorizationRevoked:
+                        return
                     except RuntimeError as exc:
                         answer = str(exc)
                     except Exception:
@@ -5117,6 +5213,8 @@ class ControlBot:
                     )
             chunks = telegram_html_chunks(answer)
             for index, chunk in enumerate(chunks):
+                if not await self._answer_still_authorized(answer):
+                    return
                 await message.answer(
                     chunk,
                     parse_mode="HTML",
@@ -5126,11 +5224,28 @@ class ControlBot:
                 )
 
     async def run(self) -> None:
-        await self.dp.start_polling(self.bot, allowed_updates=self.dp.resolve_used_update_types())
+        if not self._admitted():
+            raise _ManagementUnavailable()
+        if self._polling_runner is not None:
+            await self._polling_runner(self.dp, self.bot)
+        elif self._owns_bot:
+            await self.dp.start_polling(
+                self.bot, allowed_updates=self.dp.resolve_used_update_types()
+            )
+        else:
+            # A borrowed SDK belongs to one controlled poller. Aiogram's default
+            # polling shutdown would also close that owner's HTTP session.
+            raise _ManagementUnavailable()
 
     async def close(self) -> None:
-        for task in self._background_tasks:
+        self._closing = True
+        tasks = tuple(self._background_tasks | self._handler_tasks)
+        for task in tasks:
             task.cancel()
-        if self._background_tasks:
-            await asyncio.gather(*self._background_tasks, return_exceptions=True)
-        await self.bot.session.close()
+        if tasks:
+            await asyncio.gather(*tasks, return_exceptions=True)
+        if self._request_gate is not None:
+            self.bot.session.middleware.unregister(self._request_gate)
+            self._request_gate = None
+        if self._owns_bot:
+            await self.bot.session.close()

@@ -138,7 +138,10 @@ async def test_projected_ai_request_cannot_cross_budget(session) -> None:
 
 
 def test_official_default_model_cost_estimate() -> None:
-    assert estimate_cost("gpt-5.6-terra", 1_000_000, 1_000_000) == 17.5
+    # Official 2026-10-03 snapshot: >272k whole-request tier, $4/$18 per million.
+    # https://developers.openai.com/api/docs/models/gpt-5.6-terra
+    assert estimate_cost("gpt-5.6-terra", 1_000_000, 1_000_000) == 22.0
+    assert estimate_cost("gpt-5.6-terra", 1000, 1000) == 0.014
     assert estimate_cost("text-embedding-3-small", 1_000_000, 0) == 0.02
     with pytest.raises(ValueError):
         estimate_cost("unknown-model", 1, 1)

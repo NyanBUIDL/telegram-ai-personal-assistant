@@ -1,0 +1,177 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHONUTF8: '1'
+  QT_QPA_PLATFORM: offscreen
+  ART_EVIDENCE_DIR: .ci-work
+
+jobs:
+  windows-python:
+    name: Windows Python ${{ matrix.python }} / SQLite
+    runs-on: windows-latest
+    # Python 3.12 also builds the dashboard and runs real API browser regressions.
+    # Run37918805090: Python3.12 full suite passed in37m38s and all scale
+    # gates passed, but the40m job cap cancelled npm installation before the
+    # mandatory native-browser gates. Allow the remaining build/browser work
+    # within a50m job cap; individual test deadlines and required gates stay intact.
+    timeout-minutes: 50
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ['3.12', '3.13']
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Install declared dev and native dependencies
+        run: python -m pip install -e ".[dev,desktop]"
+      - name: Lint Python including migrations
+        run: python -m ruff check src tests scripts alembic
+      - name: Check generated public contracts
+        run: python scripts/generate_contracts.py --check
+      - name: Check generated art tokens
+        run: python scripts/generate_design_tokens.py --check
+      # Full suite includes contracts, SQLite migration zero/upgrade, concurrency,
+      # permissions and native offscreen art/focus regressions; no coverage bypass.
+      - name: Run full Python regressions
+        run: python scripts/ci_checks.py --report .ci-work/summary.json --durations=20
+      - name: Native logical scale 125 percent
+        env:
+          QT_SCALE_FACTOR: '1.25'
+        run: python -m pytest tests/test_desktop_theme.py
+      - name: Native logical scale 150 percent
+        env:
+          QT_SCALE_FACTOR: '1.5'
+        run: python -m pytest tests/test_desktop_theme.py
+      - name: Native logical scale 200 percent
+        env:
+          QT_SCALE_FACTOR: '2'
+        run: python -m pytest tests/test_desktop_theme.py
+      - name: Set up Node 24 for Windows native-to-browser regressions
+        if: matrix.python == '3.12'
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: dashboard-prototype/package-lock.json
+      - name: Install dashboard dependencies
+        if: matrix.python == '3.12'
+        working-directory: dashboard-prototype
+        run: npm ci
+      - name: Build dashboard for the real Admin API fixture
+        if: matrix.python == '3.12'
+        working-directory: dashboard-prototype
+        run: npm run build
+      - name: Install portable Chromium for Windows regressions
+        if: matrix.python == '3.12'
+        working-directory: dashboard-prototype
+        run: npx playwright install chromium
+      - name: Check native fixture message and cleanup regressions
+        if: matrix.python == '3.12'
+        working-directory: dashboard-prototype
+        run: node --test tests/native-fixture.test.mjs
+      - name: Run real native-to-browser ticket and recovery regressions
+        if: matrix.python == '3.12'
+        working-directory: dashboard-prototype
+        env:
+          CI: 'true'
+          ART_EVIDENCE_DIR: ../.ci-work
+          D02_PYTHON: python
+          D02_BROWSER_CHANNEL: chromium
+        run: npx playwright test --config playwright.d02.config.js
+      - name: Stage sanitized evidence
+        if: always()
+        run: python scripts/ci_artifacts.py .ci-work ci-artifacts
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: windows-python-${{ matrix.python }}-counts
+          path: ci-artifacts/
+          if-no-files-found: error
+          retention-days: 7
+          include-hidden-files: false
+
+  frontend:
+    name: Node 24 / build, lint, Sites and browser art accessibility
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: dashboard-prototype
+    env:
+      CI: 'true'
+      ART_BASE_URL: http://127.0.0.1:5174
+      ART_EVIDENCE_DIR: ../.ci-work
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: dashboard-prototype/package-lock.json
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+      - run: npm ci
+      - run: npm run build
+      - run: npm run lint
+      - run: npm run test:sites
+      - name: Preserve exact Telegram IDs in real API payloads
+        run: node --test tests/chat-ids.test.mjs
+      - name: Check native fixture message and cleanup regressions
+        run: node --test tests/native-fixture.test.mjs
+      - name: Install portable Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Run browser geometry, fonts, keyboard and error regressions
+        run: npx playwright test --config playwright.ci.config.js
+      - name: Run setup navigation, native availability and stale health regressions
+        run: npx playwright test --config playwright.setup.config.js
+      - name: Stage synthetic art screenshots only
+        if: always()
+        working-directory: .
+        run: python scripts/ci_artifacts.py .ci-work ci-artifacts
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: synthetic-browser-art
+          path: ci-artifacts/
+          if-no-files-found: error
+          retention-days: 7
+          include-hidden-files: false
+
+  required:
+    name: Required CI
+    runs-on: ubuntu-latest
+    if: always()
+    needs: [windows-python, frontend]
+    timeout-minutes: 2
+    steps:
+      - name: Require every gate to succeed
+        env:
+          WINDOWS: ${{ needs.windows-python.result }}
+          FRONTEND: ${{ needs.frontend.result }}
+        run: |
+          test "$WINDOWS" = success
+          test "$FRONTEND" = success
+
+# Add package asset/install gates when P01/P02 artifacts exist and are reviewed.
+# This workflow never reads production secrets, runs live Telegram, builds a
+# public release, signs, deploys or grants a PR write permission.

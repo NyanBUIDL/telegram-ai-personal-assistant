@@ -60,19 +60,19 @@ export function ConnectionsView({
     [
       "Admin API",
       "Loopback owner console",
-      overview.error ? "UNAVAILABLE" : "ONLINE",
-      overview.error ? "magenta" : "success",
-      "127.0.0.1:8765",
+      overview.error ? "LỖI TẢI" : "CHƯA KIỂM TRA",
+      overview.error ? "magenta" : "yellow",
+      "Cùng origin với dashboard",
     ],
     [
-      "MySQL",
-      "Source of truth",
-      overview.error ? "UNKNOWN" : "ONLINE",
-      overview.error ? "yellow" : "success",
+      "Cơ sở dữ liệu",
+      "Nội dung đã đồng bộ",
+      "CHƯA KIỂM TRA",
+      "yellow",
       overview.data ? `${formatNumber(overview.data.joined_sources)} nguồn` : "Snapshot chưa có",
     ],
-    ["Qdrant", "Derived vector index", metric ? "ONLINE" : "WAITING", metric ? "success" : "yellow", formatBytes(metric?.vector_bytes)],
-    ["AI provider", ai.data?.model || "AI đang tắt", String(ai.data?.provider || "off").toUpperCase(), ai.data?.provider === "off" ? "yellow" : "success", ai.data?.embedding_model || "—"],
+    ["Index vector", "Derived vector index", "CHƯA KIỂM TRA", "yellow", metric?.vector_bytes == null ? "Chưa có snapshot" : formatBytes(metric.vector_bytes)],
+    ["AI provider", ai.data?.model || "Chưa có snapshot", String(ai.data?.provider || "Chưa kiểm tra").toUpperCase(), "yellow", ai.data?.embedding_model || "—"],
     [
       "SSE realtime",
       "Dashboard snapshot stream",
@@ -150,7 +150,7 @@ export function PolicyView() {
   return (
     <section className="ops-two-column ops-policy-layout">
       <section className="panel">
-        <PanelHeader eyebrow="DECISION STACK" title="Các lớp policy" action={<Badge tone="teal">LIVE RULES</Badge>} />
+        <PanelHeader eyebrow="DECISION STACK" title="Các lớp policy" action={<Badge tone="teal">QUY TẮC</Badge>} />
         <div className="ops-rule-list">
           {rules.map(([index, name, decision, detail]) => (
             <div className="ops-rule" key={name}>
@@ -186,24 +186,24 @@ export function SecurityView() {
       <section className="ops-security-hero">
         <ShieldCheck size={56} weight="fill" />
         <div>
-          <p className="eyebrow">SECURITY POSTURE · ACTIVE</p>
+          <p className="eyebrow">NGUYÊN TẮC BẢO MẬT</p>
           <h2>Không thực thi nếu chưa chắc chắn.</h2>
           <span>Fail closed cho dữ liệu; fail safe cho tin nhắn Telegram.</span>
         </div>
-        <Badge tone="success">LOCAL</Badge>
+        <Badge tone="paper">THAM KHẢO</Badge>
       </section>
       <section className="ops-two-column">
         <section className="panel">
           <PanelHeader eyebrow="OWNER SESSION" title="Xác thực dashboard" />
           <div className="ops-setting-list">
-            <div className="ops-setting-row"><div><b>Mã đăng nhập 8 số</b><span>HMAC, hết hạn sau 5 phút.</span></div><Badge tone="success">ACTIVE</Badge></div>
-            <div className="ops-setting-row"><div><b>Cookie HttpOnly</b><span>JavaScript không đọc được session token.</span></div><Badge tone="success">ACTIVE</Badge></div>
-            <div className="ops-setting-row"><div><b>CSRF header</b><span>Mọi request ghi cần X-CSRF-Token.</span></div><Badge tone="success">ACTIVE</Badge></div>
-            <div className="ops-setting-row"><div><b>Loopback only</b><span>Admin API không lắng nghe mạng LAN.</span></div><Badge tone="success">127.0.0.1</Badge></div>
+            <div className="ops-setting-row"><div><b>Mã đăng nhập 8 số</b><span>HMAC, hết hạn sau 5 phút.</span></div><Badge tone="paper">THIẾT KẾ</Badge></div>
+            <div className="ops-setting-row"><div><b>Cookie HttpOnly</b><span>JavaScript không đọc được session token.</span></div><Badge tone="paper">THIẾT KẾ</Badge></div>
+            <div className="ops-setting-row"><div><b>CSRF header</b><span>Mọi request ghi cần X-CSRF-Token.</span></div><Badge tone="paper">THIẾT KẾ</Badge></div>
+            <div className="ops-setting-row"><div><b>Loopback only</b><span>Admin API chỉ dành cho máy cục bộ.</span></div><Badge tone="paper">THIẾT KẾ</Badge></div>
           </div>
         </section>
         <section className="panel">
-          <PanelHeader eyebrow="SECRET BOUNDARY" title="Dữ liệu không rời backend" />
+          <PanelHeader eyebrow="SECRET BOUNDARY" title="Ranh giới secret" />
           <div className="ops-flow">
             <span>Telegram</span><b>→</b><span>Policy</span><b>→</b><span>AI Router</span><b>→</b><span>Audit</span>
           </div>
@@ -226,13 +226,13 @@ export function SecurityView() {
 export function TelegramFeaturesView() {
   const features = [
     ["Hỏi AI", "Dùng /ask hoặc nhắc @your_assistant_username trong group được cấp quyền.", Sparkle],
-    ["Tìm kiếm Telegram", "Tìm message đã đồng bộ trong MySQL theo policy từng group.", Database],
+    ["Tìm kiếm Telegram", "Tìm message đã đồng bộ theo policy từng group.", Database],
     ["Tổng hợp 7 ngày", "Tổng hợp tin mới, loại trùng và giữ dẫn chứng nguồn.", Clock],
     ["Tra giá CoinGecko", "Kiểm tra giá mà không phụ thuộc AI provider.", Cloud],
     ["Tasks & reminders", "Tạo và nhận nhắc việc ngay trong Telegram bot.", CheckCircle],
     ["Memory", "Lưu ghi chú owner; secret không được đưa vào memory.", Brain],
     ["Quản lý group", "ALLOW/BLOCK, permission, AI mode, quota và retention.", ShieldCheck],
-    ["Learning sources", "Đồng bộ MySQL, embedding và theo dõi learning job.", FileText],
+    ["Learning sources", "Đồng bộ nội dung, embedding và theo dõi learning job.", FileText],
     ["PendingAction", "Owner duyệt trước khi worker thực thi thao tác nhạy cảm.", Key],
   ];
   return (
@@ -244,7 +244,7 @@ export function TelegramFeaturesView() {
           <h2>Telegram Assistant</h2>
           <span>Dashboard là bảng vận hành phụ; tương tác trợ lý hằng ngày vẫn diễn ra trong Telegram.</span>
         </div>
-        <Badge tone="success">RUNTIME ACTIVE</Badge>
+        <Badge tone="paper">TỔNG QUAN</Badge>
       </section>
       <section className="telegram-feature-list">
         {features.map(([title, description, Icon], index) => (
@@ -252,7 +252,7 @@ export function TelegramFeaturesView() {
             <span>{String(index + 1).padStart(2, "0")}</span>
             <Icon size={27} weight="bold" />
             <div><h3>{title}</h3><p>{description}</p></div>
-            <Badge tone="teal">AVAILABLE</Badge>
+            <Badge tone="paper">CHỨC NĂNG</Badge>
           </article>
         ))}
       </section>
@@ -295,17 +295,17 @@ export function DocumentationView({ refreshKey }) {
   return (
     <section className="ops-stack">
       <section className="ops-resource-strip">
-        <div><Robot size={30} /><span>Package</span><b>v0.1.0</b><Badge tone="success">CURRENT</Badge></div>
-        <div><CheckCircle size={30} /><span>Admin API</span><b>{overview.data ? "ONLINE" : "CHECKING"}</b><Badge tone={overview.data ? "success" : "yellow"}>LIVE</Badge></div>
-        <div><Clock size={30} /><span>Scheduler</span><b>{workers.data?.scheduler?.length || 0} jobs</b><Badge tone="teal">ACTIVE</Badge></div>
+        <div><Robot size={30} /><span>Package</span><b>v0.1.0</b><Badge tone="paper">PHIÊN BẢN</Badge></div>
+        <div><CheckCircle size={30} /><span>Admin API</span><b>{overview.data ? "CÓ SNAPSHOT" : "CHƯA KIỂM TRA"}</b><Badge tone="paper">DỮ LIỆU</Badge></div>
+        <div><Clock size={30} /><span>Scheduler</span><b>{workers.data?.scheduler?.length ?? "—"} jobs</b><Badge tone="paper">SNAPSHOT</Badge></div>
       </section>
       <section className="integration-readiness integration-readiness--live">
         <div>
-          <p className="eyebrow">INTEGRATION STATUS</p>
-          <h2>Frontend và Admin API đã kết nối</h2>
-          <span>Owner auth, cookie HttpOnly, CSRF, SSE và dữ liệu MySQL đang hoạt động cùng origin.</span>
+          <p className="eyebrow">TÀI LIỆU VẬN HÀNH</p>
+          <h2>Thông tin frontend và Admin API</h2>
+          <span>Các chỉ số bên dưới dùng snapshot từ Admin API; trạng thái kết nối nằm ở trang Kết nối.</span>
         </div>
-        <Badge tone="success">READY</Badge>
+        <Badge tone="paper">THAM KHẢO</Badge>
       </section>
       <section className="panel">
         <PanelHeader eyebrow="LOCAL DOCUMENTATION" title="Tài liệu hệ thống" />
@@ -335,10 +335,10 @@ export function DocumentationView({ refreshKey }) {
         <PanelHeader eyebrow="CURRENT SCOPE" title="Thông tin runtime" />
         {overview.data ? (
           <div className="knowledge-status-grid">
-            <div><span>Nguồn Telegram</span><b>{formatNumber(overview.data.joined_sources)}</b><small>MYSQL</small></div>
+            <div><span>Nguồn Telegram</span><b>{formatNumber(overview.data.joined_sources)}</b><small>ĐÃ ĐỒNG BỘ</small></div>
             <div><span>AI provider</span><b>{String(overview.data.ai_provider).toUpperCase()}</b><small>{overview.data.ai_model}</small></div>
             <div><span>Pending action</span><b>{formatNumber(overview.data.pending_actions)}</b><small>OWNER REVIEW</small></div>
-            <div><span>RAM runtime</span><b>{formatBytes(overview.data.runtime?.rss_bytes)}</b><small>{formatDate(overview.data.runtime?.collected_at)}</small></div>
+            <div><span>RAM runtime</span><b>{overview.data.runtime?.rss_bytes == null ? "Chưa có snapshot" : formatBytes(overview.data.runtime.rss_bytes)}</b><small>{formatDate(overview.data.runtime?.collected_at)}</small></div>
           </div>
         ) : overview.error ? (
           <ErrorState error={overview.error} onRetry={overview.reload} />

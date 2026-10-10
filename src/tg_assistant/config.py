@@ -1,35 +1,114 @@
 from __future__ import annotations
 
+import json
+import os
 import re
+import tempfile
 from functools import lru_cache
+from hashlib import sha256
 from pathlib import Path
-from typing import Literal
-from urllib.parse import quote_plus, urlparse
+from typing import Any, Literal
+from urllib.parse import urlparse
 
-from pydantic import Field, field_validator
+from pydantic import Field, ValidationError, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from sqlalchemy import URL
 
-from .paths import project_root, user_data_root
+from .paths import (
+    ensure_runtime_dirs,
+    resolve_data_path,
+    resource_path,
+    user_data_root,
+)
+
+CONFIG_VERSION = 1
+
+
+def config_path(root: Path | None = None) -> Path:
+    return (
+        (resolve_data_path(root) if root is not None else user_data_root())
+        / "config"
+        / "settings.json"
+    )
+
+
+def _read_config(path: Path) -> dict[str, Any]:
+    if not path.exists():
+        return {}
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+        if (
+            not isinstance(value, dict)
+            or set(value) != {"version", "settings"}
+            or type(value["version"]) is not int
+            or value["version"] != CONFIG_VERSION
+            or not isinstance(value["settings"], dict)
+            or not set(value["settings"]) <= set(Settings.model_fields)
+        ):
+            raise ValueError
+        if value["settings"].get("storage_backend", "sqlite") != "sqlite":
+            # Reject the stored legacy choice even when an init/env override
+            # requests SQLite. Changing backend does not authorize adopting a
+            # human profile; explicit migration/import is outside this product.
+            raise ValueError
+        return value["settings"]
+    except (OSError, ValueError):
+        raise ValueError("Unsupported or invalid per-user config") from None
+
+
+def validate_settings(settings: Settings) -> Settings:
+    """Revalidate internal copies before they may affect files or connections."""
+    try:
+        return Settings(_env_file=None, **settings.model_dump())
+    except (ValidationError, TypeError):
+        raise ValueError("Invalid non-secret settings; configuration was not saved") from None
+
+
+def save_settings(settings: Settings) -> None:
+    """Atomically persist validated non-secret settings under the profile root."""
+    settings = validate_settings(settings)
+    path = config_path(settings.data_dir)
+    ensure_runtime_dirs(settings.data_dir, profile_id=settings.profile_id)
+    payload = {"version": CONFIG_VERSION, "settings": settings.model_dump(mode="json")}
+    temporary = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w", encoding="utf-8", dir=path.parent, delete=False
+        ) as file:
+            temporary = Path(file.name)
+            json.dump(payload, file, ensure_ascii=False, indent=2)
+            file.flush()
+            os.fsync(file.fileno())
+        temporary.replace(path)
+    finally:
+        if temporary is not None:
+            temporary.unlink(missing_ok=True)
+    get_settings.cache_clear()
 
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="TG_ASSISTANT_",
-        env_file=".env",
+        env_file=None,
         env_file_encoding="utf-8",
         extra="ignore",
+        hide_input_in_errors=True,
     )
 
     env: str = "production"
     timezone: str = "Asia/Ho_Chi_Minh"
     log_level: str = "INFO"
     data_dir: Path = Field(default_factory=user_data_root)
+    storage_backend: Literal["sqlite"] = "sqlite"
+    profile_id: str = Field(default="default", pattern=r"^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$")
     admin_api_enabled: bool = True
     admin_api_host: str = "127.0.0.1"
     admin_api_port: int = Field(default=8765, ge=1024, le=65535)
     admin_session_minutes: int = Field(default=480, ge=5, le=1440)
     dashboard_dist_path: Path | None = None
 
+    # Deprecated v1 config fields remain readable but never select a backend,
+    # connection, credential or migration target.
     database_host: str = "127.0.0.1"
     database_port: int = 3306
     database_name: str = "telegram_ai_assistant"
@@ -77,7 +156,9 @@ class Settings(BaseSettings):
     ollama_embedding_model: str = "nomic-embed-text:latest"
     ollama_vector_size: int = 768
     ollama_qdrant_path: Path | None = None
-    embedding_provider: Literal["ollama"] = "ollama"
+    cloud_consent: bool = False
+    embedding_provider: Literal["ollama", "openai", "openrouter", "off"] = "ollama"
+    cloud_embedding_dimension: int = Field(default=1536, ge=1, le=3072)
     embedding_version: str = "local-v1"
 
     confirmation_ttl_seconds: int = 300
@@ -86,14 +167,25 @@ class Settings(BaseSettings):
     short_memory_turns: int = 12
     short_memory_token_limit: int = 8_000
 
-    @field_validator("database_host")
     @classmethod
-    def local_database_only(cls, value: str) -> str:
-        if value not in {"127.0.0.1", "localhost", "::1"}:
-            raise ValueError(
-                "Mặc định chỉ cho phép MySQL cục bộ; sửa validator có chủ đích nếu cần."
-            )
-        return value
+    def settings_customise_sources(
+        cls, settings_cls, init_settings, env_settings, dotenv_settings, file_secret_settings
+    ):
+        def profile_settings():
+            initial, environment = init_settings(), env_settings()
+            root = initial.get("data_dir", environment.get("data_dir"))
+            return _read_config(config_path(Path(root) if root is not None else None))
+
+        return (
+            init_settings,
+            env_settings,
+            profile_settings,
+        )
+
+    @field_validator("data_dir", mode="before")
+    @classmethod
+    def absolute_data_dir(cls, value: Any) -> Path:
+        return resolve_data_path(Path(value))
 
     @field_validator("admin_api_host")
     @classmethod
@@ -127,25 +219,25 @@ class Settings(BaseSettings):
             parsed.scheme != "http"
             or parsed.hostname not in {"127.0.0.1", "localhost", "::1"}
             or parsed.path.rstrip("/") != "/v1"
+            or parsed.username is not None
+            or parsed.password is not None
+            or parsed.query
+            or parsed.fragment
         ):
             raise ValueError("Ollama chỉ được phép dùng API /v1 trên máy cục bộ.")
         return normalized
 
     @property
     def database_url_without_password(self) -> str:
-        return (
-            f"mysql+asyncmy://{quote_plus(self.database_user)}@"
-            f"{self.database_host}:{self.database_port}/{self.database_name}"
-            "?charset=utf8mb4"
-        )
+        return self.database_url("")
 
     def database_url(self, password: str, *, async_driver: bool = True) -> str:
-        driver = "mysql+asyncmy" if async_driver else "mysql+pymysql"
-        return (
-            f"{driver}://{quote_plus(self.database_user)}:{quote_plus(password)}@"
-            f"{self.database_host}:{self.database_port}/{self.database_name}"
-            "?charset=utf8mb4"
-        )
+        if self.storage_backend != "sqlite":
+            raise ValueError("storage_backend_unsupported")
+        return URL.create(
+            "sqlite+aiosqlite" if async_driver else "sqlite",
+            database=str(self.data_dir / "db" / "assistant.sqlite3"),
+        ).render_as_string(hide_password=False)
 
     @property
     def resolved_qdrant_path(self) -> Path:
@@ -153,7 +245,7 @@ class Settings(BaseSettings):
 
     @property
     def resolved_dashboard_dist_path(self) -> Path:
-        return self.dashboard_dist_path or project_root() / "dashboard-prototype" / "dist" / "client"
+        return self.dashboard_dist_path or resource_path("dashboard-prototype", "dist", "client")
 
     @property
     def resolved_active_qdrant_path(self) -> Path:
@@ -181,8 +273,7 @@ class Settings(BaseSettings):
             self.embedding_version.casefold(),
         ).strip("-")[:24]
         return base / (
-            f"{model_slug or 'embedding'}-{self.ollama_vector_size}-"
-            f"{version_slug or 'v1'}"
+            f"{model_slug or 'embedding'}-{self.ollama_vector_size}-{version_slug or 'v1'}"
         )
 
     @property
@@ -193,7 +284,37 @@ class Settings(BaseSettings):
         inspection only; it is not a runtime resolver because chat provider
         selection must never switch the embedding corpus.
         """
-        return self.resolved_local_embedding_qdrant_path
+        base = self.ollama_qdrant_path or self.data_dir / "qdrant_profiles"
+        return base / self.embedding_profile.store_id
+
+    @property
+    def embedding_profile(self):
+        from .contracts import EmbeddingProfile
+
+        provider = self.embedding_provider
+        endpoint = {
+            "ollama": self.ollama_base_url,
+            "openai": self.openai_base_url,
+            "openrouter": self.openrouter_base_url,
+            "off": "off",
+        }[provider]
+        endpoint_id = f"endpoint-{sha256(endpoint.encode()).hexdigest()[:32]}"
+        dimension = (
+            self.ollama_vector_size if provider == "ollama" else self.cloud_embedding_dimension
+        )
+        material = json.dumps(
+            [provider, endpoint_id, self.active_embedding_model, self.embedding_version, dimension],
+            separators=(",", ":"),
+        )
+        return EmbeddingProfile(
+            provider=provider,
+            endpoint_id=endpoint_id,
+            model=self.active_embedding_model,
+            embedding_version=self.embedding_version,
+            dimension=dimension,
+            store_id=f"embedding-{sha256(material.encode()).hexdigest()[:32]}",
+            cloud_consent=self.cloud_consent,
+        )
 
     @property
     def active_qdrant_vector_size(self) -> int:
@@ -227,21 +348,18 @@ class Settings(BaseSettings):
 
     @property
     def active_embedding_model(self) -> str:
-        """The shared corpus is always embedded locally.
-
-        Chat routing may change between OpenAI, OpenRouter and Ollama, but the
-        vector corpus must remain independent from that choice.  Keeping this
-        property local also prevents an accidental cloud embedding backfill
-        when an owner switches the answer provider from the dashboard.
-        """
-        return self.ollama_embedding_model
+        """Embedding selection is independent of the answer provider."""
+        if self.embedding_provider == "ollama":
+            return self.ollama_embedding_model
+        if self.embedding_provider == "openrouter":
+            return self.openrouter_embedding_model
+        return self.openai_embedding_model
 
     @property
     def provider_embedding_model(self) -> str:
         """Compatibility model used only when constructing a chat provider client.
 
-        The running application never uses this client to backfill the shared
-        corpus; that work is performed by the dedicated local Ollama engine.
+        Shared-corpus work uses the independently selected embedding profile.
         """
         if self.ai_provider == "ollama":
             return self.ollama_embedding_model
@@ -255,12 +373,24 @@ def get_settings() -> Settings:
     return Settings()
 
 
+def current_cloud_consent(settings: Settings) -> bool:
+    """Read current non-secret profile settings, without cached/legacy consent."""
+    return Settings(
+        _env_file=None, data_dir=settings.data_dir, profile_id=settings.profile_id
+    ).cloud_consent
+
+
+def current_model_enabled(settings: Settings, *, embedding=False) -> bool:
+    current = Settings(_env_file=None, data_dir=settings.data_dir, profile_id=settings.profile_id)
+    return current.ai_provider != "off" and (not embedding or current.enable_embeddings)
+
+
 def save_settings_env(values: dict[str, str]) -> None:
-    """Persist non-secret settings while preserving unrelated user configuration."""
-    path = project_root() / ".env"
-    existing = path.read_text(encoding="utf-8").splitlines() if path.exists() else []
-    prefixes = tuple(f"{key}=" for key in values)
-    kept = [line for line in existing if not line.startswith(prefixes)]
-    additions = [f"{key}={value}" for key, value in values.items()]
-    path.write_text("\n".join([*kept, *additions]).strip() + "\n", encoding="utf-8")
-    get_settings.cache_clear()
+    """Compatibility writer for known non-secret fields; never writes a .env file."""
+    keys = {f"TG_ASSISTANT_{name.upper()}": name for name in Settings.model_fields}
+    if not set(values) <= set(keys):
+        raise ValueError("Only known non-secret settings may be saved")
+    current = Settings()
+    updates = {keys[key]: value for key, value in values.items()}
+    merged = current.model_dump() | updates
+    save_settings(Settings(_env_file=None, **merged))

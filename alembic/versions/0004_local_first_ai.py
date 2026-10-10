@@ -15,21 +15,14 @@ depends_on = None
 
 
 def upgrade() -> None:
-    """Apply safely to databases which received early Local-first columns manually."""
-    bind = op.get_bind()
-
-    def has_table(table: str) -> bool:
-        return sa.inspect(bind).has_table(table)
+    """Apply the historical additions; schema repair runs before revisions."""
 
     def add_column(table: str, column: sa.Column) -> None:
-        columns = {row["name"] for row in sa.inspect(bind).get_columns(table)}
-        if column.name not in columns:
-            op.add_column(table, column)
+        with op.batch_alter_table(table) as batch:
+            batch.add_column(column)
 
     def create_index(name: str, table: str, columns: list[str]) -> None:
-        indexes = {row["name"] for row in sa.inspect(bind).get_indexes(table)}
-        if name not in indexes:
-            op.create_index(name, table, columns, unique=False)
+        op.create_index(name, table, columns, unique=False)
 
     message_columns = (
         sa.Column("normalized_text", sa.Text(), nullable=True),
@@ -92,27 +85,32 @@ def upgrade() -> None:
     create_index("ix_ai_usage_route", "ai_usage", ["route"])
     create_index("ix_ai_usage_chat_id", "ai_usage", ["chat_id"])
 
-    if not has_table("ai_query_cache"):
-        op.create_table(
-            "ai_query_cache",
-            sa.Column("cache_key", sa.String(64), nullable=False),
-            sa.Column("normalized_query_hash", sa.String(64), nullable=False),
-            sa.Column("scope_chat_id", sa.BigInteger(), nullable=True),
-            sa.Column("knowledge_version", sa.String(128), nullable=False),
-            sa.Column("route", sa.String(64), nullable=False),
-            sa.Column("feature", sa.String(64), nullable=False),
-            sa.Column("provider", sa.String(32), nullable=True),
-            sa.Column("model", sa.String(160), nullable=True),
-            sa.Column("response", sa.Text(), nullable=False),
-            sa.Column("citations", sa.JSON(), nullable=True),
-            sa.Column("expires_at", sa.DateTime(), nullable=False),
-            sa.Column("hit_count", sa.Integer(), server_default="0", nullable=False),
-            sa.Column("last_hit_at", sa.DateTime(), nullable=True),
-            sa.Column("created_at", sa.DateTime(), server_default=sa.func.current_timestamp(), nullable=False),
-            sa.Column("updated_at", sa.DateTime(), server_default=sa.func.current_timestamp(), nullable=False),
-            sa.PrimaryKeyConstraint("cache_key"),
-        )
-    create_index("ix_ai_query_cache_normalized_query_hash", "ai_query_cache", ["normalized_query_hash"])
+    op.create_table(
+        "ai_query_cache",
+        sa.Column("cache_key", sa.String(64), nullable=False),
+        sa.Column("normalized_query_hash", sa.String(64), nullable=False),
+        sa.Column("scope_chat_id", sa.BigInteger(), nullable=True),
+        sa.Column("knowledge_version", sa.String(128), nullable=False),
+        sa.Column("route", sa.String(64), nullable=False),
+        sa.Column("feature", sa.String(64), nullable=False),
+        sa.Column("provider", sa.String(32), nullable=True),
+        sa.Column("model", sa.String(160), nullable=True),
+        sa.Column("response", sa.Text(), nullable=False),
+        sa.Column("citations", sa.JSON(), nullable=True),
+        sa.Column("expires_at", sa.DateTime(), nullable=False),
+        sa.Column("hit_count", sa.Integer(), server_default="0", nullable=False),
+        sa.Column("last_hit_at", sa.DateTime(), nullable=True),
+        sa.Column(
+            "created_at", sa.DateTime(), server_default=sa.func.current_timestamp(), nullable=False
+        ),
+        sa.Column(
+            "updated_at", sa.DateTime(), server_default=sa.func.current_timestamp(), nullable=False
+        ),
+        sa.PrimaryKeyConstraint("cache_key"),
+    )
+    create_index(
+        "ix_ai_query_cache_normalized_query_hash", "ai_query_cache", ["normalized_query_hash"]
+    )
     create_index("ix_ai_query_cache_scope_chat_id", "ai_query_cache", ["scope_chat_id"])
     create_index("ix_ai_query_cache_route", "ai_query_cache", ["route"])
     create_index("ix_ai_query_cache_feature", "ai_query_cache", ["feature"])

@@ -58,7 +58,12 @@ def upgrade() -> None:
 
     op.create_table(
         "runtime_metrics",
-        sa.Column("id", sa.BigInteger(), autoincrement=True, nullable=False),
+        sa.Column(
+            "id",
+            sa.BigInteger().with_variant(sa.Integer(), "sqlite"),
+            autoincrement=True,
+            nullable=False,
+        ),
         sa.Column("collected_at", sa.DateTime(), nullable=False),
         sa.Column("process_id", sa.Integer(), nullable=False),
         sa.Column("process_name", sa.String(length=128), nullable=False),

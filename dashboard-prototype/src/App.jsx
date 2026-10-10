@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Bell,
   Brain,
@@ -32,6 +32,7 @@ import { useDialogA11y } from "./useDialogA11y.js";
 import { AiView, ModelsView } from "./views/AiViews.jsx";
 import { GroupDetailView, GroupsView } from "./views/GroupsView.jsx";
 import { KnowledgeView } from "./views/KnowledgeView.jsx";
+import { FirstSourceAssistant } from "./components/FirstSourceAssistant.jsx";
 import {
   ActionsView,
   AuditView,
@@ -39,6 +40,7 @@ import {
   WorkersView,
 } from "./views/OperationsViews.jsx";
 import { OverviewView } from "./views/OverviewView.jsx";
+import { SetupDashboard, SetupReadiness, primaryNavigation } from "./views/OnboardingView.jsx";
 import {
   ConnectionsView,
   DocumentationView,
@@ -48,7 +50,7 @@ import {
 } from "./views/SystemViews.jsx";
 import { Badge, IconButton, Toast } from "./ui.jsx";
 
-const navigation = [
+const featureNavigation = [
   { id: "overview", label: "Tổng quan", icon: ChartBar, section: "VẬN HÀNH" },
   { id: "connections", label: "Kết nối", icon: RadioButton },
   { id: "groups", label: "Nhóm Telegram", icon: UsersThree },
@@ -70,6 +72,8 @@ const navigation = [
   },
 ];
 
+const navigation = primaryNavigation.map(item => ({ ...item, icon: featureNavigation.find(feature => feature.id === item.id).icon }));
+const advancedNavigation = featureNavigation.filter(item => !navigation.some(primary => primary.id === item.id));
 const ACTION_LABELS = {
   set_chat_allowed: "Thay đổi trạng thái nguồn",
   set_chat_permission: "Thay đổi quyền nguồn",
@@ -88,25 +92,7 @@ const ACTION_LABELS = {
   delete_ollama_model: "Xóa model Ollama",
 };
 
-function LoginScreen({ onLogin }) {
-  const [code, setCode] = useState("");
-  const [error, setError] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-
-  const submit = async (event) => {
-    event.preventDefault();
-    setError("");
-    setSubmitting(true);
-    try {
-      await onLogin(code);
-    } catch (loginError) {
-      setError(loginError.message);
-      setCode("");
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
+function LoginScreen({ error = "" }) {
   return (
     <main className="login-shell">
       <section className="login-poster">
@@ -117,52 +103,22 @@ function LoginScreen({ onLogin }) {
         <div className="login-copy">
           <p className="eyebrow">LOCAL OWNER ACCESS</p>
           <h1>Đăng nhập<br />bảng vận hành.</h1>
-          <p>
-            Dashboard chỉ hoạt động trên máy cục bộ. Secret và session Telegram không được
-            gửi tới trình duyệt.
-          </p>
+          <p>Dashboard chỉ hoạt động trên máy cục bộ. Secret và session Telegram không được gửi tới trình duyệt.</p>
         </div>
-        <div className="login-security-strip">
-          <span>LOOPBACK ONLY</span>
-          <span>HTTPONLY COOKIE</span>
-          <span>CSRF PROTECTED</span>
-        </div>
+        <div className="login-security-strip"><span>LOOPBACK ONLY</span><span>HTTPONLY COOKIE</span><span>CSRF PROTECTED</span></div>
       </section>
       <section className="login-panel">
-        <form className="login-form" onSubmit={submit}>
+        <div className="login-form">
           <div className="login-icon"><ShieldCheck size={42} weight="fill" /></div>
           <p className="eyebrow">OWNER AUTHENTICATION</p>
-          <h2>Mã đăng nhập 8 số</h2>
-          <p>
-            Mở PowerShell trong thư mục dự án và chạy{" "}
-            <code>.\.venv\Scripts\tg-assistant.exe dashboard-code</code>. Mã hết hạn sau 5 phút.
-          </p>
-          <label className="login-code-field">
-            <span>Mã đăng nhập</span>
-            <input
-              value={code}
-              onChange={(event) =>
-                setCode(event.target.value.replace(/\D/g, "").slice(0, 8))
-              }
-              inputMode="numeric"
-              autoComplete="one-time-code"
-              pattern="\d{8}"
-              placeholder="00000000"
-              aria-invalid={Boolean(error)}
-              autoFocus
-              required
-            />
-          </label>
+          <h2>Mở từ ứng dụng Windows</h2>
+          <p>Mở Telegram AI trên Windows và bấm “Mở dashboard”. Vé đăng nhập dùng một lần và hết hạn sau 30 giây.</p>
           {error ? <div className="login-error" role="alert">{error}</div> : null}
-          <button
-            className="button button--primary login-submit"
-            disabled={submitting || code.length !== 8}
-          >
-            <ShieldCheck size={20} weight="bold" />
-            {submitting ? "Đang xác thực…" : "Đăng nhập owner"}
+          <button className="button button--primary login-submit" onClick={() => window.location.reload()}>
+            <ShieldCheck size={20} weight="bold" />Kiểm tra lại phiên
           </button>
-          <small>Không nhập API key, OTP Telegram hoặc mật khẩu vào màn hình này.</small>
-        </form>
+          <small>Không nhập API key, OTP Telegram hoặc mật khẩu vào trình duyệt.</small>
+        </div>
       </section>
     </main>
   );
@@ -270,14 +226,20 @@ function ReviewModal({ action, onClose, onDecision, busy }) {
 export function App() {
   const [session, setSession] = useState(null);
   const [authState, setAuthState] = useState("checking");
+  const [launchError, setLaunchError] = useState("");
   const [activePage, setActivePage] = useState("overview");
   const [selectedGroupId, setSelectedGroupId] = useState(null);
   const [mobileNav, setMobileNav] = useState(false);
   const [notifications, setNotifications] = useState(false);
   const [reviewAction, setReviewAction] = useState(null);
+  const withdrawFirstSourceAction = useCallback(actionId => {
+    setReviewAction(current => current?.action_id === actionId ? null : current);
+  }, []);
   const [reviewBusy, setReviewBusy] = useState(false);
   const [toast, setToast] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [firstSourceRefreshKey, setFirstSourceRefreshKey] = useState(0);
+  const [realtimeRefreshKey, setRealtimeRefreshKey] = useState(0);
   const [snapshot, setSnapshot] = useState(null);
   const [realtimeState, setRealtimeState] = useState("connecting");
   const [lastRealtimeAt, setLastRealtimeAt] = useState(null);
@@ -303,7 +265,7 @@ export function App() {
   useEffect(() => {
     const removeHandler = onAuthFailure(loseSession);
     api
-      .session()
+      .bootstrapSession()
       .then((value) => {
         setCsrfToken(value.csrf_token);
         setSession(value);
@@ -313,14 +275,14 @@ export function App() {
         if (error.status === 401) loseSession();
         else {
           setAuthState("anonymous");
-          showToast(error.message, "error");
+          setLaunchError(error.message);
         }
       });
     return removeHandler;
   }, []);
 
   useEffect(() => {
-    if (authState !== "authenticated") return undefined;
+    if (authState !== "authenticated" || session?.authority === "setup_only") return undefined;
     setRealtimeState(navigator.onLine ? "connecting" : "offline");
     return connectEvents({
       onOpen: () => {
@@ -339,6 +301,7 @@ export function App() {
         ]);
         if (snapshotSignature.current && snapshotSignature.current !== signature) {
           setRefreshKey((key) => key + 1);
+          setRealtimeRefreshKey((key) => key + 1);
         }
         snapshotSignature.current = signature;
       },
@@ -347,10 +310,10 @@ export function App() {
         setReconnectAttempt((value) => value + 1);
       },
     });
-  }, [authState, eventConnectionKey]);
+  }, [authState, eventConnectionKey, session?.authority]);
 
   useEffect(() => {
-    if (authState !== "authenticated") return undefined;
+    if (authState !== "authenticated" || session?.authority === "setup_only") return undefined;
     const handleOffline = () => setRealtimeState("offline");
     const handleOnline = () => {
       setRealtimeState("connecting");
@@ -362,7 +325,7 @@ export function App() {
       window.removeEventListener("offline", handleOffline);
       window.removeEventListener("online", handleOnline);
     };
-  }, [authState]);
+  }, [authState, session?.authority]);
 
   useEffect(
     () => () => {
@@ -370,14 +333,6 @@ export function App() {
     },
     [],
   );
-
-  const handleLogin = async (code) => {
-    const value = await api.login(code);
-    setCsrfToken(value.csrf_token);
-    setSession(value);
-    setAuthState("authenticated");
-    setRefreshKey((key) => key + 1);
-  };
 
   const handleLogout = async () => {
     try {
@@ -401,6 +356,7 @@ export function App() {
           : "Đã hủy PendingAction.",
       );
       setRefreshKey((key) => key + 1);
+      setFirstSourceRefreshKey((key) => key + 1);
     } catch (error) {
       showToast(error.message, "error");
     } finally {
@@ -421,6 +377,7 @@ export function App() {
   };
 
   const retryRealtime = () => {
+    setFirstSourceRefreshKey((key) => key + 1);
     if (!navigator.onLine) {
       setRealtimeState("offline");
       showToast("Máy đang offline. Hãy kiểm tra kết nối mạng.", "error");
@@ -432,11 +389,14 @@ export function App() {
 
   const activeLabel = useMemo(() => {
     if (activePage === "group-detail") return "Chi tiết nhóm";
-    return navigation.find((item) => item.id === activePage)?.label || "Tổng quan";
+    return [...navigation, ...advancedNavigation].find((item) => item.id === activePage)?.label || "Tổng quan";
   }, [activePage]);
 
   if (authState === "checking") return <SessionLoading />;
-  if (authState !== "authenticated") return <LoginScreen onLogin={handleLogin} />;
+  if (authState === "authenticated" && session?.authority === "setup_only") {
+    return <SetupDashboard session={session} onLogout={handleLogout} />;
+  }
+  if (authState !== "authenticated") return <LoginScreen error={launchError} />;
 
   const pendingCount = snapshot?.pending_actions || 0;
   const queuedJobs = snapshot?.jobs?.queued || 0;
@@ -473,6 +433,7 @@ export function App() {
             );
           })}
         </nav>
+        <details className="advanced-navigation"><summary>Chức năng nâng cao</summary><nav aria-label="Điều hướng nâng cao">{advancedNavigation.map(item => <button key={item.id} className={activePage === item.id ? "is-active" : ""} onClick={() => switchPage(item.id)}>{item.label}</button>)}</nav></details>
         <div className="sidebar-rule" />
         <div className="owner-card">
           <div className="owner-avatar">OW</div>
@@ -589,6 +550,8 @@ export function App() {
         ) : null}
 
         <div className="content">
+          {["overview", "groups", "knowledge"].includes(activePage) ? <FirstSourceAssistant session={session} refreshKey={firstSourceRefreshKey} backgroundRefreshKey={realtimeRefreshKey} onOpenGroup={openGroup} onCreatedAction={setReviewAction} onWithdrawAction={withdrawFirstSourceAction} openReviewActionId={reviewAction?.action_id} /> : null}
+          {["overview", "connections"].includes(activePage) ? <SetupReadiness session={session} /> : null}
           {activePage === "overview" ? (
             <OverviewView
               refreshKey={refreshKey}
