@@ -1890,6 +1890,10 @@ class Application:
                             select(TelegramChatPolicy).where(TelegramChatPolicy.chat_id == chat_id)
                         )
                         source = await refresh_source_usage(session, chat_id, self.rag.vectors)
+                        learning = await session.get(BackgroundJob, source.last_job_id) if source.last_job_id else None
+                        if (learning and str((learning.payload or {}).get("action_id", "")).startswith("fv1-")
+                                and (learning.payload or {}).get("history_completed") is not True):
+                            continue
                         refresh_limit = allowed_index_count(policy, source, 100)
                         retention_since = (
                             datetime.now(UTC) - timedelta(days=policy.retention_days)
@@ -2447,7 +2451,11 @@ class Application:
             for key in ("processed", "synced_messages", "synced_count", "history_read", "history_skipped"):
                 payload.setdefault(key, 0)
             job.payload = payload
-            if payload.get("chat_id") is not None:
+            fetch_budget = None
+            if str(payload.get("action_id", "")).startswith("fv1-") and not payload.get("history_completed"):
+                fetch_budget = min(int(payload.get("limit", 1000)), 1000) - max(
+                    int(payload.get("history_read") or 0), int(payload.get("history_read_reserved") or 0))
+            if payload.get("chat_id") is not None and (fetch_budget is None or fetch_budget > 0):
                 chat_id = int(payload["chat_id"])
                 source = await session.get(KnowledgeSource, chat_id)
                 if not source:
@@ -2459,6 +2467,25 @@ class Application:
                 source.last_error = None
         try:
             async with self._knowledge_lock:
+                if fetch_budget is not None:
+                    async with self.database.session() as session:
+                        job = await session.get(BackgroundJob, job_id)
+                        if not job or await honor_learning_pause(session, job) or job.status != "running":
+                            return
+                        await self._job_fence(session, job, PermissionName.SYNC_HISTORY)
+                        payload = dict(job.payload or {})
+                        if fetch_budget <= 0:
+                            job.status, job.last_error = "failed", "history_limit_reached"
+                            job.locked_by = job.locked_at = None
+                            job.payload = {**payload, "history_completed": False,
+                                           "history_stop_reason": "confirmation_limit", "mysql_synced": False}
+                            source = await session.get(KnowledgeSource, int(payload["chat_id"]))
+                            if source and source.last_job_id == job.id:
+                                source.status, source.last_error = job.status, job.last_error
+                                source.requested_for_learning = False
+                            return
+                        # A failed or interrupted fetch must not silently renew the confirmed allowance.
+                        job.payload = {**payload, "history_read_reserved": int(payload.get("history_read") or 0) + fetch_budget}
                 # Stage Telegram reads without holding SQLite's writer lock.
                 sync_started = monotonic()
                 staged = None
@@ -2486,7 +2513,8 @@ class Application:
                         staged = await self.user.stage_history_page(
                             session, chat_id=chat_id, actor_id=owner_id,
                             owner_id=int(self.user.owner_id), limit=payload.get("limit", 1000),
-                            continuation_cursor=continuation_cursor)
+                            continuation_cursor=continuation_cursor,
+                            **({"fetch_budget": fetch_budget} if fetch_budget is not None else {}))
                 if staged is not None:
                     async with self.database.session() as session:
                         await session.execute(text("BEGIN IMMEDIATE"))
@@ -2504,19 +2532,24 @@ class Application:
                                        history_completed=page.completed, interval_upper=page.upper_id,
                                        interval_after=page.after_id, history_stop_reason=page.stop_reason,
                                        title=title, sync_duration_ms=round((monotonic() - sync_started) * 1000, 2))
+                        if fetch_budget is not None:
+                            payload["history_read_reserved"] = payload["history_read"]
                         source = await session.get(KnowledgeSource, chat_id)
                         if not page.completed:
                             payload.update(phase="syncing", progress=None, total=None,
                                            total_messages=None, mysql_synced=False)
                             job.payload = payload
                             requeue_interrupted_learning_job(job, now=datetime.now(UTC) + timedelta(seconds=2))
-                            if page.stop_reason == "quota":
+                            if fetch_budget is not None and page.read >= fetch_budget:
+                                job.status, job.last_error = "failed", "history_limit_reached"
+                                job.payload = {**payload, "history_stop_reason": "confirmation_limit"}
+                            elif page.stop_reason == "quota":
                                 job.status = "paused"
                                 job.paused_at = datetime.now(UTC)
                                 job.last_error = "history_quota_reached"
                             if source:
                                 source.status = job.status
-                                source.requested_for_learning = True
+                                source.requested_for_learning = job.status != "failed"
                                 source.last_error = job.last_error
                             return
                         await session.flush()

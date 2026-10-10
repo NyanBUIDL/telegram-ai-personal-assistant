@@ -108,6 +108,18 @@ async def apply(db, adapter, staged):
         return await adapter.apply_history_page(session, staged)
 
 
+@pytest.mark.parametrize("budget", [1, 2])
+async def test_fetch_budget_counts_discovery_without_unconsented_lookahead(history, budget):
+    db, adapter = history
+    result = await apply(db, adapter, await stage(db, adapter, fetch_budget=budget, check_exhaustion=True))
+    assert result.read == budget and result.saved == budget - 1 and not result.completed
+    assert result.after_id == budget and result.upper_id == 1002
+    assert sum(call[3] for call in adapter.client.calls) == budget
+    async with db.session() as session:
+        state = await session.scalar(select(SyncState))
+        assert state.last_message_id == 1 and state.catchup_after_id == budget
+
+
 @pytest.mark.asyncio
 @pytest.mark.parametrize("limit", [True, False, 0, -1, 1.0, "1", None, 100001])
 async def test_invalid_limit_has_zero_fetch_and_mutation(history, limit):

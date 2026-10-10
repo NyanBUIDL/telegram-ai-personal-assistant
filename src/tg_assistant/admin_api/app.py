@@ -2148,7 +2148,7 @@ def create_admin_app(context: AdminContext) -> FastAPI:
             source = None
             if (job.payload or {}).get("chat_id") is not None:
                 source = await db.get(KnowledgeSource, int(job.payload["chat_id"]))
-            if source:
+            if source and source.last_job_id == job.id:
                 source.status = job.status
                 source.last_error = job.last_error
             db.add(
@@ -2160,6 +2160,8 @@ def create_admin_app(context: AdminContext) -> FastAPI:
                     target_id=job_id,
                 )
             )
+            await db.flush()
+            await db.refresh(job)
         return _job_json(job)
 
     @app.get("/api/v1/ai/config")

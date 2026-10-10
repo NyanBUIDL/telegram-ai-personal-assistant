@@ -1,5 +1,11 @@
 # U04 — Management and recovery implementation checkpoint
 
+Current checkpoint, 10/10/2026: **InProgress**; no U04 acceptance. Candidate `1316b2f9a170d2b4de1b96f989ae67e593deb219` has complete hosted run 38043804516 (run 44) success, including Required CI, both Python versions' four partitions, frontend and native gates. Root's actual unsharded1316 regression passed 2565/4 skips in 717.71s; 453 source files unchanged. The subsequent guided-limit working patch passed 286 focused and2572 full-suite/4 skips in 909.35s, but is after 1316 and pending final commit; its residual source-pointer ownership P2 still needs correction/review/checks.
+
+Resource/management/support slices, native guarded per-SID mutation/helper preflight, strict fresh-control adoption and Vietnamese guide source have independent scoped approvals. Root integration 244 passed. The historical three-second helper and loading-focus failures are retained; helper review86 passed without relaxing the deadline/action assertions, and loaded-focus checks passed360/390/1280/1440. This is automated/synthetic evidence, not physical DPI, live-account setup, actual native backup/restore owner acceptance or self-trial. Final coordinated candidate checks and guide-inclusive artifact/installer QA remain pending.
+
+The following earlier slice receipts are historical; then-pending source/guide/CI integration statements are superseded only by the specific approvals and candidate receipts above.
+
 Status: **InProgress**, 10/10/2026. This provisional disjoint development does not accept U04 or bypass U03/S03. Current target is the owner's private Windows11 preview under the owner-preview amendment; beta_ready and published remain false.
 
 The status/resource slice is independently spec and quality approved at commit `f7351c457dd33297871ca2e31b0e60ab866b9518`: four Node unit cases, eleven targeted browser cases and 102 existing setup/first-value regressions passed using installed Chrome. Current-resource failed refresh retains explicitly stale data; profile/dependency/reload/unmount races cannot revive former observations. Missing/future/expired evidence cannot appear ready; actual zero remains distinct from unknown. These are synthetic browser and local presentation checks, not authorization, live service, physical DPI or human-trial evidence.

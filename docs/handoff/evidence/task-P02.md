@@ -1,4 +1,12 @@
-# P02 — Private Windows11 installer tooling checkpoint
+# P02 — Private Windows 11 installer tooling checkpoint
+
+Current checkpoint, 10/10/2026: **InProgress**; no P02 acceptance. The independently approved native guard holds a per-SID lock through mutation, runs helper preflight before Settings and admits only a strictly verified fresh control directory. Source/helper checks do not prove execution inside the previously blocked setup process. Official Inno Setup 6.7.3 and compiler SHA256 `0a8757031b33777e4c9cbffee40f11a5062b36d25cbe144c1db73b6102b80ad7` were verified again by root. Compiler trust does not sign or establish trust for a generated project installer.
+
+The synthetic unsigned installer SHA256 `39abbb6fccc13d40327d95ec4ae9df5b4fe8e4627d7e5620d2253981e3c9aa5b` was rejected by CodeIntegrity 3077 under VerifiedAndReputableDesktop; the exact timestamp/receipt below is retained. No OS security change or force bypass was made. The8ea clean-short-checkout executable build/frozen smoke passed provisionally, but later source changes require a final rebuilt candidate. Final installer compile, actual install, upgrade and data-preserving uninstall remain pending; the synthetic block is not proof that every future artifact will be rejected.
+
+Final guided ownership correction/review/checks and immutable final source build precede installer QA. Owner can self-trial the private Windows 11 preview before an optional private 72-hour soak; no actual 72-hour evidence exists. A continuous 72-hour measurement later needs app and PC awake with network. No five-tester/Win10 prerequisite is added to owner preview. Final public rights/notices, signing/channel authorization and publication stay pending; beta_ready=false and published=false.
+
+The following earlier toolchain/synthetic-fixture receipts are historical and are not final installer acceptance.
 
 Status: **InProgress**, 10/10/2026. Provisional development under the owner-preview amendment; P01 final artifact is not accepted and P02 is not accepted.
 

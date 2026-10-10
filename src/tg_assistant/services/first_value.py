@@ -726,6 +726,12 @@ class FirstValueService:
             code="learning_completed" if completed else "learning_pending",
             message="Đã xử lý phạm vi lịch sử đã chọn." if completed else "Đang chờ hoàn tất phạm vi lịch sử đã chọn.",
             next_action=None if completed else "Kiểm tra tác vụ học nguồn.")
+        if status == "failed" and payload.get("history_stop_reason") == "confirmation_limit":
+            operation = operation.model_copy(update={
+                "code": "history_limit_reached",
+                "message": "Đã dừng ở giới hạn đọc lịch sử của lần xác nhận; phạm vi lịch sử chưa hoàn tất.",
+                "next_action": "Tạo bản xem trước và xác nhận mới để tiếp tục từ mốc đã lưu.",
+            })
         return operation, completed
 
     def _candidates(self, policy):

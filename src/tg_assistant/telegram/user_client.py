@@ -86,6 +86,7 @@ class StagedHistoryPage(NamedTuple):
     after: int
     messages: tuple
     exhausted: bool
+    fetched: int | None = None
 
 
 class HistoryBackfillPage(NamedTuple):
@@ -845,9 +846,12 @@ class UserClientAdapter:
         limit: int = 1000,
         check_exhaustion: bool = False,
         continuation_cursor: tuple[int, int, int] | None = None,
+        fetch_budget: int | None = None,
     ) -> StagedHistoryPage:
         if type(limit) is not int or not 1 <= limit <= 100000:
             raise ValueError("invalid_history_limit")
+        if fetch_budget is not None and (type(fetch_budget) is not int or not 1 <= fetch_budget <= 1000):
+            raise ValueError("invalid_history_fetch_budget")
         self._check_management()
         if actor_id != owner_id or getattr(self, "owner_id", owner_id) not in (None, owner_id):
             raise PermissionError("not_owner")
@@ -879,11 +883,20 @@ class UserClientAdapter:
                 if not decision.allowed:
                     raise PermissionError(decision.reason.value)
             page_size = min(limit, 1000)
+            fetched, fetch_exhausted = 0, False
 
             async def fetch(**kwargs):
+                nonlocal fetched, fetch_exhausted
+                if fetch_budget is not None:
+                    kwargs["limit"] = min(kwargs["limit"], fetch_budget - fetched)
+                if kwargs["limit"] <= 0:
+                    fetch_exhausted = False
+                    return []
                 messages = []
                 async for message in self.client.iter_messages(chat_id, **kwargs):
                     messages.append(message)
+                fetched += len(messages)
+                fetch_exhausted = len(messages) < kwargs["limit"]
                 await self._authorization_fence(
                     session, chat_id, PermissionName.SYNC_HISTORY, epoch
                 )
@@ -891,13 +904,13 @@ class UserClientAdapter:
 
             try:
                 if upper is None and previous.get("last_message_id") is None and baseline is None:
-                    if limit <= 1000:
+                    if limit <= 1000 or fetch_budget is not None:
                         messages = await fetch(reverse=False, limit=limit)
                         messages.sort(key=lambda message: int(message.id))
                         baseline = int(messages[0].id) if messages else 0
                         upper = int(messages[-1].id) if messages else 0
                         after = max(0, baseline - 1)
-                        exhausted = len(messages) < page_size
+                        exhausted = fetch_exhausted
                     else:
                         # Count actual yielded messages: server offsets include MessageEmpty entries.
                         upper, baseline, count = 0, 0, 0
@@ -930,12 +943,14 @@ class UserClientAdapter:
                     messages = await fetch(
                         min_id=after, max_id=upper + 1, reverse=True, limit=page_size
                     )
-                    exhausted = len(messages) < page_size
-                if check_exhaustion and not exhausted:
+                    exhausted = fetch_exhausted
+                if fetch_budget is not None and messages and int(messages[-1].id) == upper:
+                    exhausted = True
+                if check_exhaustion and not exhausted and messages:
                     lookahead = await fetch(
                         min_id=int(messages[-1].id), max_id=upper + 1, reverse=True, limit=1
                     )
-                    exhausted = not lookahead
+                    exhausted = fetch_exhausted and not lookahead
             except FloodWaitError as exc:
                 await asyncio.sleep(min(exc.seconds, 60))
                 raise RuntimeError(f"Telegram FloodWait {exc.seconds}s") from exc
@@ -951,6 +966,7 @@ class UserClientAdapter:
                 after,
                 tuple(messages),
                 exhausted,
+                fetched if fetch_budget is not None else None,
             )
 
     async def apply_history_page(
@@ -1095,7 +1111,7 @@ class UserClientAdapter:
         await require_authorization(session, page.chat_id, PermissionName.SYNC_HISTORY, page.epoch)
         self._check_management()
         return HistorySyncPage(
-            len(page.messages),
+            page.fetched if page.fetched is not None else len(page.messages),
             saved,
             skipped,
             completed,

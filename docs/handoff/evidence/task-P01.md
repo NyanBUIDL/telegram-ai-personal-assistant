@@ -1,5 +1,13 @@
 # P01 — Packaging implementation checkpoint
 
+Current checkpoint, 10/10/2026: **InProgress**; no P01 acceptance. A provisional clean short checkout at `E:/ChatGPT-Temp/tg-rc-8ea` actually built the 8ea source:445 source hashes,89 locked dependencies, Qt 6.11.2, Hatchling 1.27, Python 3.12.14, Node 24.19/npm 11.21 and PyInstaller 6.22.3. Frozen diagnostics and foreign-working-directory smoke passed with Smart App Control enabled. The prior long-checkout Qt wheel path failure remains historical evidence. This provisional executable is not the final candidate after the later source corrections.
+
+Committed/pushed1316 passed complete hosted run 38043804516 and root2565-pass/4-skip unsharded regression. A guided-limit working patch after 1316 passed 286 focused and2572 full-suite/4 skips, but its residual source-pointer ownership P2 correction/review/checks and final commit remain pending. Freeze the final reviewed inputs before rebuilding. Final same-input two-build comparison, source/inventory provenance, guide-inclusive frozen verification and exact-candidate installer are still required. Do not transfer the 8ea artifact receipt to a later source tree.
+
+The sealed managed DIFF scan `0d655b13-b8b3-44f7-8a3f-3cb74d3a46d2` coveredfc613..8ea with 48 shipped source/build surfaces and 0 supported candidates; 95 changed paths were accounted with exclusions. It is not a full repository or advisory-database scan and does not cover the newer capacity/guided changes. A new immutable8ea..final-head managed DIFF review is pending.
+
+The following earlier tooling/preflight receipts are historical; no clean-machine, installer, public licensing/signing or distribution acceptance follows from them.
+
 Status: **InProgress**, 10/10/2026. Tooling and dirty preflight exist; P01 is not accepted. Final reviewed-source build, identical-input repeat build, guide-inclusive frozen artifact checks, source/inventory provenance and independent approval remain pending.
 
 The provisional wheel and PyInstaller onedir include explicit runtime/resource allowlists, pinned hash-enforced dependency locks and sanitized no-console diagnostics. A clean isolated lock installation contained89 exact distributions and passed pip check. A real preflight executable passed seven package/frozen checks before USER_GUIDE.md was added to the allowlist; the latest source/wheel check passed six cases and intentionally skipped the stale executable. Earlier frozen results cannot qualify the guide-inclusive final artifact. Actual startup defects included ambient Poppler ICU incompatibility and missing SQLite/migration resources; targeted repairs are retained as diagnostic evidence.
