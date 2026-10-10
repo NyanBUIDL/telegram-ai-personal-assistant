@@ -141,11 +141,12 @@ test('support ignores a late projection when filters or current authority change
   await harness(page,'AuditView'); await page.getByRole('button',{name:'Xuất CSV'}).click(); await arrived; await page.getByPlaceholder('Tìm action, target hoặc lý do…').fill('new filter'); release(); await expect(page.getByRole('button',{name:'Xuất CSV'})).toBeEnabled(); expect(count).toBe(0);
 });
 for(const width of [360,390,1280,1440]) test(`management focus and targets at ${width}`,async({page})=>{
-  await page.setViewportSize({width,height:900}); await fixture(page); await harness(page,'StorageView'); await expect(page.getByRole('button',{name:'Tạo bản sao lưu',exact:true})).toBeVisible();
+  await page.setViewportSize({width,height:900}); const state=await fixture(page); let release; state.docGate=new Promise(resolve=>release=resolve); await harness(page,'StorageView'); await expect(page.getByRole('button',{name:'Tạo bản sao lưu',exact:true})).toBeVisible();
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   for(const button of await page.getByRole('region',{name:'Sao lưu và khôi phục'}).getByRole('button').all()) expect((await button.boundingBox()).height).toBeGreaterThanOrEqual(44);
   await harness(page,'DocumentationView'); const trigger=page.getByRole('button',{name:/Hướng dẫn sử dụng/}); await trigger.click(); const dialog=page.getByRole('dialog'); await expect(dialog).toBeVisible();
-  await dialog.getByRole('button',{name:'Sao chép tài liệu'}).focus(); await page.keyboard.press('Shift+Tab'); await expect(dialog.getByPlaceholder('Tìm trong tài liệu…')).toBeFocused(); await page.keyboard.press('Tab'); await expect(dialog.getByRole('button',{name:'Sao chép tài liệu'})).toBeFocused();
+  const copy=dialog.getByRole('button',{name:'Sao chép tài liệu'}); await expect(copy).toBeDisabled(); release(); await expect(copy).toBeEnabled();
+  await copy.focus(); await page.keyboard.press('Shift+Tab'); await expect(dialog.getByPlaceholder('Tìm trong tài liệu…')).toBeFocused(); await page.keyboard.press('Tab'); await expect(copy).toBeFocused();
   for(const button of await dialog.getByRole('button').all()) expect((await button.boundingBox()).height).toBeGreaterThanOrEqual(44);
   await page.keyboard.press('Escape'); await expect(trigger).toBeFocused();
   await harness(page,'GroupDetailView',{chatId:A});await expect(page.getByText(A,{exact:false}).first()).toBeVisible();await expect(page.getByLabel(/^AI mode/).locator('option')).toHaveCount(6);

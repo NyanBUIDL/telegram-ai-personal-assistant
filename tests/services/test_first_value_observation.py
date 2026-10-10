@@ -1,6 +1,7 @@
 """Owned observations over migrated SQLite and installed local Qdrant; no live calls."""
 import asyncio
 import hashlib
+import json
 from dataclasses import asdict
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
@@ -8,7 +9,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
-from sqlalchemy import insert, select
+from sqlalchemy import insert, select, text
 from test_first_value_index import CHAT, OWNER, Env
 from test_first_value_index_integration import adopt_application
 
@@ -322,6 +323,85 @@ async def test_get_and_verifiers_do_not_probe_or_recover(observed, monkeypatch):
     assert observed.first_value.selection_status().test_available
     assert observed.first_value.source_verification() is not None
     assert observed.first_value.first_answer_verification() is None
+
+
+@pytest.mark.parametrize("capacity", ["rows", "bytes_full", "bytes_exact"])
+async def test_history_capacity_controls_public_readiness_without_effects(observed, monkeypatch, capacity):
+    from aiogram import Bot
+
+    from tg_assistant.services.first_value import _request_digest, _RequestIdentity, _row_key
+
+    owner = observed.first_value
+    receipt, _ = await completed_receipt(observed)
+    original = owner.history().attempts[0]
+    assert owner.selection_status().test_available
+    with observed.engine.begin() as connection:
+        connection.execute(text("DELETE FROM app_settings WHERE key LIKE :prefix"),
+                           {"prefix": owner._key + ".%"})
+        header_size = len(connection.execute(text("SELECT value FROM app_settings WHERE key=:key"),
+                                            {"key": owner._key}).scalar_one().encode())
+        for message_id in range(1, 129 if capacity == "rows" else 128):
+            digest = _request_digest(owner._namespace, bot_id=456, owner_id=OWNER,
+                                     enrollment_generation="a" * 32, incoming_message_id=message_id)
+            attempt = original.model_copy(update={"incoming_message_id": message_id, "request_digest": digest})
+            records = [("attempt", attempt), ("receipt", receipt.model_copy(update={"request_digest": digest}))]
+            if capacity == "rows":
+                records = [("attempt", attempt.model_copy(update={"phase": "cancelled",
+                    "terminal_code": "cancelled_before_effect", "source_id": CHAT - 1,
+                    "chunk_count": None, "submitted_ordinal": 0, "returned_message_ids": ()}))]
+            for kind, record in records:
+                raw = json.dumps(record.model_dump(mode="json"))
+                if capacity != "rows":
+                    size = 32768
+                    if message_id == 1 and kind == "receipt":
+                        size -= header_size - (1 if capacity == "bytes_full" else 0)
+                    raw += " " * (size - len(raw.encode()))
+                connection.execute(text("INSERT INTO app_settings(key,value) VALUES(:key,:value)"),
+                                   {"key": _row_key(owner._namespace, kind, digest), "value": raw})
+    before = owner.history()
+    def forbidden(*args, **kwargs):
+        pytest.fail("capacity status must not probe, recover, generate, or send")
+    monkeypatch.setattr(owner.reader, "read_source_binding", forbidden)
+    monkeypatch.setattr(owner, "_recover_in_transaction", forbidden)
+    monkeypatch.setattr(observed.application.ai, "answer_observed", forbidden)
+    monkeypatch.setattr(Bot, "send_message", forbidden)
+    status = owner.selection_status()
+    available = capacity == "bytes_exact"
+    assert status.test_available is available
+    assert status.code == ("test_available" if available else "history_full")
+    if capacity == "rows":
+        assert status.answer_operation is None, "Other sources' terminal attempts still fill this namespace"
+    if not available:
+        assert "giữ" in status.message.lower() and status.next_action
+        assert "khởi động lại" not in status.next_action.lower()
+    assert owner.history() == before
+    request = _RequestIdentity(bot_id=456, enrollment_generation="a" * 32, owner_id=OWNER, incoming_message_id=1)
+    with owner._transaction() as connection:
+        with pytest.raises(ValueError, match="^first_value_binding_invalid$"):
+            owner._accept_in_transaction(connection, request=request.model_copy(update={"owner_id": OWNER + 1}),
+                binding=owner.current_binding, accepted_at=datetime.now(UTC))
+        duplicate, created = owner._accept_in_transaction(connection, request=request,
+            binding=owner.current_binding, accepted_at=datetime.now(UTC))
+        assert not created and duplicate.incoming_message_id == 1
+        new_request = request.model_copy(update={"incoming_message_id": 129})
+        if available:
+            assert owner._accept_in_transaction(connection, request=new_request,
+                binding=owner.current_binding, accepted_at=datetime.now(UTC))[1]
+        else:
+            with pytest.raises(ValueError, match="^history_full$"):
+                owner._accept_in_transaction(connection, request=new_request,
+                    binding=owner.current_binding, accepted_at=datetime.now(UTC))
+    if not available:
+        observed.application.admitted = False
+        with pytest.raises(PermissionError, match="owner_pairing_required"):
+            owner.selection_status()
+        observed.application.admitted = True
+        observed.update(TelegramChatPermission, TelegramChatPermission.chat_id == CHAT, enabled=False)
+        assert owner.selection_status().code != "history_full"
+        with observed.engine.begin() as connection:
+            connection.execute(text("UPDATE app_settings SET value='{}' WHERE key=:key"), {"key": owner._key})
+        with pytest.raises(ValueError, match="^first_value_state_invalid$"):
+            owner.selection_status()
 
 
 async def test_close_withdraws_before_retained_refresh_drains(observed, monkeypatch):

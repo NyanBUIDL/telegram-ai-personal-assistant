@@ -6,6 +6,13 @@ no global install or developer package cache is required. Keep the extraction
 path short (for example `E:\tg-tools-20261010`) because npm contains deep paths.
 Use a new, nonexistent directory for each acquisition.
 
+Keep the source checkout short too (for example `E:\tg-build`). The pinned Qt
+wheel contains deep paths under `build/windows/.venv`; installation failed in
+a longer checkout before freezing, while a clean checkout of the same reviewed
+commit at `E:\ChatGPT-Temp\tg-rc-8ea` built successfully. Use a fresh, clean
+checkout at the reviewed commit and verify its own source inventory. This
+recipe requires no change to Windows long-path or security settings.
+
 The following upstream inputs were retrieved and verified on 2026-10-10:
 
 | Input | Official archive | SHA256 |

@@ -460,6 +460,11 @@ def _serialized(connection, record):
         raise ValueError("first_value_state_invalid") from None
 
 
+def _new_request_capacity(state):
+    return (len(state.attempts) < MAX_ROWS and len(state.receipts) < MAX_ROWS
+            and sum(state.sizes.values()) + 2 * ROW_BYTES <= TOTAL_BYTES)
+
+
 def _capacity(connection, state, replacements, *, reserve=None):
     sizes = dict(state.sizes)
     for key, record in replacements.items():
@@ -1092,7 +1097,7 @@ class FirstValueService:
                     request.bot_id, request.owner_id, request.incoming_message_id):
                 return existing, False
         _require(not any(a.phase in ACTIVE for a in state.attempts), "first_value_busy")
-        _require(len(state.attempts) < MAX_ROWS and len(state.receipts) < MAX_ROWS, "history_full")
+        _require(_new_request_capacity(state), "history_full")
         header = state.header
         selected = self.coordinator._read(connection)[0].options.source_id
         _require(header is not None and binding.profile_id == self._profile_id
@@ -1484,6 +1489,8 @@ class FirstValueService:
                 except Exception:
                     learning, available = None, False
             available = available and not any(attempt.phase in ACTIVE for attempt in state.attempts)
+            history_full = available and not _new_request_capacity(state)
+            available = available and not history_full
         answer = None
         prior = [attempt for attempt in state.attempts if attempt.source_id == source]
         if prior:
@@ -1508,9 +1515,9 @@ class FirstValueService:
         self._admit()
         return FirstSourceStatus(profile_id=self._profile_id, source_id=source,
             learning_operation=learning, answer_operation=answer, bot_username=username, test_available=available,
-            code="test_available" if available else "source_selected" if source is not None else "source_required",
-            message="Nguồn đã sẵn sàng cho câu hỏi thử." if available else "Đã lưu nguồn đã chọn." if source is not None else "Chọn một nguồn Telegram.",
-            next_action="Mở bot để thử hỏi nguồn đã chọn." if available else "Mở quản lý nguồn để kiểm tra quyền và dữ liệu sẽ dùng.")
+            code="history_full" if history_full else "test_available" if available else "source_selected" if source is not None else "source_required",
+            message="Lịch sử hỏi thử đã đầy; các lần hỏi trước vẫn được giữ lại." if history_full else "Nguồn đã sẵn sàng cho câu hỏi thử." if available else "Đã lưu nguồn đã chọn." if source is not None else "Chọn một nguồn Telegram.",
+            next_action="Xem lại trạng thái các lần hỏi trước; hiện không thể tạo lần hỏi thử mới." if history_full else "Mở bot để thử hỏi nguồn đã chọn." if available else "Mở quản lý nguồn để kiểm tra quyền và dữ liệu sẽ dùng.")
 
     async def close(self) -> None:
         self._closing = True
