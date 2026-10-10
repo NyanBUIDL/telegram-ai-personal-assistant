@@ -136,7 +136,7 @@ function SessionLoading() {
   );
 }
 
-function ReviewModal({ action, onClose, onDecision, busy }) {
+function ReviewModal({ action, onClose, onDecision, onReconcile, busy }) {
   const dialogRef = useDialogA11y(Boolean(action), onClose);
   if (!action) return null;
   return (
@@ -191,9 +191,10 @@ function ReviewModal({ action, onClose, onDecision, busy }) {
               <pre>{JSON.stringify(action.payload, null, 2)}</pre>
             </details>
           ) : null}
-          {action.error ? <div className="login-error">{action.error}</div> : null}
+          {action.error ? <div className="login-error" role="alert">{action.error}</div> : null}
         </div>
         <footer className="modal-actions modal-footer">
+          {action.reconciliationRequired ? <button className="button button--primary" disabled={busy} onClick={() => onReconcile(action)}>Đối chiếu hành động</button> : null}
           {action.status === "pending" ? (
             <>
               <button
@@ -232,6 +233,11 @@ export function App() {
   const [mobileNav, setMobileNav] = useState(false);
   const [notifications, setNotifications] = useState(false);
   const [reviewAction, setReviewAction] = useState(null);
+  const reviewResults = useRef(new Map());
+  const openReviewAction = useCallback(action => {
+    const result = reviewResults.current.get(action.action_id);
+    setReviewAction(result && (result.reconciliationRequired || action.status === "pending") ? result : action);
+  }, []);
   const withdrawFirstSourceAction = useCallback(actionId => {
     setReviewAction(current => current?.action_id === actionId ? null : current);
   }, []);
@@ -259,6 +265,7 @@ export function App() {
     setSession(null);
     setAuthState("anonymous");
     setReviewAction(null);
+    reviewResults.current.clear();
     setNotifications(false);
   };
 
@@ -345,20 +352,45 @@ export function App() {
   };
 
   const handleReviewDecision = async (decision, action) => {
+    if (reviewBusy || reviewResults.current.get(action.action_id)?.reconciliationRequired) return;
     setReviewBusy(true);
     try {
-      if (decision === "confirm") await api.confirmAction(action.action_id);
-      else await api.cancelAction(action.action_id);
-      setReviewAction(null);
+      const result = decision === "confirm" ? await api.confirmAction(action.action_id) : await api.cancelAction(action.action_id);
+      const accepted = result.status === (decision === "confirm" ? "confirmed" : "cancelled");
+      if (result.status === "pending") reviewResults.current.delete(action.action_id);
+      else reviewResults.current.set(action.action_id, { ...action, ...result });
+      setReviewAction(accepted ? null : { ...action, ...result });
       showToast(
-        decision === "confirm"
+        !accepted ? `Trạng thái máy chủ: ${humanize(result.status)}. Kiểm tra lại trước khi tiếp tục.` : decision === "confirm"
           ? "Owner đã xác nhận. Worker sẽ kiểm tra lại và thực thi."
           : "Đã hủy PendingAction.",
       );
       setRefreshKey((key) => key + 1);
       setFirstSourceRefreshKey((key) => key + 1);
     } catch (error) {
+      if (error.status !== 401) {
+        if (error.status === 0 || error.status >= 500) reviewResults.current.set(action.action_id, { ...action, status: "uncertain", error: error.message, reconciliationRequired: true });
+        openReviewAction({ ...action, error: error.message });
+      }
+      setRefreshKey((key) => key + 1);
       showToast(error.message, "error");
+    } finally {
+      setReviewBusy(false);
+    }
+  };
+
+  const reconcileReviewAction = async action => {
+    if (reviewBusy) return;
+    setReviewBusy(true);
+    try {
+      const result = await api.pendingActions("all", 500);
+      const current = result.items?.find(item => item.action_id === action.action_id);
+      if (!current) throw new Error("Chưa tìm thấy hành động trong lần đọc mới. Giữ trạng thái chưa rõ; kiểm tra lại danh sách trước khi tiếp tục.");
+      if (current.status === "pending") reviewResults.current.delete(action.action_id);
+      else reviewResults.current.set(action.action_id, current);
+      setReviewAction(current);
+    } catch (error) {
+      if (error.status !== 401) setReviewAction({ ...action, error: error.message });
     } finally {
       setReviewBusy(false);
     }
@@ -550,12 +582,12 @@ export function App() {
         ) : null}
 
         <div className="content">
-          {["overview", "groups", "knowledge"].includes(activePage) ? <FirstSourceAssistant session={session} refreshKey={firstSourceRefreshKey} backgroundRefreshKey={realtimeRefreshKey} onOpenGroup={openGroup} onCreatedAction={setReviewAction} onWithdrawAction={withdrawFirstSourceAction} openReviewActionId={reviewAction?.action_id} /> : null}
+          {["overview", "groups", "knowledge"].includes(activePage) ? <FirstSourceAssistant session={session} refreshKey={firstSourceRefreshKey} backgroundRefreshKey={realtimeRefreshKey} onOpenGroup={openGroup} onCreatedAction={openReviewAction} onWithdrawAction={withdrawFirstSourceAction} openReviewActionId={reviewAction?.action_id} /> : null}
           {["overview", "connections"].includes(activePage) ? <SetupReadiness session={session} /> : null}
           {activePage === "overview" ? (
             <OverviewView
               refreshKey={refreshKey}
-              onReview={setReviewAction}
+              onReview={openReviewAction}
               onNavigate={switchPage}
             />
           ) : null}
@@ -576,37 +608,38 @@ export function App() {
               chatId={selectedGroupId}
               refreshKey={refreshKey}
               onBack={() => switchPage("groups")}
-              onCreatedAction={setReviewAction}
+              onCreatedAction={openReviewAction}
               onToast={showToast}
             />
           ) : null}
           {activePage === "policy" ? <PolicyView /> : null}
           {activePage === "ai-rag" ? (
-            <AiView refreshKey={refreshKey} onToast={showToast} />
+            <AiView refreshKey={refreshKey} onToast={showToast} onNavigate={switchPage} />
           ) : null}
           {activePage === "models" ? (
             <ModelsView
               refreshKey={refreshKey}
-              onCreatedAction={setReviewAction}
+              onCreatedAction={openReviewAction}
               onToast={showToast}
             />
           ) : null}
           {activePage === "knowledge" ? (
             <KnowledgeView
               refreshKey={refreshKey}
-              onCreatedAction={setReviewAction}
+              onCreatedAction={openReviewAction}
               onToast={showToast}
             />
           ) : null}
           {activePage === "storage" ? (
             <StorageView
+              onNavigate={switchPage}
               refreshKey={refreshKey}
-              onCreatedAction={setReviewAction}
+              onCreatedAction={openReviewAction}
               onToast={showToast}
             />
           ) : null}
           {activePage === "actions" ? (
-            <ActionsView refreshKey={refreshKey} onReview={setReviewAction} />
+            <ActionsView refreshKey={refreshKey} onReview={openReviewAction} />
           ) : null}
           {activePage === "workers" ? <WorkersView refreshKey={refreshKey} /> : null}
           {activePage === "audit" ? (
@@ -625,6 +658,7 @@ export function App() {
         busy={reviewBusy}
         onClose={() => !reviewBusy && setReviewAction(null)}
         onDecision={handleReviewDecision}
+        onReconcile={reconcileReviewAction}
       />
       <Toast toast={toast} onClose={() => setToast(null)} />
     </div>

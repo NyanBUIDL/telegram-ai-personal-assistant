@@ -83,6 +83,8 @@ const JOB_LABELS = {
   failed: "Lỗi",
   paused: "Tạm dừng",
   pausing: "Đang tạm dừng",
+  pause_requested: "Đang yêu cầu tạm dừng",
+  uncertain: "Chưa rõ kết quả · cần đối chiếu",
   unknown: "Không xác định",
 };
 
@@ -128,9 +130,11 @@ export function KnowledgeView({ refreshKey, onCreatedAction, onToast }) {
     refreshKey,
   );
   const jobs = useResource(() => api.learningJobs({ limit: 20 }), [], refreshKey);
+  const [acceptedJobs, setAcceptedJobs] = useState(null);
+  const [uncertainJobs, setUncertainJobs] = useState({});
   const normalizedJobs = useMemo(
-    () => (jobs.data?.items || []).map(normalizeJob),
-    [jobs.data],
+    () => (jobs.data?.items || []).map(job => normalizeJob(acceptedJobs?.source === jobs.data ? acceptedJobs.items[job.id] || job : job)),
+    [jobs.data, acceptedJobs],
   );
 
   const jobCounts = useMemo(() => {
@@ -141,13 +145,15 @@ export function KnowledgeView({ refreshKey, onCreatedAction, onToast }) {
     return counts;
   }, [normalizedJobs]);
 
-  const run = async (key, operation, success) => {
+  const run = async (key, operation, success, affectedJobs = []) => {
+    if (busy || affectedJobs.some(id => uncertainJobs[id])) return;
     setBusy(key);
     try {
-      await operation();
-      onToast(success);
+      const result = await operation();
+      onToast(typeof success === "function" ? success(result) : success);
       await Promise.all([sources.reload(), jobs.reload()]);
     } catch (error) {
+      if (error.status === 0 || error.status >= 500) setUncertainJobs(current => ({ ...current, ...Object.fromEntries(affectedJobs.map(id => [id, error.message])) }));
       onToast(error.message, "error");
     } finally {
       setBusy("");
@@ -157,9 +163,29 @@ export function KnowledgeView({ refreshKey, onCreatedAction, onToast }) {
   const changeJob = (job, operation) =>
     run(
       `${job.id}-${operation}`,
-      () => api.changeLearningJob(job.id, operation),
-      `Job ${job.id} đã được chuyển sang ${operation}.`,
+      async () => {
+        const result = await api.changeLearningJob(job.id, operation);
+        setAcceptedJobs(current => ({ source: jobs.data, items: { ...(current?.source === jobs.data ? current.items : {}), [job.id]: result } }));
+        return result;
+      },
+      result => `Job ${job.id}: ${jobLabel(result.status)}.`,
+      [job.id],
     );
+
+  const reconcileJob = async job => {
+    setBusy(`reconcile-${job.id}`);
+    const result = await jobs.reload();
+    if (result?.items?.some(item => item.id === job.id)) {
+      setUncertainJobs(current => {
+        const next = { ...current };
+        delete next[job.id];
+        return next;
+      });
+    } else {
+      setUncertainJobs(current => ({ ...current, [job.id]: "Chưa đọc được trạng thái mới của job. Giữ kết quả chưa rõ; đối chiếu lại trước khi tiếp tục." }));
+    }
+    setBusy("");
+  };
 
   const exportAllSources = async () => {
     setBusy("export");
@@ -271,13 +297,14 @@ export function KnowledgeView({ refreshKey, onCreatedAction, onToast }) {
           <Brain size={30} />
           <span>Tổng nguồn</span>
           <b>{formatNumber(summary.total_sources)}</b>
-          <Badge tone="teal">MYSQL</Badge>
+          <Badge tone="teal">SQLITE</Badge>
         </div>
         <div>
           <Play size={30} />
           <span>Đã học</span>
           <b>{formatNumber(summary.learned_sources)}</b>
-          <Badge tone="success">{summary.coverage_percent || 0}% ĐỘ PHỦ</Badge>
+          <Badge tone="yellow">{typeof summary.coverage_percent === "number" && Number.isFinite(summary.coverage_percent) ? `${summary.coverage_percent}%` : "Chưa biết"} ĐỘ PHỦ</Badge>
+          <small>Hoàn tất job không xác minh sức khỏe vector.</small>
         </div>
         <div>
           <Pause size={30} />
@@ -442,12 +469,13 @@ export function KnowledgeView({ refreshKey, onCreatedAction, onToast }) {
           <div className="ops-panel-actions">
             <button
               className="button button--outline"
-              disabled={Boolean(busy)}
+              disabled={Boolean(busy) || Object.keys(uncertainJobs).length > 0 || jobs.loading || Boolean(jobs.error)}
               onClick={() =>
                 run(
                   "pause-all",
                   api.pauseAllLearning,
-                  "Đã gửi yêu cầu tạm dừng toàn bộ learning job.",
+                  result => `Máy chủ đã nhận tạm dừng ${result.updated} job; trạng thái dừng chờ worker xác nhận.`,
+                  normalizedJobs.map(job => job.id),
                 )
               }
             >
@@ -456,12 +484,13 @@ export function KnowledgeView({ refreshKey, onCreatedAction, onToast }) {
             </button>
             <button
               className="button button--outline"
-              disabled={Boolean(busy)}
+              disabled={Boolean(busy) || Object.keys(uncertainJobs).length > 0 || jobs.loading || Boolean(jobs.error)}
               onClick={() =>
                 run(
                   "resume-all",
                   api.resumeAllLearning,
-                  "Đã tiếp tục toàn bộ learning job đang tạm dừng.",
+                  result => `Máy chủ đã đưa ${result.updated} job vào hàng đợi tiếp tục.`,
+                  normalizedJobs.map(job => job.id),
                 )
               }
             >
@@ -487,7 +516,7 @@ export function KnowledgeView({ refreshKey, onCreatedAction, onToast }) {
         ) : null}
 
         {sources.loading && !sources.data ? <LoadingState label="Đang tải kho tri thức…" /> : null}
-        {sources.error && !sources.data ? (
+        {sources.error ? (
           <ErrorState error={sources.error} onRetry={sources.reload} />
         ) : null}
         {sources.data?.items?.length && viewMode === "table" ? (
@@ -693,7 +722,7 @@ export function KnowledgeView({ refreshKey, onCreatedAction, onToast }) {
           action={<Badge tone="paper">{jobs.data?.items?.length || 0} JOB</Badge>}
         />
         {jobs.loading && !jobs.data ? <LoadingState label="Đang tải learning job…" /> : null}
-        {jobs.error && !jobs.data ? <ErrorState error={jobs.error} onRetry={jobs.reload} /> : null}
+        {jobs.error ? <><p>DỮ LIỆU CŨ · Chưa tải lại được tiến trình; giữ lần xác nhận gần nhất.</p><ErrorState error={jobs.error} onRetry={jobs.reload} /></> : null}
         {normalizedJobs.length ? (
           <div className="learning-job-list">
             {normalizedJobs.map((job) => (
@@ -750,10 +779,13 @@ export function KnowledgeView({ refreshKey, onCreatedAction, onToast }) {
                   <p>{job.last_error || "Không có"}</p>
                 </div>
                 <footer>
+                  {uncertainJobs[job.id] ? <div><p role="alert">Chưa rõ kết quả thao tác. {uncertainJobs[job.id]}</p><button className="button button--outline" disabled={Boolean(busy)} onClick={() => reconcileJob(job)}>Đối chiếu job</button></div> : null}
+                  {["uncertain", "reconciliation_required"].includes(job.status) ? <p>Cần đối chiếu kết quả trước khi gửi lại; không tự thử lại thao tác chưa rõ.</p> : null}
+                  {job.status === "completed_with_warning" ? <p>Đã lưu phần hoàn tất; còn phần chưa xử lý. Xem cảnh báo trước khi tiếp tục. Hoàn tất job không xác minh độ phủ vector.</p> : null}
                   {["queued", "running"].includes(job.status) ? (
                     <button
                       className="button button--outline"
-                      disabled={Boolean(busy)}
+                      disabled={Boolean(busy) || Boolean(uncertainJobs[job.id]) || jobs.loading || Boolean(jobs.error)}
                       onClick={() => changeJob(job, "pause")}
                     >
                       <Pause size={16} />Tạm dừng
@@ -762,7 +794,7 @@ export function KnowledgeView({ refreshKey, onCreatedAction, onToast }) {
                   {job.status === "paused" ? (
                     <button
                       className="button button--outline"
-                      disabled={Boolean(busy)}
+                      disabled={Boolean(busy) || Boolean(uncertainJobs[job.id]) || jobs.loading || Boolean(jobs.error)}
                       onClick={() => changeJob(job, "resume")}
                     >
                       <Play size={16} />Tiếp tục
@@ -771,7 +803,7 @@ export function KnowledgeView({ refreshKey, onCreatedAction, onToast }) {
                   {job.status === "failed" ? (
                     <button
                       className="button button--outline"
-                      disabled={Boolean(busy)}
+                      disabled={Boolean(busy) || Boolean(uncertainJobs[job.id]) || jobs.loading || Boolean(jobs.error)}
                       onClick={() => changeJob(job, "retry")}
                     >
                       <ArrowsClockwise size={16} />Thử lại

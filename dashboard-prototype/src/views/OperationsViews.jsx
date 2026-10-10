@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ArrowsClockwise,
   CaretLeft,
@@ -22,7 +22,8 @@ import {
   humanize,
   statusTone,
 } from "../format.js";
-import { useDebouncedValue, useResource } from "../hooks.js";
+import { useDebouncedValue, useObservedAt, useResource } from "../hooks.js";
+import { connectionPresentation, formatPercent } from "../statusPresentation.js";
 import {
   Badge,
   EmptyState,
@@ -36,16 +37,32 @@ function StorageMetric({ icon: Icon, label, value, growth }) {
     <div>
       <Icon size={24} weight="bold" />
       <b>{label}</b>
-      <span>{formatBytes(value)}</span>
+      <span>{value == null ? "Chưa biết" : formatBytes(value)}</span>
       <small>{growth == null ? "Chưa đủ hai mẫu" : `${growth >= 0 ? "+" : ""}${formatBytes(growth)} từ lần đo trước`}</small>
     </div>
   );
 }
 
-export function StorageView({ refreshKey, onCreatedAction, onToast }) {
+export function StorageView({ refreshKey, onCreatedAction, onToast, onNavigate }) {
   const resource = useResource(api.storage, [], refreshKey);
+  const backups = useResource(api.backups, [], refreshKey);
+  const [backupError, setBackupError] = useState(null);
+  const [restoreHelp, setRestoreHelp] = useState(false);
   const [preview, setPreview] = useState(null);
   const [busy, setBusy] = useState("");
+  const createBackup = async () => {
+    setBusy("backup");
+    setBackupError(null);
+    try {
+      await api.createBackup();
+      onToast("Đã tạo bản sao lưu. Tải lại danh sách để xem metadata.");
+      await backups.reload();
+    } catch (error) {
+      setBackupError(error);
+    } finally {
+      setBusy("");
+    }
+  };
 
   const runPreview = async () => {
     setBusy("preview");
@@ -84,10 +101,27 @@ export function StorageView({ refreshKey, onCreatedAction, onToast }) {
 
   return (
     <section className="ops-stack">
+      <section className="panel page-panel" aria-label="Sao lưu và khôi phục">
+        <PanelHeader eyebrow="DỮ LIỆU CỤC BỘ" title="Sao lưu và khôi phục" />
+        <p>Bản sao lưu portable không chứa credential hay phiên đăng nhập Telegram.</p>
+        <div className="ops-panel-actions">
+          <button className="button button--primary" disabled={Boolean(busy)} onClick={createBackup}>{busy === "backup" ? "Đang tạo bản sao lưu…" : "Tạo bản sao lưu"}</button>
+          <button className="button button--outline" onClick={backups.reload}>Tải lại danh sách sao lưu</button>
+          <button className="button button--outline" aria-expanded={restoreHelp} onClick={() => setRestoreHelp(value => !value)}>Hướng dẫn khôi phục</button>
+        </div>
+        {backupError ? <ErrorState error={backupError} /> : null}
+        {backups.error ? <ErrorState error={backups.error} onRetry={backups.reload} /> : null}
+        {backups.loading && !backups.data ? <LoadingState label="Đang đọc danh sách sao lưu…" /> : null}
+        <p>Danh sách chỉ đọc manifest và metadata; chưa kiểm tra checksum nội dung hay xác minh khôi phục thử.</p>
+        {(backups.data?.items || []).map(item => <div className="ops-setting-row" key={item.id}><div><b>{item.id}</b><span>{formatBytes(item.size_bytes)} · Schema: {item.manifest?.schema_revision || "Chưa biết"}</span></div><Badge tone="yellow">{item.validation_state === "manifest_only" ? "CHỈ MANIFEST" : "CHƯA XÁC MINH"}</Badge></div>)}
+        {backups.data && !backups.data.items?.length ? <p>Chưa có bản sao lưu trong danh sách.</p> : null}
+        {restoreHelp ? <div className="ops-local-warning ops-local-warning--yellow"><div><b>Khôi phục trong ứng dụng Windows</b><p>Mở Launcher → Dữ liệu và sao lưu → chọn tệp sao lưu → đọc preview ảnh hưởng. Chọn Hủy nếu chưa muốn thay dữ liệu. Ứng dụng sẽ kiểm tra và khóa thao tác ghi trước khi khôi phục; danh sách này không chứng minh tệp khôi phục an toàn.</p><button className="button button--outline" onClick={() => onNavigate?.("documentation")}>Đọc hướng dẫn sử dụng</button></div></div> : null}
+      </section>
+      {resource.error && resource.data ? <p role="alert">DỮ LIỆU CŨ · Dung lượng chưa tải lại được.</p> : null}
       <section className="ops-storage-hero">
         <div>
           <p className="eyebrow">LOCAL STORAGE · LIVE</p>
-          <h2>{formatBytes((current?.data_bytes || 0) + (current?.vector_bytes || 0) + (current?.media_bytes || 0))}</h2>
+          <h2>{[current?.data_bytes, current?.vector_bytes, current?.media_bytes].every(Number.isFinite) ? formatBytes(current.data_bytes + current.vector_bytes + current.media_bytes) : "Chưa biết"}</h2>
           <span>{resource.data?.data_root || "Local data directory"}</span>
         </div>
         <div
@@ -98,9 +132,9 @@ export function StorageView({ refreshKey, onCreatedAction, onToast }) {
           <span>{diskPercent == null ? "CHƯA CÓ CAPACITY" : "Ổ ĐĨA ĐÃ DÙNG"}</span>
         </div>
         <div className="storage-breakdown">
-          <span><i className="storage-dot storage-dot--teal" />Data {formatBytes(current?.data_bytes)}</span>
-          <span><i className="storage-dot storage-dot--yellow" />Vector {formatBytes(current?.vector_bytes)}</span>
-          <span><i className="storage-dot storage-dot--magenta" />Media {formatBytes(current?.media_bytes)}</span>
+          <span><i className="storage-dot storage-dot--teal" />Data {current?.data_bytes == null ? "Chưa biết" : formatBytes(current.data_bytes)}</span>
+          <span><i className="storage-dot storage-dot--yellow" />Vector {current?.vector_bytes == null ? "Chưa biết" : formatBytes(current.vector_bytes)}</span>
+          <span><i className="storage-dot storage-dot--magenta" />Media {current?.media_bytes == null ? "Chưa biết" : formatBytes(current.media_bytes)}</span>
         </div>
       </section>
 
@@ -195,27 +229,30 @@ export function StorageView({ refreshKey, onCreatedAction, onToast }) {
 
 export function WorkersView({ refreshKey }) {
   const resource = useResource(api.workers, [], refreshKey);
+  const now = useObservedAt();
   if (resource.loading && !resource.data) return <LoadingState label="Đang tải worker telemetry…" />;
   if (resource.error && !resource.data)
     return <ErrorState error={resource.error} onRetry={resource.reload} />;
   const data = resource.data || {};
   const metric = data.latest_metric;
   const children = metric?.details?.children || [];
+  const observation = connectionPresentation({ state: "ready", checked_at: metric?.collected_at }, now, Boolean(resource.error));
 
   return (
     <section className="ops-stack">
       <section className="ops-status-strip">
         <div>
           <Pulse size={28} />
-          <b>Scheduler đang kết nối</b>
+          <b>Lịch scheduler đã cấu hình · {observation.online ? "Có mẫu mới" : observation.label}</b>
           <span>Mẫu gần nhất {formatDate(metric?.collected_at)}</span>
         </div>
-        <Badge tone="success">{data.scheduler?.length || 0} SCHEDULED JOB</Badge>
+        <Badge tone="paper">{data.scheduler?.length ?? "Chưa biết"} LỊCH CẤU HÌNH</Badge>
       </section>
+      {resource.error ? <ErrorState error={resource.error} onRetry={resource.reload} /> : null}
 
       <section className="ops-resource-strip">
-        <div><Memory size={30} /><span>RAM</span><b>{formatBytes(metric?.rss_bytes)}</b><Badge tone="teal">PID {metric?.process_id || "—"}</Badge></div>
-        <div><Pulse size={30} /><span>CPU</span><b>{Number(metric?.cpu_percent || 0).toFixed(1)}%</b><Badge tone="paper">PROCESS</Badge></div>
+        <div><Memory size={30} /><span>RAM</span><b>{metric?.rss_bytes == null ? "Chưa biết" : formatBytes(metric.rss_bytes)}</b><Badge tone="teal">PID {metric?.process_id || "—"}</Badge></div>
+        <div><Pulse size={30} /><span>CPU</span><b>{formatPercent(metric?.cpu_percent)}</b><Badge tone={observation.tone}>{observation.online ? "MẪU MỚI" : observation.label}</Badge></div>
         <div>
           <HardDrives size={30} />
           <span>VRAM</span>
@@ -228,7 +265,7 @@ export function WorkersView({ refreshKey }) {
             {metric?.details?.vram_status === "unavailable" ? "KHÔNG CÓ NVIDIA-SMI" : "GPU"}
           </Badge>
         </div>
-        <div><Clock size={30} /><span>Queue</span><b>{formatNumber(metric?.queued_jobs)}</b><Badge tone={metric?.queued_jobs ? "yellow" : "success"}>{metric?.running_jobs || 0} RUNNING</Badge></div>
+        <div><Clock size={30} /><span>Queue</span><b>{metric?.queued_jobs == null ? "Chưa biết" : formatNumber(metric.queued_jobs)}</b><Badge tone="paper">{metric?.running_jobs ?? "Chưa biết"} RUNNING</Badge></div>
       </section>
 
       <section className="panel">
@@ -247,7 +284,7 @@ export function WorkersView({ refreshKey }) {
                     <td><b>{job.id}</b></td>
                     <td>{formatDate(job.next_run_time)}</td>
                     <td>{job.max_instances}</td>
-                    <td><Badge tone={job.pending ? "yellow" : "success"}>{job.pending ? "PENDING" : "SCHEDULED"}</Badge></td>
+                    <td><Badge tone="paper">{job.pending ? "PENDING" : "ĐÃ CẤU HÌNH"}</Badge></td>
                   </tr>
                 ))}
               </tbody>
@@ -269,8 +306,8 @@ export function WorkersView({ refreshKey }) {
                   <tr key={`${child.pid}-${child.name}`}>
                     <td>{child.pid}</td>
                     <td><b>{child.name}</b></td>
-                    <td>{formatBytes(child.rss_bytes)}</td>
-                    <td>{Number(child.cpu_percent || 0).toFixed(1)}%</td>
+                    <td>{child.rss_bytes == null ? "Chưa biết" : formatBytes(child.rss_bytes)}</td>
+                    <td>{formatPercent(child.cpu_percent)}</td>
                     <td>
                       {child.vram_bytes == null ? "Không có telemetry" : formatBytes(child.vram_bytes)}
                     </td>
@@ -361,6 +398,7 @@ export function ActionsView({ refreshKey, onReview }) {
                   <td>
                     <button
                       className="button button--small button--outline"
+                      disabled={resource.loading || Boolean(resource.error)}
                       onClick={() => onReview(action)}
                     >
                       <Eye size={16} />Xem
@@ -379,10 +417,13 @@ export function ActionsView({ refreshKey, onReview }) {
 }
 
 function exportAudit(items) {
-  const columns = ["occurred_at", "action", "target_type", "target_id", "outcome", "reason", "correlation_id"];
-  const escape = (value) => `"${String(value ?? "").replaceAll('"', '""')}"`;
+  const columns = ["occurred_at", "action", "target_type", "outcome"];
+  const escape = (value) => {
+    const text = String(value ?? "");
+    return `"${(/^[\s\u0000-\u001f]*[=+@-]/.test(text) ? "'" + text : text).replaceAll('"', '""')}"`;
+  };
   const csv = [
-    columns.join(","),
+    ["Thời gian UTC", "Hành động", "Loại đối tượng", "Kết quả"].map(escape).join(","),
     ...items.map((item) => columns.map((column) => escape(item[column])).join(",")),
   ].join("\r\n");
   const blob = new Blob(["\ufeff", csv], { type: "text/csv;charset=utf-8" });
@@ -398,6 +439,25 @@ export function AuditView({ refreshKey, onToast }) {
   const [query, setQuery] = useState("");
   const [outcome, setOutcome] = useState("");
   const [page, setPage] = useState(1);
+  const [exporting, setExporting] = useState(false);
+  const [exportedAt, setExportedAt] = useState(null);
+  const exportScope = useRef(0);
+  useEffect(() => { exportScope.current += 1; return () => { exportScope.current += 1; }; }, [query, outcome, page]);
+  const downloadSupport = async () => {
+    const scope = exportScope.current;
+    setExporting(true);
+    try {
+      const result = await api.audit({ query, outcome, page, pageSize: 100, supportExport: true });
+      if (scope !== exportScope.current) return;
+      exportAudit(result.items);
+      setExportedAt(new Date().toISOString());
+      onToast("Đã bắt đầu tải CSV hỗ trợ của trang và bộ lọc hiện tại; hãy kiểm tra tải xuống của trình duyệt.");
+    } catch (error) {
+      if (scope === exportScope.current) onToast(error.message, "error");
+    } finally {
+      setExporting(false);
+    }
+  };
   const debounced = useDebouncedValue(query);
   const resource = useResource(
     () => api.audit({ query: debounced, outcome, page, pageSize: 100 }),
@@ -413,16 +473,15 @@ export function AuditView({ refreshKey, onToast }) {
         action={
           <button
             className="button button--primary"
-            disabled={!resource.data?.items?.length}
-            onClick={() => {
-              exportAudit(resource.data.items);
-              onToast("Đã xuất audit CSV từ dữ liệu đang hiển thị.");
-            }}
+            disabled={exporting}
+            onClick={downloadSupport}
           >
             <DownloadSimple size={18} />Xuất CSV
           </button>
         }
       />
+      <p>CSV hỗ trợ: chỉ thời gian UTC, loại hành động, loại đối tượng và kết quả; tối đa 100 sự kiện của trang {page}, bộ lọc hiện tại, được đọc mới khi bấm xuất. Không giới hạn theo ngày. Không phải log đầy đủ; không chứa ID hay nội dung tự do.</p>
+      {exportedAt ? <p role="status">Lần bắt đầu tải gần nhất: {formatDate(exportedAt)}. Kiểm tra tệp trong tải xuống của trình duyệt.</p> : null}
       <div className="filter-bar">
         <label className="search-field">
           <MagnifyingGlass size={20} />

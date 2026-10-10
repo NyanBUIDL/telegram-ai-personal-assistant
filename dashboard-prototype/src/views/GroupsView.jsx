@@ -927,6 +927,8 @@ export function GroupDetailView({
   const [aiEfficiency, setAiEfficiency] = useState(null);
   const [limits, setLimits] = useState(null);
   const [saving, setSaving] = useState("");
+  const [acceptedPolicy, setAcceptedPolicy] = useState(null);
+  const [writeError, setWriteError] = useState(null);
   const [deleteScope, setDeleteScope] = useState("vectors_only");
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
   const [coverage, setCoverage] = useState(null);
@@ -957,33 +959,37 @@ export function GroupDetailView({
 
   useEffect(() => {
     if (!group) return;
+    const policy = acceptedPolicy?.source === group ? acceptedPolicy.policy : group.policy;
     setAiRoute({
-      mode: group.policy.ai_mode,
-      preferred_cloud_provider: group.policy.preferred_cloud_provider || "openai",
-      cloud_fallback: Boolean(group.policy.cloud_fallback),
+      mode: policy.ai_mode,
+      preferred_cloud_provider: policy.preferred_cloud_provider || "openai",
+      cloud_fallback: Boolean(policy.cloud_fallback),
     });
     setAiEfficiency({
-      preset: group.policy.ai_efficiency_preset || "",
-      filtering_level: group.policy.filtering_level || "standard",
-      rag_top_k: group.policy.rag_top_k ?? "",
-      rag_max_context_tokens: group.policy.rag_max_context_tokens ?? "",
+      preset: policy.ai_efficiency_preset || "",
+      filtering_level: policy.filtering_level || "standard",
+      rag_top_k: policy.rag_top_k ?? "",
+      rag_max_context_tokens: policy.rag_max_context_tokens ?? "",
     });
     setLimits({
-      retention_days: group.policy.retention_days ?? "",
-      max_messages: group.policy.max_messages ?? "",
-      max_storage_mb: group.policy.max_storage_mb ?? "",
-      max_vectors: group.policy.max_vectors ?? "",
+      retention_days: policy.retention_days ?? "",
+      max_messages: policy.max_messages ?? "",
+      max_storage_mb: policy.max_storage_mb ?? "",
+      max_vectors: policy.max_vectors ?? "",
     });
-  }, [group]);
+  }, [group, acceptedPolicy]);
 
   const perform = async (label, work, success) => {
     setSaving(label);
+    setWriteError(null);
     try {
       const result = await work();
+      if (["ai-route", "limits", "ai-efficiency"].includes(label)) setAcceptedPolicy({ source: group, policy: result });
       onToast(success);
       await resource.reload();
       return result;
     } catch (error) {
+      setWriteError({ chatId, error });
       onToast(error.message, "error");
       return null;
     } finally {
@@ -1218,7 +1224,10 @@ export function GroupDetailView({
   if (!group) return null;
 
   const permissions = group.permissions || {};
-  const policy = group.policy;
+  const policy = acceptedPolicy?.source === group ? acceptedPolicy.policy : group.policy;
+  const routeDirty = aiRoute && (aiRoute.mode !== policy.ai_mode || aiRoute.preferred_cloud_provider !== (policy.preferred_cloud_provider || "openai") || aiRoute.cloud_fallback !== Boolean(policy.cloud_fallback));
+  const limitsDirty = limits && Object.entries(limits).some(([key, value]) => String(value) !== String(policy[key] ?? ""));
+  const efficiencyDirty = aiEfficiency && Object.entries(aiEfficiency).some(([key, value]) => String(value) !== String(key === "preset" ? policy.ai_efficiency_preset || "" : key === "filtering_level" ? policy.filtering_level || "standard" : policy[key] ?? ""));
   const latestBackfill = backfillResource.data?.items?.[0] || null;
   const backfillPayload = latestBackfill?.payload || {};
   const latestDeletion = deletionResource.data?.items?.[0] || null;
@@ -1226,6 +1235,8 @@ export function GroupDetailView({
 
   return (
     <section className="ops-stack group-detail">
+      {writeError?.chatId === chatId ? <p role="alert">{writeError.error.message} Biểu mẫu còn thay đổi sẽ được ghi rõ là bản nháp.</p> : null}
+      {resource.error ? <ErrorState error={resource.error} onRetry={resource.reload} /> : null}
       <div className="ops-page-intro">
         <button className="button button--outline" onClick={onBack}>
           <ArrowLeft size={19} weight="bold" />
@@ -1291,6 +1302,7 @@ export function GroupDetailView({
 
         <section className="panel">
           <PanelHeader eyebrow="GROUP AI POLICY" title="AI mode & fallback" />
+          <p>{routeDirty ? "Bản nháp chưa lưu" : "Cấu hình đã lưu"} · AI mode máy chủ: {policy.ai_mode}</p>
           {aiRoute ? (
             <div className="ops-form-body">
               <label className="ops-field">
@@ -1352,7 +1364,7 @@ export function GroupDetailView({
 
       <section className="panel">
         <PanelHeader
-          eyebrow="CHANNEL ARCHIVE · MYSQL"
+          eyebrow="CHANNEL ARCHIVE · DỮ LIỆU"
           title="Lịch sử & xuất post"
           action={
             latestBackfill ? (
@@ -1596,6 +1608,7 @@ export function GroupDetailView({
               <FloppyDisk size={18} />
               Lưu hiệu quả AI
             </button>
+            <p>{efficiencyDirty ? "Bản nháp chưa lưu" : "Cấu hình đã lưu"} · Hiệu quả AI theo phản hồi máy chủ.</p>
           </div>
         ) : null}
       </section>
@@ -1632,10 +1645,12 @@ export function GroupDetailView({
       <section className="ops-two-column">
         <section className="panel">
           <PanelHeader eyebrow="RETENTION & QUOTA" title="Giới hạn dữ liệu" />
+          <p>{limitsDirty ? "Bản nháp chưa lưu" : "Cấu hình đã lưu"} · Retention máy chủ: {policy.retention_days ?? "Không giới hạn"} ngày.</p>
           {limits ? (
             <>
               <div className="quota-presets" role="group" aria-label="Preset quota">
                 <button
+                  style={{ minHeight: 44 }}
                   onClick={() =>
                     setLimits({
                       retention_days: 7,
@@ -1648,6 +1663,7 @@ export function GroupDetailView({
                   Nhẹ
                 </button>
                 <button
+                  style={{ minHeight: 44 }}
                   onClick={() =>
                     setLimits({
                       retention_days: 30,
@@ -1660,6 +1676,7 @@ export function GroupDetailView({
                   Lớn
                 </button>
                 <button
+                  style={{ minHeight: 44 }}
                   onClick={() =>
                     setLimits({
                       retention_days: "",
@@ -1881,6 +1898,8 @@ export function GroupDetailView({
         </div>
         <select
           className="ops-danger-select"
+          aria-label="Phạm vi xóa dữ liệu đã học"
+          style={{ minHeight: 44 }}
           value={deleteScope}
           onChange={(event) => setDeleteScope(event.target.value)}
         >
