@@ -119,7 +119,7 @@ test('Overview expires at 60s and retains failed refresh with stale status until
 });
 
 test('legacy invalid Overview timestamps render unknown without crashing', async ({ page }) => {
-  await page.clock.install({ time: now });
+  await page.clock.setFixedTime(now);
   await page.route('**/api/v1/**', route => {
     const body = new URL(route.request().url()).pathname.endsWith('/overview')
       ? { health: [null, 'bad', new Date(now.getTime() + 1000).toISOString()].map((checked_at, index) => ({ component: `service-${index}`, status: 'ok', checked_at })) }
