@@ -44,6 +44,8 @@ class FirstValueService:
         self._key = "fv1." + self._namespace
         self._closing = False
         self._selection_tasks: set[asyncio.Task] = set()
+        from .first_source_preview import FirstSourcePreviewService
+        self.preview = FirstSourcePreviewService(self)
 
     def _admit(self):
         try:

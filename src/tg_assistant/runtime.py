@@ -836,6 +836,14 @@ class Application:
             if status not in {"confirmed", "executing"}:
                 raise AuthorizationRevoked("action_no_longer_executable")
             await validate_action_epoch(current, action)
+            if action.action_id.startswith("fv1-") or "first_source_preview" in (action.payload or {}):
+                await self._validate_first_source_action(current, action)
+
+    async def _validate_first_source_action(self, session, action) -> None:
+        owner = self.first_value
+        if owner is None:
+            raise AuthorizationRevoked("first_source_preview_stale")
+        await owner.preview.validate(session, action)
 
     async def _cancel_revoked_job(self, job_id: str) -> None:
         async with self.database.session() as session:
@@ -2828,10 +2836,10 @@ class Application:
             async with self.database.session() as session:
                 await PendingActionService().recover_interrupted(session)
                 await session.commit()
-                actions = list(
+                action_ids = list(
                     (
                         await session.scalars(
-                            select(PendingAction)
+                            select(PendingAction.action_id)
                             .where(PendingAction.status == "confirmed")
                             .order_by(PendingAction.confirmed_at)
                             .limit(10)
@@ -2839,12 +2847,16 @@ class Application:
                         )
                     ).all()
                 )
-                for action in actions:
+                for action_id in action_ids:
+                    action = await session.get(PendingAction, action_id)
+                    if action is None or action.status != "confirmed":
+                        continue
+                    guided_preview = action_id.startswith("fv1-") or "first_source_preview" in (action.payload or {})
                     try:
                         if action.requested_by != self.user.owner_id:
                             raise PermissionError("Pending action không thuộc owner hiện tại.")
                         await self._action_fence(action)
-                        claimed = await PendingActionService().claim_execution(
+                        claimed = await PendingActionService(first_source_validator=self._validate_first_source_action).claim_execution(
                             session, action.action_id, action.requested_by
                         )
                         if not claimed:
@@ -3165,6 +3177,8 @@ class Application:
                             }
                         elif action.action_type == "enable_group_learning":
                             chat_id = int(action.chat_id)
+                            if action.action_id.startswith("fv1-") or "first_source_preview" in (action.payload or {}):
+                                await self._validate_first_source_action(session, action)
                             await self.policy.apply_template(session, chat_id, "knowledge")
                             authorization_epoch = await source_epoch(session, chat_id)
                             active_jobs = list(
@@ -3584,7 +3598,7 @@ class Application:
                         # Release DB grant/epoch locks before Telegram notification.
                         # The durable result must not depend on a slow bot request.
                         await session.commit()
-                        if action.action_type == "enable_group_learning" and self.bot and chat:
+                        if action.action_type == "enable_group_learning" and not guided_preview and self.bot and chat:
                             try:
                                 await self.bot.bot.send_message(
                                     action.requested_by,
@@ -3602,6 +3616,12 @@ class Application:
                                     error=str(redact(str(exc))),
                                 )
                     except Exception as exc:
+                        if guided_preview:
+                            # A rejected final fence must roll back every tentative grant/job first.
+                            await session.rollback()
+                            action = await session.get(PendingAction, action_id)
+                            if action is None:
+                                continue
                         action.status = (
                             "uncertain"
                             if (action.payload or {}).get("external_effect_started")
@@ -3611,6 +3631,8 @@ class Application:
                         )
                         action.error = str(redact(str(exc)))[:1000]
                         session.add(self._audit_row(action, "failed", str(exc)[:1000]))
+                        if guided_preview:
+                            await session.commit()
                         log.warning("action_failed", action_id=action.action_id, error=str(exc))
             await asyncio.sleep(2)
 
@@ -3682,6 +3704,7 @@ class Application:
             ai_provider_switch_handler=self._switch_ai_provider,
             bot_instance=self.bot_runtime.bot,
             admission=self.management_admitted,
+            first_source_validator=self._validate_first_source_action,
             polling_runner=self.bot_runtime.run_updates,
         )
         self.scheduler.start()

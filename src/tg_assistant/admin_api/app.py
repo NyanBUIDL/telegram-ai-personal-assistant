@@ -12,6 +12,7 @@ from typing import Any
 from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request, Response, status
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.security import APIKeyCookie
+from pydantic import TypeAdapter, ValidationError
 from sqlalchemy import String, cast, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.exc import StaleDataError
@@ -20,6 +21,7 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 from .. import __version__
 from ..ai.vector import LocalVectorStore
 from ..config import Settings
+from ..contracts import OwnerId, TelegramId
 from ..db.base import Database, folded_contains
 from ..db.models import (
     AiUsage,
@@ -192,6 +194,12 @@ def _job_json(job: BackgroundJob) -> dict:
     payload = redact(job.payload or {})
     if not isinstance(payload, dict):
         payload = {}
+    for field, kind in (("chat_id", TelegramId), ("owner_id", OwnerId)):
+        if field in payload:
+            try:
+                payload[field] = str(TypeAdapter(kind).validate_python(payload[field]))
+            except ValidationError:
+                payload[field] = None
     phase = payload.get("phase")
     if not phase:
         phase = {
@@ -368,7 +376,14 @@ def create_admin_app(context: AdminContext) -> FastAPI:
         session_minutes=settings.admin_session_minutes,
         replay_store=LegacyCodeReplayStore(settings.data_dir / "config", profile_id=settings.profile_id),
     )
-    pending = PendingActionService(ttl_seconds=settings.confirmation_ttl_seconds)
+    async def validate_first_source(db, action):
+        owner = context.first_value_getter() if context.first_value_getter is not None else None
+        if owner is None:
+            raise PermissionError("first_source_preview_stale")
+        await owner.preview.validate(db, action)
+
+    pending = PendingActionService(ttl_seconds=settings.confirmation_ttl_seconds,
+                                   first_source_validator=validate_first_source)
     cookie = APIKeyCookie(name=SESSION_COOKIE, auto_error=False)
     app = FastAPI(
         title="Telegram AI Personal Assistant Admin API",

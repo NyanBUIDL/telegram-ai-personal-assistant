@@ -5,7 +5,8 @@ from dataclasses import dataclass
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from .engine import AiEngine, AiUnavailableError
+from .engine import AiEngine, AiPolicyError, AiUnavailableError
+from .observations import ChatModelCandidate, ProviderAnswerResult
 
 log = structlog.get_logger(__name__)
 
@@ -108,6 +109,71 @@ class AiRouter:
                     fallback_used=index > 0,
                 )
                 return answer
+            except AiUnavailableError as exc:
+                last_error = exc
+                log.warning(
+                    "ai_route_failed",
+                    provider=provider,
+                    mode=route.mode,
+                    has_fallback=index + 1 < len(plan),
+                    error_code="provider_unavailable",
+                )
+        raise RuntimeError(
+            "AI provider unavailable for the explicitly selected route"
+        ) from last_error
+
+    async def answer_observed(
+        self,
+        session: AsyncSession,
+        question: str,
+        context: list[str],
+        *,
+        route: AiRoute,
+        candidates: tuple[ChatModelCandidate, ...],
+        feature: str,
+        query_route: str,
+        chat_id: int | None,
+        source_modes: list[str] | None = None,
+        pre_submit,
+    ) -> ProviderAnswerResult:
+        """Observed answer over the current plan; only genuine unavailability falls back."""
+        if not callable(pre_submit):
+            raise AiPolicyError("Admission callback required")
+        if type(candidates) is not tuple or not all(
+            isinstance(item, ChatModelCandidate) for item in candidates
+        ):
+            raise AiPolicyError("Chat model candidates required")
+        by_provider = {item.provider: item for item in candidates}
+        if len(by_provider) != len(candidates):
+            raise AiPolicyError("Ambiguous chat model candidates")
+        plan = self.plan(route)
+        if not plan:
+            raise AiPolicyError("AI route has no available provider")
+        last_error: Exception | None = None
+        for index, provider in enumerate(plan):
+            candidate = by_provider.get(provider)
+            if candidate is None:
+                raise AiPolicyError("No chat model candidate for the planned provider")
+            try:
+                result = await self.engines[provider].answer_observed(
+                    session,
+                    question,
+                    context,
+                    candidate=candidate,
+                    feature=feature,
+                    route=query_route,
+                    chat_id=chat_id,
+                    fallback_used=index > 0,
+                    source_modes=source_modes,
+                    pre_submit=pre_submit,
+                )
+                log.info(
+                    "ai_route_succeeded",
+                    provider=provider,
+                    mode=route.mode,
+                    fallback_used=index > 0,
+                )
+                return result
             except AiUnavailableError as exc:
                 last_error = exc
                 log.warning(

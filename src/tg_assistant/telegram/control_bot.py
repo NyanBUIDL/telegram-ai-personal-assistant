@@ -1209,6 +1209,7 @@ class ControlBot:
         ai_provider_switch_handler: AiProviderSwitchHandler | None = None,
         bot_instance: Bot | None = None,
         admission: Callable[[], bool] | None = None,
+        first_source_validator=None,
         polling_runner: Callable[[Dispatcher, Bot], Awaitable[None]] | None = None,
     ) -> None:
         if bot_instance is not None and not isinstance(bot_instance, Bot):
@@ -1232,7 +1233,7 @@ class ControlBot:
         self._background_tasks: set[asyncio.Task] = set()
         self._handler_tasks: set[asyncio.Task] = set()
         self.actions, self.tasks, self.search = (
-            PendingActionService(),
+            PendingActionService(first_source_validator=first_source_validator),
             TaskService(),
             SearchService(policy),
         )

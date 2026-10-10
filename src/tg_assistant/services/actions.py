@@ -41,8 +41,15 @@ MAX_BULK_LEARNING_SOURCES = 500
 
 
 class PendingActionService:
-    def __init__(self, ttl_seconds: int = 300) -> None:
+    def __init__(self, ttl_seconds: int = 300, *, first_source_validator=None) -> None:
         self.ttl_seconds = ttl_seconds
+        self.first_source_validator = first_source_validator
+
+    async def _validate_first_source(self, session, action):
+        if action.action_id.startswith("fv1-") or "first_source_preview" in (action.payload or {}):
+            if self.first_source_validator is None:
+                raise PermissionError("first_source_preview_stale")
+            await self.first_source_validator(session, action)
 
     async def create(
         self,
@@ -174,6 +181,7 @@ class PendingActionService:
             action.status = "expired"
             raise TimeoutError("Action đã hết hạn")
         await validate_action_epoch(session, action)
+        await self._validate_first_source(session, action)
         consumed = await session.execute(
             update(PendingAction)
             .where(
@@ -218,6 +226,7 @@ class PendingActionService:
         if not action or action.requested_by != actor_id or action.status != "confirmed":
             return False
         await validate_action_epoch(session, action)
+        await self._validate_first_source(session, action)
         now = datetime.now(UTC)
         claimed = await session.execute(
             update(PendingAction)

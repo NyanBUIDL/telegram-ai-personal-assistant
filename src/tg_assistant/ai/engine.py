@@ -3,6 +3,8 @@ from __future__ import annotations
 import asyncio
 import json
 from collections import deque
+from datetime import UTC, datetime
+from decimal import Decimal
 from time import monotonic
 from uuid import uuid4
 
@@ -10,7 +12,15 @@ from openai import AsyncOpenAI
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..security import contains_secret
-from .budget import BudgetService
+from .budget import BudgetService, reservation_model
+from .observations import (
+    ChatModelCandidate,
+    ProviderAnswerResult,
+    SettledProviderExecution,
+    VerifiedChatModel,
+    candidate_fingerprint,
+    execution_fingerprint,
+)
 
 
 class AiPolicyError(RuntimeError):
@@ -23,6 +33,41 @@ class AiUnavailableError(RuntimeError):
 
 class AiUncertainError(RuntimeError):
     """A submitted cloud request may have been billed; never blindly retry it."""
+
+
+def _utc(value: datetime) -> datetime:
+    if type(value) is not datetime:
+        raise TypeError("timestamp required")
+    return value.replace(tzinfo=UTC) if value.tzinfo is None else value.astimezone(UTC)
+
+
+def _qualified_text(response) -> str:
+    """Nonempty, nonrefusal text from a completed Responses object, else ValueError."""
+    if getattr(response, "status", None) != "completed":
+        raise ValueError("response_not_completed")
+    if getattr(response, "error", None) is not None:
+        raise ValueError("response_error")
+    if getattr(response, "incomplete_details", None) is not None:
+        raise ValueError("response_incomplete")
+    parts: list[str] = []
+    for item in response.output:
+        kind = getattr(item, "type", None)
+        if kind == "reasoning":
+            continue
+        if (
+            kind != "message"
+            or getattr(item, "status", None) != "completed"
+            or getattr(item, "role", None) != "assistant"
+        ):
+            raise ValueError("unsupported_output")
+        for part in item.content:
+            if getattr(part, "type", None) != "output_text" or type(part.text) is not str:
+                raise ValueError("unsupported_output")
+            parts.append(part.text)
+    text = "".join(parts)
+    if not text.strip():
+        raise ValueError("empty_output")
+    return text
 
 
 def make_embedding_engine(settings, budget, api_key=None):
@@ -179,33 +224,77 @@ class AiEngine:
             self._current_consent()
             if pre_submit is not None:
                 await pre_submit()
+        except BaseException:
+            # A withdrawn admission keeps its original cause; it is never "unavailable".
+            await self.budget.mark_uncertain(session, token.request_id)
+            raise
+        try:
             response = await invoke()
-            usage = response.usage
-            if usage is None:
-                raise ValueError("usage_missing")
-            input_count = getattr(usage, "input_tokens", getattr(usage, "total_tokens", None))
-            output_count = getattr(usage, "output_tokens", 0)
-            details = getattr(usage, "input_tokens_details", None)
-            cached = (getattr(details, "cached_tokens", 0) or 0) if details else 0
-            cache_write = (getattr(details, "cache_write_tokens", 0) or 0) if details else 0
-            if input_count is None:
-                raise ValueError("usage_missing")
+            input_count, output_count, cached, cache_write = self._usage_counts(response)
             await self.budget.reconcile(
                 session,
                 token.request_id,
-                input_tokens=int(input_count),
-                output_tokens=int(output_count),
-                cached_tokens=int(cached),
-                cache_write_tokens=int(cache_write),
+                input_tokens=input_count,
+                output_tokens=output_count,
+                cached_tokens=cached,
+                cache_write_tokens=cache_write,
             )
             return response
         except BaseException as exc:
             await self.budget.mark_uncertain(session, token.request_id)
-            if isinstance(exc, asyncio.CancelledError):
+            # Cancellation and a withdrawn policy/admission must keep their own cause.
+            if isinstance(exc, (asyncio.CancelledError, AiPolicyError)):
                 raise
             if self.is_local:
                 raise AiUnavailableError("Local model outcome unavailable") from None
             raise AiUncertainError("Cloud request outcome requires reconciliation") from None
+
+    @staticmethod
+    def _usage_counts(response) -> tuple[int, int, int, int]:
+        usage = response.usage
+        if usage is None:
+            raise ValueError("usage_missing")
+        input_count = getattr(usage, "input_tokens", getattr(usage, "total_tokens", None))
+        output_count = getattr(usage, "output_tokens", 0)
+        details = getattr(usage, "input_tokens_details", None)
+        cached = (getattr(details, "cached_tokens", 0) or 0) if details else 0
+        cache_write = (getattr(details, "cache_write_tokens", 0) or 0) if details else 0
+        counts = (input_count, output_count, cached, cache_write)
+        if input_count is None:
+            raise ValueError("usage_missing")
+        if any(type(count) is not int or count < 0 for count in counts):
+            raise ValueError("usage_not_exact")
+        return counts
+
+    @staticmethod
+    def _raw_usage_counts(data) -> tuple[int, int, int, int]:
+        """Exact counts from the original JSON usage, before the SDK can coerce its types."""
+        usage = data.get("usage") if type(data) is dict else None
+        if type(usage) is not dict:
+            raise ValueError("usage_missing")
+
+        def count(container, key, *, required):
+            if key not in container:
+                if required:
+                    raise ValueError("usage_missing")
+                return 0
+            value = container[key]
+            if type(value) is not int or value < 0:
+                raise ValueError("usage_not_exact")
+            return value
+
+        input_count = count(usage, "input_tokens", required=True)
+        output_count = count(usage, "output_tokens", required=True)
+        cached = cache_write = 0
+        if "input_tokens_details" in usage:
+            details = usage["input_tokens_details"]
+            if type(details) is not dict:
+                raise ValueError("usage_not_exact")
+            cached = count(details, "cached_tokens", required=False)
+            cache_write = count(details, "cache_write_tokens", required=False)
+        if cached + cache_write > input_count:
+            raise ValueError("usage_not_exact")
+        return input_count, output_count, cached, cache_write
 
     @property
     def available(self) -> bool:
@@ -226,6 +315,188 @@ class AiEngine:
                 delay = max(0.01, 60 - (now - self._requests[0]))
             await asyncio.sleep(delay)
 
+    def _answer_request(self, question, context, include_source_refs, source_modes):
+        """Validate and build the Responses request; None means no client is configured."""
+        self._validate_content([question, *context], source_modes)
+        if not self.model:
+            raise AiPolicyError("This engine has no answer capability")
+        if not self.client:
+            return None
+        source_context = "\n\n".join(context)
+        instructions = SYSTEM_PROMPT if include_source_refs else GROUP_SYSTEM_PROMPT
+        payload = f"NGUỒN:\n{source_context}\n\nCÂU HỎI:\n{question}"
+        estimated_input_tokens = len((instructions + payload).encode("utf-8")) + 64
+        if estimated_input_tokens > self.max_input_tokens:
+            raise RuntimeError("Ngữ cảnh vượt MAX_INPUT_TOKENS_PER_REQUEST.")
+        request = {
+            "model": self.model,
+            "instructions": instructions,
+            "input": payload,
+            "max_output_tokens": self.max_output_tokens,
+        }
+        if not self.is_local:
+            request["store"] = False
+            if self.provider == "openrouter":
+                request["extra_body"] = {
+                    "provider": {"allow_fallbacks": False, "order": ["openai"]}
+                }
+        return request, estimated_input_tokens
+
+    def _observed_identity(self, candidate, client, model) -> str:
+        """Re-derive the actual provider/model/endpoint and require the captured identity."""
+        from ..services.provider_connections import ModelSelection
+
+        if client is None or self.client is not client or self.model != model:
+            raise AiPolicyError("Provider identity changed")
+        try:
+            selection = ModelSelection.parse(
+                self.provider,
+                {
+                    "service": "chat_ai",
+                    "model": model,
+                    "endpoint": str(client.base_url),
+                    "cloud_consent": self.cloud_consent,
+                },
+            )
+        except ValueError:
+            raise AiPolicyError("Provider identity rejected") from None
+        actual = (self.provider, selection.endpoint_id, model)
+        if (
+            candidate.provider,
+            candidate.endpoint_id,
+            candidate.requested_model,
+        ) != actual or candidate.candidate_fingerprint != candidate_fingerprint(*actual):
+            raise AiPolicyError("Chat model candidate does not match the planned engine")
+        return selection.endpoint_id
+
+    async def answer_observed(
+        self,
+        session: AsyncSession,
+        question: str,
+        context: list[str],
+        *,
+        candidate: ChatModelCandidate,
+        feature: str,
+        route: str,
+        chat_id: int | None,
+        fallback_used: bool = False,
+        source_modes: list[str] | None = None,
+        pre_submit,
+    ) -> ProviderAnswerResult:
+        """One real Responses call; the result is issued only from its own settled ledger row."""
+        if not callable(pre_submit):
+            raise AiPolicyError("Admission callback required")
+        if not isinstance(candidate, ChatModelCandidate):
+            raise AiPolicyError("Chat model candidate required")
+        if not isinstance(self.budget, BudgetService):
+            raise AiPolicyError("Observed answers require the reservation ledger")
+        client, model = self.client, self.model
+        endpoint_id = self._observed_identity(candidate, client, model)
+        prepared = self._answer_request(question, context, True, source_modes)
+        if prepared is None:
+            raise AiPolicyError("AI client unavailable")
+        request, estimated_input_tokens = prepared
+
+        async def admit() -> None:
+            self._observed_identity(candidate, client, model)
+            await pre_submit()
+            self._observed_identity(candidate, client, model)
+
+        received = []
+
+        async def invoke():
+            raw = await client.responses.with_raw_response.create(**request)
+            received.append(True)  # a response arrived: later local rejection is not unavailability
+            exact = self._raw_usage_counts(raw.http_response.json())
+            response = raw.parse()
+            if self._usage_counts(response) != exact:
+                raise ValueError("usage_mismatch")
+            return response
+
+        request_id = uuid4().hex
+        started_at = datetime.now(UTC)
+        try:
+            response = await self._cloud_call(
+                session,
+                model=model,
+                input_tokens=estimated_input_tokens,
+                output_tokens=self.max_output_tokens,
+                operation="answer",
+                feature=feature,
+                route=route,
+                chat_id=chat_id,
+                fallback_used=fallback_used,
+                invoke=invoke,
+                request_id=request_id,
+                pre_submit=admit,
+            )
+        except AiUnavailableError:
+            if received:  # a response arrived: not "unreachable", so never fallback-worthy
+                raise AiUncertainError("Local response could not be settled") from None
+            raise
+        finished_at = datetime.now(UTC)
+        try:
+            answer = _qualified_text(response)
+            counts = self._usage_counts(response)
+            async with self.budget._sessions(session)() as fresh:
+                row = await fresh.get(reservation_model(), request_id)
+                if row is None:
+                    raise ValueError("settlement_missing")
+                stamps = [
+                    _utc(value) for value in (row.occurred_at, row.submitted_at, row.settled_at)
+                ]
+                if (
+                    (row.profile_id, row.provider, row.model, row.operation)
+                    != (self.budget.profile_id, self.provider, model, "answer")
+                    or (row.feature, row.route, row.chat_id) != (feature, route, chat_id)
+                    or row.fallback_used is not fallback_used
+                    or row.is_local is not self.is_local
+                    or row.state != "settled"
+                    or not started_at <= stamps[0] <= stamps[1] <= stamps[2] <= finished_at
+                    or (
+                        row.actual_input_tokens,
+                        row.actual_output_tokens,
+                        row.cached_tokens,
+                        row.cache_write_tokens,
+                    )
+                    != counts
+                    or type(row.actual_cost_usd) not in (Decimal, str, int)
+                ):
+                    raise ValueError("settlement_mismatch")
+                execution = SettledProviderExecution(
+                    request_id=request_id,
+                    profile_id=row.profile_id,
+                    provider=self.provider,
+                    endpoint_id=endpoint_id,
+                    requested_model=model,
+                    reported_model=None,  # untrusted provider text never enters the carrier
+                    capability_fingerprint=execution_fingerprint(
+                        request_id,
+                        self.provider,
+                        endpoint_id,
+                        model,
+                        str(getattr(response, "id", "")),
+                        stamps[2].isoformat(),
+                    ),
+                    route=row.route,
+                    fallback_used=row.fallback_used,
+                    pricing_version=row.pricing_version,
+                    settled_at=stamps[2],
+                    input_tokens=row.actual_input_tokens,
+                    output_tokens=row.actual_output_tokens,
+                    cached_tokens=row.cached_tokens,
+                    cache_write_tokens=row.cache_write_tokens,
+                    cost_usd=Decimal(row.actual_cost_usd),
+                )
+            capability = VerifiedChatModel(
+                self.provider, endpoint_id, model, execution.capability_fingerprint
+            )
+            result = ProviderAnswerResult(answer, execution, capability)
+        except (TypeError, ValueError, ArithmeticError, AttributeError):
+            raise AiUncertainError("Provider response did not qualify") from None
+        await admit()  # ownership/admission must still hold after the awaited execution
+        return result
+
     async def answer(
         self,
         session: AsyncSession,
@@ -241,17 +512,10 @@ class AiEngine:
         request_id: str | None = None,
         pre_submit=None,
     ) -> str:
-        self._validate_content([question, *context], source_modes)
-        if not self.model:
-            raise AiPolicyError("This engine has no answer capability")
-        if not self.client:
+        prepared = self._answer_request(question, context, include_source_refs, source_modes)
+        if prepared is None:
             return "AI đang tắt. Tìm kiếm từ khóa, quản lý quyền và công việc vẫn hoạt động."
-        source_context = "\n\n".join(context)
-        instructions = SYSTEM_PROMPT if include_source_refs else GROUP_SYSTEM_PROMPT
-        payload = f"NGUỒN:\n{source_context}\n\nCÂU HỎI:\n{question}"
-        estimated_input_tokens = len((instructions + payload).encode("utf-8")) + 64
-        if estimated_input_tokens > self.max_input_tokens:
-            raise RuntimeError("Ngữ cảnh vượt MAX_INPUT_TOKENS_PER_REQUEST.")
+        request, estimated_input_tokens = prepared
         if self.is_local and not isinstance(self.budget, BudgetService):
             await self.budget.ensure_token_limits(
                 session,
@@ -260,18 +524,6 @@ class AiEngine:
                 feature=feature,
                 chat_id=chat_id,
             )
-        request = {
-            "model": self.model,
-            "instructions": instructions,
-            "input": payload,
-            "max_output_tokens": self.max_output_tokens,
-        }
-        if not self.is_local:
-            request["store"] = False
-            if self.provider == "openrouter":
-                request["extra_body"] = {
-                    "provider": {"allow_fallbacks": False, "order": ["openai"]}
-                }
         if isinstance(self.budget, BudgetService):
             response = await self._cloud_call(
                 session,
@@ -477,9 +729,12 @@ class AiEngine:
                 request_id=request_id,
                 pre_submit=pre_submit,
             )
-            vectors = [
-                list(item.embedding) for item in sorted(response.data, key=lambda item: item.index)
-            ]
+            items = sorted(response.data, key=lambda item: item.index)
+            if any(type(item.index) is not int for item in items) or [
+                item.index for item in items
+            ] != list(range(len(texts))):
+                raise AiPolicyError("Embedding response indices do not match inputs")
+            vectors = [list(item.embedding) for item in items]
             if len(vectors) != len(texts) or (
                 self.embedding_dimension is not None
                 and any(len(vector) != self.embedding_dimension for vector in vectors)
@@ -506,7 +761,12 @@ class AiEngine:
             latency_ms=latency_ms,
             is_local=self.is_local,
         )
-        return [list(item.embedding) for item in response.data]
+        items = sorted(response.data, key=lambda item: item.index)
+        if any(type(item.index) is not int for item in items) or [
+            item.index for item in items
+        ] != list(range(len(texts))):
+            raise AiPolicyError("Embedding response indices do not match inputs")
+        return [list(item.embedding) for item in items]
 
     async def close(self) -> None:
         if self.client:

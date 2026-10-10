@@ -542,6 +542,28 @@ def test_learning_job_json_preserves_reconciliation_warning_contract() -> None:
     assert payload["vectors_after"] == 41
 
 
+@pytest.mark.parametrize("field", ["chat_id", "owner_id"])
+@pytest.mark.parametrize("value", [9007199254740997, "9007199254740997"])
+def test_job_payload_ids_are_canonical_before_browser_rounding(field, value):
+    job = BackgroundJob(job_type="learn_group", status="queued", payload={field: value})
+    public = _job_json(job)
+    assert public["payload"][field] == "9007199254740997"
+    assert job.payload[field] == value
+
+
+@pytest.mark.parametrize("field", ["chat_id", "owner_id"])
+@pytest.mark.parametrize("value", [True, 0, 1.5, "01", "-0", "1\n"])
+def test_invalid_job_payload_ids_cannot_correlate_to_selected_source(field, value):
+    job = BackgroundJob(job_type="learn_group", status="queued", payload={field: value})
+    assert _job_json(job)["payload"][field] is None
+
+
+def test_job_payload_negative_chat_id_is_preserved_but_negative_owner_denied():
+    job = BackgroundJob(job_type="learn_group", status="queued",
+                        payload={"chat_id": -9007199254740997, "owner_id": -1})
+    assert _job_json(job)["payload"] == {"chat_id": "-9007199254740997", "owner_id": None}
+
+
 async def test_admin_api_returns_sanitized_maintenance_state(admin_client, tmp_path):
     from tg_assistant.services.maintenance import MaintenanceService
 
