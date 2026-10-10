@@ -16,11 +16,14 @@ from tg_assistant.config import Settings
 from tg_assistant.db.base import Database
 from tg_assistant.db.models import (
     AppSetting,
+    AuditLog,
     BackgroundJob,
+    KnowledgeSource,
     PendingAction,
     PermissionName,
     TelegramChat,
     TelegramChatPermission,
+    TelegramChatPolicy,
 )
 from tg_assistant.policy import PERMISSION_TEMPLATES, PolicyEngine
 from tg_assistant.runtime import Application
@@ -418,3 +421,121 @@ async def test_bot_notice_matches_guided_queue_scope_and_preserves_advanced(guid
     else:
         assert len(notices) == 1 and notices[0][0] == 123
         assert "ĐÃ HỌC XONG GROUP" in notices[0][1]
+
+
+@pytest.mark.parametrize("status, identity", [
+    ("queued", "advanced"), ("running", "advanced"), ("paused", "advanced"),
+    ("pause_requested", "advanced"), ("cancel_requested", "advanced"),
+    ("queued", "old_action"), ("queued", "wrong_owner"),
+    ("queued", "stale_epoch"), ("queued", "same_action"),
+    ("queued", "whitespace_id"), ("queued", "padded_id"),
+    ("queued", "source_list"), ("queued", "malformed_mapping"),
+    ("queued", "malformed_id"), ("queued", "malformed_source_list"),
+    ("queued", "absent_source"),
+])
+async def test_guided_conflict_preserves_existing_learning_and_grants(guided, status, identity):
+    action = await create(guided)
+    async with guided.runtime.database.session() as db:
+        await actions(guided).confirm(db, action.action_id, 123)
+        epoch = await db.scalar(select(TelegramChatPolicy.authorization_epoch)
+                                .where(TelegramChatPolicy.chat_id == A))
+        payload = {"chat_id": A, "owner_id": 123, "authorization_epoch": epoch, "limit": 17}
+        if identity != "advanced":
+            payload["action_id"] = action.action_id if identity == "same_action" else "fv1-old"
+        if identity == "wrong_owner":
+            payload["owner_id"] = 456
+        if identity == "stale_epoch":
+            payload["authorization_epoch"] = epoch + 1
+        if identity == "whitespace_id":
+            payload["chat_id"] = f" {A} "
+        if identity == "padded_id":
+            payload["chat_id"] = "-0" + str(A)[1:]
+        if identity == "source_list":
+            payload["chat_id"], payload["chat_ids"] = B, [str(A)]
+        if identity == "malformed_mapping":
+            payload = [A]
+        if identity == "malformed_id":
+            payload["chat_id"] = "not-an-id"
+        if identity == "malformed_source_list":
+            payload["chat_ids"] = None
+        if identity == "absent_source":
+            payload.pop("chat_id")
+        db.add(BackgroundJob(job_type="learn_group", status=status, payload=payload))
+        db.add(KnowledgeSource(chat_id=A, status="paused", requested_for_learning=False,
+                               last_error="existing_source_state"))
+
+    async def stored_state():
+        async with guided.runtime.database.session() as db:
+            return [(await db.execute(select(*model.__table__.columns))).all() for model in (
+                BackgroundJob, KnowledgeSource, TelegramChatPolicy, TelegramChatPermission,
+            )]
+
+    before = await stored_state()
+    mutations = []
+    def record(_conn, _cursor, statement, _parameters, _context, _many):
+        if statement.startswith(("INSERT", "UPDATE", "DELETE")) and any(
+            name in statement for name in ("background_jobs", "knowledge_sources", "telegram_chat_policies", "telegram_chat_permissions")
+        ):
+            mutations.append(statement)
+    event.listen(guided.runtime.database.engine.sync_engine, "before_cursor_execute", record)
+    try:
+        await execute(guided)
+    finally:
+        event.remove(guided.runtime.database.engine.sync_engine, "before_cursor_execute", record)
+    async with guided.runtime.database.session() as db:
+        rejected = await db.get(PendingAction, action.action_id)
+        assert rejected.status == "failed"
+        assert rejected.error == "source_learning_in_progress"
+        assert "job_id" not in rejected.payload and "deduplicated" not in rejected.payload
+        audits = (await db.scalars(select(AuditLog).where(AuditLog.correlation_id == action.action_id))).all()
+        assert len(audits) == 1 and audits[0].outcome == "failed"
+        assert audits[0].reason == "source_learning_in_progress"
+    assert await stored_state() == before
+    assert mutations == [], "Reject the conflicting job before any tentative preset/job/source write"
+    assert not guided.runtime.settings.cloud_consent
+    assert not guided.owner.selection_status().test_available
+
+
+async def test_guided_other_source_job_is_not_a_conflict(guided):
+    action = await create(guided)
+    async with guided.runtime.database.session() as db:
+        await actions(guided).confirm(db, action.action_id, 123)
+        other = BackgroundJob(job_type="learn_group", status="running", payload={"chat_id": B})
+        db.add(other)
+        await db.flush()
+        other_id = other.id
+    await execute(guided)
+    async with guided.runtime.database.session() as db:
+        finished = await db.get(PendingAction, action.action_id)
+        assert finished.status == "executed" and not finished.payload["deduplicated"]
+        job = await db.get(BackgroundJob, finished.payload["job_id"])
+        assert job.payload["chat_id"] == A and job.payload["action_id"] == action.action_id
+        assert job.payload["owner_id"] == 123 and job.status == "queued"
+        assert (await db.get(BackgroundJob, other_id)).status == "running"
+
+
+@pytest.mark.parametrize("changes_permissions", [False, True])
+async def test_advanced_learning_retains_preset_before_job_dedup(guided, changes_permissions):
+    async with guided.runtime.database.session() as db:
+        if not changes_permissions:
+            await guided.runtime.policy.apply_template(db, A, "knowledge")
+        action = await PendingActionService().create(db, action_type="enable_group_learning",
+            requested_by=123, chat_id=A, payload={"limit": 1000}, preview="advanced")
+        await PendingActionService().confirm(db, action.action_id, 123)
+        existing = BackgroundJob(job_type="learn_group", status="running", payload={"chat_id": A})
+        db.add(existing)
+        await db.flush()
+        existing_id = existing.id
+    await execute(guided)
+    async with guided.runtime.database.session() as db:
+        finished = await db.get(PendingAction, action.action_id)
+        assert finished.status == "executed"
+        if changes_permissions:
+            assert not finished.payload["deduplicated"]
+            assert finished.payload["job_id"] != existing_id
+            assert (await db.get(BackgroundJob, existing_id)).status == "cancelled"
+            assert len((await db.scalars(select(BackgroundJob))).all()) == 2
+        else:
+            assert finished.payload["deduplicated"] and finished.payload["job_id"] == existing_id
+            assert (await db.get(BackgroundJob, existing_id)).status == "running"
+            assert len((await db.scalars(select(BackgroundJob))).all()) == 1

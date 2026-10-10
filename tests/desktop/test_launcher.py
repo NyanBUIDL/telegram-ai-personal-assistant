@@ -1413,7 +1413,7 @@ def test_private_tree_secures_existing_protected_file_without_content_changes(tm
     created = subprocess.run(
         [shutil.which("powershell.exe"), "-NoProfile", "-NonInteractive", "-Command", command],
         capture_output=True,
-        timeout=10,
+        timeout=30,
     )
     assert created.returncode == 0, created.stderr.decode(errors="replace")
     assert hasattr(instance, "secure_tree"), "Existing protected file ACLs are not repaired"
@@ -1425,7 +1425,8 @@ def test_private_tree_secures_existing_protected_file_without_content_changes(tm
     measured = subprocess.run(
         [shutil.which("powershell.exe"), "-NoProfile", "-NonInteractive", "-Command", command],
         capture_output=True,
-        timeout=10,
+        # Hosted Windows ACL inspection exceeded ten seconds before returning a descriptor.
+        timeout=30,
     )
     assert measured.returncode == 0, measured.stderr.decode(errors="replace")
     descriptor = json.loads(measured.stdout)
@@ -1453,7 +1454,7 @@ def test_tree_hardlink_refusal_preserves_outside_descriptor(tmp_path):
         result = subprocess.run(
             [shutil.which("powershell.exe"), "-NoProfile", "-NonInteractive", "-Command", command],
             capture_output=True,
-            timeout=10,
+            timeout=30,
         )
         assert result.returncode == 0, result.stderr.decode(errors="replace")
         return result.stdout

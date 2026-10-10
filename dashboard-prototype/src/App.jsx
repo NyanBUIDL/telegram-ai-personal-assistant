@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Bell,
   Brain,
@@ -232,9 +232,14 @@ export function App() {
   const [mobileNav, setMobileNav] = useState(false);
   const [notifications, setNotifications] = useState(false);
   const [reviewAction, setReviewAction] = useState(null);
+  const withdrawFirstSourceAction = useCallback(actionId => {
+    setReviewAction(current => current?.action_id === actionId ? null : current);
+  }, []);
   const [reviewBusy, setReviewBusy] = useState(false);
   const [toast, setToast] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [firstSourceRefreshKey, setFirstSourceRefreshKey] = useState(0);
+  const [realtimeRefreshKey, setRealtimeRefreshKey] = useState(0);
   const [snapshot, setSnapshot] = useState(null);
   const [realtimeState, setRealtimeState] = useState("connecting");
   const [lastRealtimeAt, setLastRealtimeAt] = useState(null);
@@ -296,6 +301,7 @@ export function App() {
         ]);
         if (snapshotSignature.current && snapshotSignature.current !== signature) {
           setRefreshKey((key) => key + 1);
+          setRealtimeRefreshKey((key) => key + 1);
         }
         snapshotSignature.current = signature;
       },
@@ -350,6 +356,7 @@ export function App() {
           : "Đã hủy PendingAction.",
       );
       setRefreshKey((key) => key + 1);
+      setFirstSourceRefreshKey((key) => key + 1);
     } catch (error) {
       showToast(error.message, "error");
     } finally {
@@ -370,6 +377,7 @@ export function App() {
   };
 
   const retryRealtime = () => {
+    setFirstSourceRefreshKey((key) => key + 1);
     if (!navigator.onLine) {
       setRealtimeState("offline");
       showToast("Máy đang offline. Hãy kiểm tra kết nối mạng.", "error");
@@ -542,7 +550,7 @@ export function App() {
         ) : null}
 
         <div className="content">
-          {["overview", "groups", "knowledge"].includes(activePage) ? <FirstSourceAssistant session={session} refreshKey={refreshKey} onOpenGroup={openGroup} /> : null}
+          {["overview", "groups", "knowledge"].includes(activePage) ? <FirstSourceAssistant session={session} refreshKey={firstSourceRefreshKey} backgroundRefreshKey={realtimeRefreshKey} onOpenGroup={openGroup} onCreatedAction={setReviewAction} onWithdrawAction={withdrawFirstSourceAction} openReviewActionId={reviewAction?.action_id} /> : null}
           {["overview", "connections"].includes(activePage) ? <SetupReadiness session={session} /> : null}
           {activePage === "overview" ? (
             <OverviewView

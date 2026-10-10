@@ -194,7 +194,7 @@ textarea:focus-visible,
   box-shadow: 0 0 0 4px var(--yellow);
 }
 
-button:disabled { cursor: wait; opacity: .72; }
+button:disabled, .first-source-assistant button[aria-disabled="true"] { cursor: wait; opacity: .72; }
 
 .sr-only {
   position: absolute;

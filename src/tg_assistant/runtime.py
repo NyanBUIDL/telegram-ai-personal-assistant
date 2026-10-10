@@ -98,6 +98,7 @@ from .services.revocation import (
     require_authorization,
     require_fresh_authorization,
     source_epoch,
+    source_ids,
     validate_action_epoch,
     validate_answer,
 )
@@ -3177,10 +3178,11 @@ class Application:
                             }
                         elif action.action_type == "enable_group_learning":
                             chat_id = int(action.chat_id)
-                            if action.action_id.startswith("fv1-") or "first_source_preview" in (action.payload or {}):
+                            if guided_preview:
                                 await self._validate_first_source_action(session, action)
-                            await self.policy.apply_template(session, chat_id, "knowledge")
-                            authorization_epoch = await source_epoch(session, chat_id)
+                            else:
+                                await self.policy.apply_template(session, chat_id, "knowledge")
+                                authorization_epoch = await source_epoch(session, chat_id)
                             active_jobs = list(
                                 (
                                     await session.scalars(
@@ -3192,12 +3194,22 @@ class Application:
                                                     "running",
                                                     "paused",
                                                     "pause_requested",
-                                                )
+                                                ) + (("cancel_requested",) if guided_preview else ())
                                             ),
                                         )
                                     )
                                 ).all()
                             )
+                            if guided_preview:
+                                try:
+                                    for item in active_jobs:
+                                        sources = source_ids(item.payload)
+                                        if not sources or chat_id in sources:
+                                            raise ValueError("source_learning_in_progress")
+                                except (TypeError, ValueError, OverflowError, AttributeError):
+                                    raise ValueError("source_learning_in_progress") from None
+                                await self.policy.apply_template(session, chat_id, "knowledge")
+                                authorization_epoch = await source_epoch(session, chat_id)
                             active_job = next(
                                 (
                                     item

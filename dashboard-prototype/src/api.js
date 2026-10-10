@@ -81,6 +81,21 @@ async function request(path, options = {}) {
 export const api = {
   firstSourceStatus: async (signal) => assertContract("FirstSourceStatus", await request("/onboarding/first-source", { signal })),
   selectFirstSource: async (sourceId, signal) => assertContract("FirstSourceStatus", await request("/onboarding/source-selection", { method: "POST", body: { source_id: canonicalChatId(sourceId) }, signal })),
+  previewFirstSource: async (sourceId, signal) => {
+    const source = canonicalChatId(sourceId);
+    const action = await request("/onboarding/first-source/preview", { method: "POST", body: { source_id: source }, signal });
+    // Display metadata never substitutes for the backend's private capture and owner checks.
+    if (!action || typeof action.action_id !== "string" || !/^fv1-[a-f0-9]{32}$/.test(action.action_id)
+      || action.action_type !== "enable_group_learning" || action.chat_id !== source || action.status !== "pending"
+      || typeof action.payload?.first_source_preview !== "string" || !/^[a-f0-9]{32}$/.test(action.payload.first_source_preview)
+      || action.payload.limit !== 1000 || typeof action.preview !== "string" || !action.preview.trim()
+      || !Object.hasOwn(action, "reason") || (action.reason !== null && typeof action.reason !== "string")
+      || typeof action.expires_at !== "string" || !/T.*(?:Z|\+00:00)$/.test(action.expires_at)
+      || !Number.isFinite(Date.parse(action.expires_at)) || Date.parse(action.expires_at) <= Date.now()) {
+      throw new TypeError("Invalid first-source preview");
+    }
+    return action;
+  },
   setupStatus: async (signal) => assertContract("OnboardingStatus", await request("/setup/status", { signal })),
   connections: async (signal) => {
     const rows = await request("/connections", { signal });

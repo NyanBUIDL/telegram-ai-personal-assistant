@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../api.js";
 import { canonicalChatId } from "../chatIds.js";
 import { useDebouncedValue } from "../hooks.js";
@@ -8,7 +8,7 @@ const withdrawnStates = ["uncertain", "failed", "cancelled", "completed_with_war
 const metrics = [["synced_messages", "Tin đã sync"], ["indexed_new", "Đã tạo mới"], ["reused_existing", "Đã tái sử dụng"], ["filtered", "Đã lọc"], ["duplicate", "Trùng lặp"], ["skipped", "Bỏ qua"], ["failed", "Lỗi"]];
 const count = value => typeof value === "number" && Number.isSafeInteger(value) && value >= 0 ? String(value) : "Chưa biết";
 
-export function FirstSourceAssistant({ session, refreshKey, onOpenGroup }) {
+export function FirstSourceAssistant({ session, refreshKey, backgroundRefreshKey, onOpenGroup, onCreatedAction, onWithdrawAction, openReviewActionId }) {
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
   const [choice, setChoice] = useState("");
@@ -19,11 +19,31 @@ export function FirstSourceAssistant({ session, refreshKey, onOpenGroup }) {
   const [directoryError, setDirectoryError] = useState("");
   const [refresh, setRefresh] = useState(0);
   const [busy, setBusy] = useState(false);
+  const [previewBusy, setPreviewBusy] = useState(false);
+  const [previewError, setPreviewError] = useState("");
+  const [previewNeedsRefresh, setPreviewNeedsRefresh] = useState(false);
   const epoch = useRef(0);
   const expected = useRef(undefined);
   const pending = useRef(null);
   const saving = useRef(false);
+  const previewPending = useRef(null);
+  const issuedAction = useRef(null);
+  const openReview = useRef(openReviewActionId);
+  openReview.current = openReviewActionId;
+  const backgroundKey = useRef(backgroundRefreshKey);
+  backgroundKey.current = backgroundRefreshKey;
+  const loadedBackgroundKey = useRef(backgroundRefreshKey);
+  const expiryTimer = useRef(null);
+  const callbacks = useRef({ onCreatedAction, onWithdrawAction });
+  callbacks.current = { onCreatedAction, onWithdrawAction };
   const debouncedQuery = useDebouncedValue(query);
+  const withdrawPreview = useCallback(() => {
+    previewPending.current?.abort(); previewPending.current = null;
+    clearTimeout(expiryTimer.current);
+    if (issuedAction.current) callbacks.current.onWithdrawAction?.(issuedAction.current);
+    issuedAction.current = null;
+    setPreviewBusy(false);
+  }, []);
 
   useEffect(() => {
     if (session.authority !== "management") return;
@@ -46,11 +66,13 @@ export function FirstSourceAssistant({ session, refreshKey, onOpenGroup }) {
     let alive = true;
     const load = async () => {
       if (saving.current) return;
+      loadedBackgroundKey.current = backgroundKey.current;
       const current = ++epoch.current;
+      withdrawPreview();
       pending.current?.abort();
       const controller = new AbortController(); pending.current = controller;
       const timeout = setTimeout(() => controller.abort(), 10000);
-      setData(null); setError("");
+      setData(null); setError(""); setPreviewError("");
       try {
         const status = await api.firstSourceStatus(controller.signal);
         if (status.profile_id !== session.profile_id || (expected.current !== undefined && status.source_id !== expected.current)) throw new Error();
@@ -61,24 +83,37 @@ export function FirstSourceAssistant({ session, refreshKey, onOpenGroup }) {
         setChoice(status.source_id || "");
         const job = jobs?.items?.find(row => String(row.id) === status.learning_operation?.operation_id && row.payload?.chat_id === status.source_id);
         setData({ status, group, job });
+        setPreviewNeedsRefresh(false);
       } catch {
         if (alive && current === epoch.current) { setData(null); setError("Trạng thái nguồn không khả dụng hoặc đã thay đổi. Kiểm tra lại ứng dụng Windows."); }
       } finally { clearTimeout(timeout); }
     };
     load();
-    const focus = () => { if (document.visibilityState === "visible") load(); };
-    const interval = setInterval(focus, 15000);
+    const focus = () => {
+      if (document.visibilityState === "visible") load();
+      else { ++epoch.current; pending.current?.abort(); withdrawPreview(); setData(null); }
+    };
+    const interval = setInterval(() => {
+      const guidedReviewOpen = issuedAction.current && openReview.current === issuedAction.current;
+      if (!previewPending.current && !guidedReviewOpen) focus();
+    }, 15000);
     window.addEventListener("focus", focus); document.addEventListener("visibilitychange", focus);
-    return () => { alive = false; ++epoch.current; pending.current?.abort(); clearInterval(interval); window.removeEventListener("focus", focus); document.removeEventListener("visibilitychange", focus); };
-  }, [session.authority, session.profile_id, refreshKey, refresh]);
+    return () => { alive = false; ++epoch.current; pending.current?.abort(); withdrawPreview(); clearInterval(interval); window.removeEventListener("focus", focus); document.removeEventListener("visibilitychange", focus); };
+  }, [session.authority, session.profile_id, refreshKey, refresh, withdrawPreview]);
+
+  useEffect(() => {
+    const guidedReviewOpen = issuedAction.current && openReview.current === issuedAction.current;
+    if (session.authority === "management" && loadedBackgroundKey.current !== backgroundRefreshKey && !saving.current && !previewPending.current && !guidedReviewOpen) setRefresh(value => value + 1);
+  }, [backgroundRefreshKey, openReviewActionId, previewBusy, busy, session.authority]);
 
   const choose = value => {
-    ++epoch.current; pending.current?.abort(); setData(null); setError("");
+    ++epoch.current; pending.current?.abort(); withdrawPreview(); setData(null); setError(""); setPreviewError("");
     expected.current = value || null; setChoice(value);
   };
   const save = async () => {
     if (!choice || busy) return;
     const current = ++epoch.current;
+    withdrawPreview();
     pending.current?.abort();
     const controller = new AbortController(); pending.current = controller;
     const timeout = setTimeout(() => controller.abort(), 10000);
@@ -90,6 +125,30 @@ export function FirstSourceAssistant({ session, refreshKey, onOpenGroup }) {
     } catch {
       if (current === epoch.current) setError("Chưa xác nhận đã lưu nguồn. Kiểm tra trên Windows; chưa cấp quyền hay tạo công việc.");
     } finally { clearTimeout(timeout); saving.current = false; setBusy(false); }
+  };
+  const preview = async () => {
+    if (!data?.status.source_id || data.status.source_id !== choice || busy || previewPending.current || previewNeedsRefresh) return;
+    const source = data.status.source_id;
+    const current = epoch.current;
+    withdrawPreview();
+    const controller = new AbortController(); previewPending.current = controller;
+    const timeout = setTimeout(() => controller.abort(), 10000);
+    setPreviewBusy(true); setPreviewError("");
+    try {
+      const action = await api.previewFirstSource(source, controller.signal);
+      if (current !== epoch.current || controller.signal.aborted) return;
+      issuedAction.current = action.action_id;
+      expiryTimer.current = setTimeout(withdrawPreview, Math.min(Date.parse(action.expires_at) - Date.now(), 2147483647));
+      callbacks.current.onCreatedAction?.(action);
+    } catch {
+      if (current === epoch.current) {
+        setPreviewNeedsRefresh(true);
+        setPreviewError("Trạng thái preview chưa xác định. Kiểm tra nguồn trước khi tạo preview mới; chưa xác nhận cấp quyền hoặc hoàn tất học.");
+      }
+    } finally {
+      clearTimeout(timeout);
+      if (previewPending.current === controller) { previewPending.current = null; setPreviewBusy(false); }
+    }
   };
   if (session.authority !== "management") return null;
   const status = data?.status;
@@ -113,7 +172,8 @@ export function FirstSourceAssistant({ session, refreshKey, onOpenGroup }) {
     <p role="status">{status ? `${status.message} ${status.next_action || ""}` : "Chưa có trạng thái nguồn hiện tại; chưa xác nhận sẵn sàng."}</p>
     {status?.source_id ? <p>Nguồn đã lưu: {status.source_id} <button className="button button--outline" onClick={() => onOpenGroup?.(status.source_id)}>Quản lý quyền nâng cao</button></p> : null}
     <p>Chưa có preview quyền gắn với nguồn đã chọn.</p>
-    <button className="button button--outline" disabled>Xem và xác nhận quyền</button>
+    <button className="button button--outline" disabled={busy} aria-disabled={previewBusy || previewNeedsRefresh || !status?.source_id || undefined} onClick={preview}>{previewBusy ? "Đang tạo preview…" : "Xem và xác nhận quyền"}</button>
+    {previewError ? <p role="alert">{previewError}</p> : null}
     <p>Kiểm tra quyền tại nguồn. Phạm vi, quyền thay đổi, LOCAL ONLY, route cloud, consent và giới hạn học cần preview hiện tại cùng xác nhận owner trước khi thực thi.</p>
     {status?.source_id && blocked ? <p className="realtime-warning">BLOCK hoặc chưa xác định quyền: không dùng tiến độ cũ để bật hỏi thử. Kiểm tra quyền hiện tại.</p> : null}
     {uncertain ? <p className="realtime-warning">Cần đối chiếu kết quả chưa chắc chắn hoặc đã dừng. Kiểm tra trên Windows; không lặp lại lần gửi cũ để sửa kết quả.</p> : null}
