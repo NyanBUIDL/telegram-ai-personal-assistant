@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "date": "2026-10-09",
+  "date": "2026-10-10",
   "task": "O04",
   "status": "InReview",
   "base_commit": "aec0c7d3135032d47786445ccbab76f69274cdb2",
@@ -661,12 +661,12 @@
     }
   },
   "current_candidate": {
-    "base_commit": "3f4913a838526af382e778d769c7f0d4ffe8739f",
+    "base_commit": "2229f6294dbb18be8426dc0c0fc637b36d6cf698",
     "status": "InReview",
     "hosted_ci": "PendingNewExactRevision",
     "source_sha256": {
-      ".github/workflows/ci.yml": "bba2a831b0b84d71a10ce8d5b2d7c724efe1cd02e44a5052e42d7761c9fa8866",
-      "tests/desktop/test_launcher.py": "598d64b9cc0acdcdc0ea20688d981e2fc5cef95c34d0075ba57ae2d6ad65777a",
+      ".github/workflows/ci.yml": "1f3fe6a2cc3a5811a70c09fbbd74e13a82f6d7b35cea4e01955e1501e508ef1f",
+      "tests/desktop/test_launcher.py": "7ac8bfb71a57fdbaea3439ca5c205bf89816f33a7e751c6b6827da877f9b958e",
       "src/tg_assistant/db/base.py": "3724bda15825d1d9121517801078c2ecbd7bd1a0a48935f7c211ad550e9a6954",
       "src/tg_assistant/services/search.py": "db490d7bb03b0cf1b083eee5eff230ca12de5848db7696b56cefdd44e4622290",
       "src/tg_assistant/telegram/control_bot.py": "665f8390215ecade923704022f8eab0f7e1abf9e5f64d77810862b4fe9d94174",
@@ -674,7 +674,9 @@
       "tests/conftest.py": "56786837775aeba05f6fdfb0e4b0d1ffc3405b3710baa9bfcd61fed321d6acad",
       "tests/test_history_export.py": "e8d52ee40713961c6ae97d8e043292df7a88f71227573dee465fb3c52b7bc126",
       "tests/test_sqlite_unicode_search.py": "de42e955ec6597beb36acce1c2213453a223417141391c6193b6b37fb6173c84",
-      "tests/test_admin_api_unicode_search.py": "ab50e800a9afefec309724f265e5902705770313dafe5ff0c8102dd92c04de8f"
+      "tests/test_admin_api_unicode_search.py": "ab50e800a9afefec309724f265e5902705770313dafe5ff0c8102dd92c04de8f",
+      "src/tg_assistant/services/vector_recovery.py": "c58d23a5b54201ef2509a822f79cd777bb9e5d7ab3b1a02f9bfa07a9274b9039",
+      "tests/integration/test_vector_recovery.py": "296db52f109684510999d9a414b2a4abdecec71e56c8823b66859618d0e7e4fa"
     },
     "current_original44_sha256": {
       "dashboard-prototype/tests/u02-native.spec.js": "423cf0c70f36b792637b73d662bacc08d043c6fe9ef9f869770088332812b3ee",
@@ -708,7 +710,7 @@
       "tests/desktop/test_native_relay_integration.py": "bed61bb0ddbbba4feba9255bfaf62440c6f06457cc4f256f727dda580999cf17",
       "tests/desktop/test_runtime_bot_context.py": "8599a3e71145487ab83adeb3a4384f492f944f05b8c7ea3a99debee0228459ff",
       "tests/desktop/test_runtime_gateway.py": "a61ed6ad3ab45a436ca13a0cc80e378247b8aeb0cf3a2194d01fe0fcb3a82843",
-      "tests/integration/test_vector_recovery.py": "6557fc5cd710d305b2b119655c80c4495d36960c3a291fe4a6846b8eea5fbee8",
+      "tests/integration/test_vector_recovery.py": "296db52f109684510999d9a414b2a4abdecec71e56c8823b66859618d0e7e4fa",
       "tests/services/test_bot_connection.py": "3001d556841b39bf66211668ffe1c7f190092bc8f4fc53a93b7ee6dc2b6de3e1",
       "tests/services/test_bot_credentials.py": "4ec524414a41b9fc034a3318a9b29349caa77bca46659127e58cb8510f495d11",
       "tests/services/test_bot_pairing.py": "3974c38c1a2b2005244eb43880f2044804cbfd0aa9321aede0dd2d316b43a766",
@@ -734,10 +736,14 @@
       "src/tg_assistant/telegram/control_bot.py": {
         "historical_sha256": "1b1bfeb25f674ccf9d9fe59b085c3003aa3e7486077ca3b0b2d6b55c8e111aa7",
         "current_sha256": "665f8390215ecade923704022f8eab0f7e1abf9e5f64d77810862b4fe9d94174"
+      },
+      "tests/integration/test_vector_recovery.py": {
+        "historical_sha256": "6557fc5cd710d305b2b119655c80c4495d36960c3a291fe4a6846b8eea5fbee8",
+        "current_sha256": "296db52f109684510999d9a414b2a4abdecec71e56c8823b66859618d0e7e4fa"
       }
     },
-    "production_scope": "Only independent four-file Unicode keyword correction; O04 pairing/authority/runtime lifecycle unchanged",
-    "individual_test_deadlines_changed": false,
+    "production_scope": "Previously integrated Unicode keyword correction and missing-plan fail-closed vector recovery guard; this follow-up changes only the shared ready() test acquisition default, with no production change.",
+    "individual_test_deadlines_changed": true,
     "required_ci_gates_changed": false,
     "windows_job_budget_minutes": 50,
     "job_budget_basis": "Measured Python3.12 full2258.08s/three scale gates then40m cancellation before required native browser;50m is allowance, not measured remaining completion",
@@ -797,6 +803,31 @@
         },
         "log_sha256": "bef9ad6c738e9f96e2c3ffc05ab4587dd70f38067878a6cf4c9b5b7c86d00e19",
         "elapsed_seconds_from_log": 507.36
+      },
+      {
+        "path": ".ci-work/o04-startup-budget-focused.json",
+        "sha256": "ac4de1764e636c34a17c99d113bd4478bba2e1453cba8f2045885dd365be0ff0",
+        "actual_result": {
+          "passed": 42,
+          "failed": 0,
+          "skipped": 0,
+          "errors": 0,
+          "exit_code": 0
+        }
+      },
+      {
+        "path": ".ci-work/o04-startup-budget-full.json",
+        "sha256": "aea12d01d6c1e49ba626af1cdb4aba30b1aac5b09e317f4d41225fa8bade2337",
+        "actual_result": {
+          "passed": 1559,
+          "failed": 0,
+          "skipped": 1,
+          "errors": 0,
+          "exit_code": 0
+        },
+        "log_sha256": "15947dd291d020dd255af734fde05853102b1387fb652c72fb5d7851078cd4c2",
+        "elapsed_seconds_from_log": 470.18,
+        "qualification": "Fresh current helper bytes; token cannot create an Administrators-owned disposable ACL fixture. No privileges enabled. Exact hosted acceptance pending."
       }
     ],
     "independent_review": "Private7file Unicode plus eighth parent-chat setup and exact queued-stop/workflow diff reviewed; no material blocker; reviewers ran no tests",
@@ -808,6 +839,148 @@
       "Original3f full1547pass1skip509.92s remains historical; new main full recorded separately",
       "No overlapping suite counts added; private failed setup/fixture/full attempts retained in private root disposition"
     ],
-    "fresh_full_python": "Passed"
+    "fresh_full_python": "PassedWithOneLocalAclSkip",
+    "previous_exact_hosted_result": {
+      "head_sha": "2229f6294dbb18be8426dc0c0fc637b36d6cf698",
+      "run": {
+        "id": 37964650756,
+        "attempt": 1,
+        "event": "pull_request",
+        "status": "completed",
+        "conclusion": "failure",
+        "created_at": "2026-10-09T17:12:45Z",
+        "run_started_at": "2026-10-09T17:12:45Z",
+        "updated_at": "2026-10-09T17:46:42Z",
+        "html_url": "https://github.com/NyanBUIDL/telegram-ai-personal-assistant/actions/runs/37964650756"
+      },
+      "all_required_jobs_actual_success": false,
+      "jobs": [
+        {
+          "id": 113935849822,
+          "name": "Windows Python 3.12 / SQLite",
+          "conclusion": "success",
+          "counts": {
+            "python_full_suite": {
+              "passed": 1560,
+              "failed": 0,
+              "duration_seconds": 1330.46
+            },
+            "native_scale_125": {
+              "passed": 1
+            },
+            "native_scale_150": {
+              "passed": 1
+            },
+            "native_scale_200": {
+              "passed": 1
+            },
+            "native_to_browser": {
+              "passed": 8
+            }
+          }
+        },
+        {
+          "id": 113935850071,
+          "name": "Node 24 / build, lint, Sites and browser art accessibility",
+          "conclusion": "success",
+          "counts": {
+            "node_test_groups": [
+              {
+                "passed": 4,
+                "failed": 0,
+                "skipped": 0
+              },
+              {
+                "passed": 21,
+                "failed": 0,
+                "skipped": 0
+              },
+              {
+                "passed": 11,
+                "failed": 0,
+                "skipped": 0
+              }
+            ],
+            "browser_art": {
+              "passed": 11
+            },
+            "setup_navigation": {
+              "passed": 16
+            }
+          }
+        },
+        {
+          "id": 113935850142,
+          "name": "Windows Python 3.13 / SQLite",
+          "conclusion": "failure",
+          "counts": {
+            "python_full_suite": {
+              "passed": 1559,
+              "failed": 1,
+              "duration_seconds": 1917.47
+            }
+          }
+        },
+        {
+          "id": 113949315006,
+          "name": "Required CI",
+          "conclusion": "failure",
+          "counts": null
+        }
+      ],
+      "artifacts": [
+        {
+          "id": 11634835577,
+          "name": "windows-python-3.13-counts",
+          "size_in_bytes": 37643,
+          "expired": false,
+          "html_url": "https://github.com/NyanBUIDL/telegram-ai-personal-assistant/actions/runs/37964650756/artifacts/11634835577"
+        },
+        {
+          "id": 11633533694,
+          "name": "windows-python-3.12-counts",
+          "size_in_bytes": 399448,
+          "expired": false,
+          "html_url": "https://github.com/NyanBUIDL/telegram-ai-personal-assistant/actions/runs/37964650756/artifacts/11633533694"
+        },
+        {
+          "id": 11632474106,
+          "name": "synthetic-browser-art",
+          "size_in_bytes": 354576,
+          "expired": false,
+          "html_url": "https://github.com/NyanBUIDL/telegram-ai-personal-assistant/actions/runs/37964650756/artifacts/11632474106"
+        }
+      ],
+      "failed_test": "tests/desktop/test_native_relay_integration.py::test_hidden_launcher_opens_real_provider_modal_from_browser",
+      "migration_elapsed_ms": 12077,
+      "state_published_child_elapsed_ms": 15051,
+      "qualification": "Parent and child clocks have different origins; the exact hosted migration latency cause remains unproven. No result is substituted from another revision."
+    },
+    "startup_budget_ruling": {
+      "date": "2026-10-10",
+      "old_default_seconds": 15,
+      "new_default_seconds": 30,
+      "scope": "tests/desktop/test_launcher.py ready() default acquisition only",
+      "reason": "User permits slower initial startup; 15 seconds is a fixture allowance, not a product first-open requirement. Hosted fresh migration took 12077ms and actual state publication occurred near the old budget.",
+      "retained": "Explicit ready(timeout=0.1), queued-stop 2/15s, stop15s, native handoff20s, authentication TTLs, all readiness/HTTP/run/SID/native assertions and required matrix/browser/scale gates",
+      "risk": "The helper now accepts startup up to30 seconds. This is not proof of faster product startup; installer and physical Windows UAT remain pending.",
+      "sqlite_transaction_change": "Deferred; no migration or production transaction behavior changed"
+    },
+    "startup_budget_independent_review": {
+      "verdict": "Approved",
+      "scope": "One-line helper and truthful O04 evidence; separate narrow SQLite-only PRE_PUSH_CHECKLIST correction",
+      "report": ".superpowers/sdd/windows-public-beta-2026-10-02/O04-draft/startup-budget-review-oct10.md",
+      "sha256": "e59a8673f7ba3fbbd5d94e9b9190551f90d65a4d91a8a0164667a5f2b89cad0c",
+      "reviewer_tests_run": false
+    },
+    "current_local_checks": {
+      "python_lint": "Exit0",
+      "public_contract_drift": "Exit0",
+      "art_token_drift": "Exit0",
+      "handoff_validator": "Exit0;26tasks;64links",
+      "production_changes_in_followup": false,
+      "frontend_repeated_locally": false,
+      "qualification": "Only shared test acquisition allowance and documentation changed. All mandatory frontend/native-browser/matrix gates remain required on hosted CI."
+    }
   }
 }

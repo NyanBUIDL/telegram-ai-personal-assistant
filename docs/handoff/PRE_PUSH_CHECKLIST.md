@@ -7,7 +7,7 @@ Chỉ Coordinator stage, commit và push. CI xanh phải thuộc đúng commit �
 
 | Thay đổi | Kiểm tra trước push |
 | --- | --- |
-| Python runtime, database, backup hoặc vector | Test hành vi mới và regression liên quan; toàn bộ Python khi chốt đợt thay đổi; gate MySQL bắt buộc đủ tám module nếu ảnh hưởng storage, quyền, budget hoặc index. |
+| Python runtime, database, backup hoặc vector | Test hành vi mới và regression liên quan; toàn bộ Python khi chốt đợt thay đổi; SQLite migration từ zero/nâng cấp, storage, quyền, budget và index regressions theo amendment 06/10. Kiểm tra từ chối MySQL trước kết nối; không kết nối hoặc thay đổi MySQL hiện hữu. |
 | Dashboard, auth hoặc native launcher | Build và lint frontend; bộ visual hiện có ở 360/390/1280/1440; luồng auth trình duyệt thật; kiểm tra Qt/native liên quan. Không chỉ chạy bộ test mới. |
 | Chỉ sửa test | Tái hiện lỗi cũ, kiểm tra bộ test bị ảnh hưởng và các assertion vẫn giữ nguyên ý nghĩa; xác nhận production source không đổi. Không tăng timeout để che lỗi chưa rõ nguyên nhân. |
 | Contracts, design tokens hoặc assets | Kiểm tra generated drift; đối chiếu font/reference hashes và kiểm tra art. Không tự sửa generated mirror hoặc đổi font. |
@@ -26,7 +26,7 @@ Chỉ Coordinator stage, commit và push. CI xanh phải thuộc đúng commit �
 - [ ] Cập nhật checklist/evidence đúng mức; human/VM/UAT, installer và quyền phân phối chỉ hoàn tất khi có bằng chứng tương ứng.
 
 Các lệnh CI chính nằm trong [.github/workflows/ci.yml](../../.github/workflows/ci.yml).
-Runner [scripts/ci_checks.py](../../scripts/ci_checks.py) từ chối gate MySQL nếu thiếu
-module, bỏ qua ca bắt buộc hoặc dùng mục tiêu không hợp lệ. Audit tại
+Runner [scripts/ci_checks.py](../../scripts/ci_checks.py) chạy pytest SQLite/product
+và ghi số pass/fail/error/skip cùng exit code; đọc kết quả và từng skip trước nghiệm thu. Audit tại
 [scripts/check-release-content.py](../../scripts/check-release-content.py) chỉ phân loại
 fixture theo hash đã review; kết quả audit không cấp quyền phát hành.

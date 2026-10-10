@@ -317,7 +317,7 @@ def controller(settings, tmp_path):
     return runtime
 
 
-def ready(runtime, *, timeout=15):
+def ready(runtime, *, timeout=30):
     began = time.monotonic()
     deadline = began + timeout
     while time.monotonic() < deadline:
