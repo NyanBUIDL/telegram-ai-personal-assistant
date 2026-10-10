@@ -1,5 +1,7 @@
 # Windows Public Beta Implementation Plan
 
+> **Amendment 10/10/2026:** The owner approved [private owner preview on the current Windows 11 machine](../specs/2026-10-10-owner-preview-amendment.md). It supersedes the five-new-user and clean-VM prerequisites below for this preview; Q03 records one owner's self-experience and separate real 72-hour soak evidence. A reviewed preview may precede completed soak with Pending disclosed. Historical steps/evidence remain intact, the 26-task DAG and beta/public gates remain in force, and this amendment verifies no task or gate.
+
 > **Amendment 06/10/2026:** The owner approved [SQLite-only and an empty new profile](../specs/2026-10-06-sqlite-only-amendment.md). It supersedes advanced MySQL support, MySQL connection/provisioning and dual-backend gates below. Existing MySQL data stays untouched. Earlier steps/results are historical; current execution/status is tracked in `docs/handoff/status.json`.
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development to implement this plan task-by-task. User selected agent-assisted execution. Steps use checkbox syntax for tracking.

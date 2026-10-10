@@ -1,5 +1,7 @@
 # Roadmap — từ MVP đến Windows public beta
 
+> **Amendment 10/10/2026:** Áp dụng [phạm vi owner preview trên máy Windows 11 hiện tại](../superpowers/specs/2026-10-10-owner-preview-amendment.md) cho Q02/Q03: owner tự trải nghiệm, không chờ 5 người/clean VM; soak 72 giờ là evidence riêng. Snapshot và evidence lịch sử dưới đây giữ nguyên; amendment không tự đổi task/gate status hoặc beta-ready/published.
+
 Cập nhật 10/10/2026. **19/26 task đã Verified; O04 đã được nghiệm thu tại candidate CB6 trên SQLite-only.** ID/dependency/status canonical nằm trong [status.json](status.json), [CSV](roadmap.csv), [checklist](MASTER_CHECKLIST.md) và [plan chi tiết](../superpowers/plans/2026-10-02-windows-public-beta-plan.md). [CI38011226810](https://github.com/NyanBUIDL/telegram-ai-personal-assistant/actions/runs/38011226810) đạt1560 test trên từng Windows Python3.12/3.13 cùng toàn bộ gate scale/native-browser/frontend và Required CI; [receipt O04](evidence/task-O04.md) giữ riêng các lần lỗi trước và việc tăng allowance helper kiểm thử15→30giây. U03 đang triển khai API/chọn nguồn và giao diện hướng dẫn trong các worktree riêng; chưa nghiệm thu first-answer. U04/P01/P02/Q02/Q03/R02 còn Planned. G1–G6, installer, tài khoản thật, licensing, UAT và soak chưa được nghiệm thu. Beta-ready/published vẫn false.
 
 | Mốc | Kết quả bàn giao | Task bắt buộc tại mốc | Chủ trì / song song |
