@@ -60,6 +60,14 @@ def main():
     def timed(original, start, completed):
         def call(*args, **kwargs):
             mark(start)
+            if start == "state_write_started" and len(sys.argv) > 4:
+                # Hold real identity publication until the parent enters acquisition.
+                release = Path(sys.argv[4])
+                deadline = time.monotonic() + 15
+                while not release.exists() and time.monotonic() < deadline:
+                    time.sleep(0.01)
+                if not release.exists():
+                    raise TimeoutError("fixture_state_release_expired")
             result = original(*args, **kwargs)
             mark(completed)
             return result

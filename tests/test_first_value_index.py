@@ -10,6 +10,7 @@ Restore hook tests are intentionally absent: root owns that schema and hook.
 from __future__ import annotations
 
 import asyncio
+import concurrent.futures
 import copy
 import dataclasses
 import hashlib
@@ -865,8 +866,13 @@ def _insert_pointer(env):
 
 
 @pytest.mark.parametrize("name", sorted(SOURCE_MUTATIONS))
-def test_source_or_index_mutation_invalidates_checked_references(tmp_path, name):
+def test_source_or_index_mutation_invalidates_checked_references(tmp_path, monkeypatch, name):
     async def body(env):
+        async def immediate_work(function, *args, **kwargs):
+            return function(*args, **kwargs)
+
+        # Mutation proofs use real storage without depending on executor availability.
+        monkeypatch.setattr(asyncio, "to_thread", immediate_work)
         row = env.add_indexed(10)
         _, binding = await env.bound()
         checked = await env.checked(binding, row)
@@ -1042,6 +1048,52 @@ def test_checked_reference_age_is_capped_by_retention(tmp_path):
 
 
 # --------------------------------------------------------------------------- tasks / deadlines
+
+
+def test_read_deadline_retains_and_drains_work_queued_in_executor(tmp_path, monkeypatch):
+    async def body(env):
+        env.add_indexed(10)
+        executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+        asyncio.get_running_loop().set_default_executor(executor)
+        entered, release, read_started = threading.Event(), threading.Event(), threading.Event()
+
+        def occupy():
+            entered.set()
+            release.wait()
+
+        occupied = executor.submit(occupy)
+        original = env.reader._read_work
+        original_wait, deadlines = asyncio.wait, []
+
+        def read(*args):
+            read_started.set()
+            return original(*args)
+
+        async def observed_wait(*args, **kwargs):
+            deadlines.append(kwargs.get("timeout"))
+            return await original_wait(*args, **kwargs)
+
+        monkeypatch.setattr(env.reader, "_read_work", read)
+        monkeypatch.setattr(asyncio, "wait", observed_wait)
+        try:
+            assert entered.wait(30)
+            assert await asyncio.wait_for(env.reader.read_source_binding(CHAT), 30) is None
+            assert deadlines == [2.0]
+            assert not read_started.is_set()
+            assert env.runtime._knowledge_lock.locked()
+            closing = asyncio.create_task(env.reader.close())
+            await asyncio.sleep(0)
+            assert not closing.done()
+            release.set()
+            await asyncio.wait_for(closing, 30)
+            occupied.result(30)
+            assert read_started.is_set()
+            assert not env.runtime._knowledge_lock.locked()
+            assert await env.reader.read_source_binding(CHAT) is None
+        finally:
+            release.set()
+
+    run(tmp_path, body)
 
 
 def test_caller_cancellation_keeps_worker_owned_until_close_drains_it(tmp_path, monkeypatch):

@@ -6,6 +6,7 @@ import html
 import io
 import re
 from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
 from zoneinfo import ZoneInfo
@@ -20,11 +21,12 @@ from aiogram.methods import GetMe, GetUpdates
 from aiogram.types import (
     BufferedInputFile,
     CallbackQuery,
+    InaccessibleMessage,
     InlineKeyboardButton,
     InlineKeyboardMarkup,
     Message,
 )
-from sqlalchemy import case, func, or_, select
+from sqlalchemy import case, event, func, or_, select, text
 
 from ..ai.rag import (
     SourceEvidence,
@@ -71,6 +73,7 @@ from ..services.daily_digest import (
     load_daily_digest_dataset,
     prefer_primary_citations,
     referenced_item_indexes,
+    require_digest_authorization,
 )
 from ..services.knowledge_inventory import (
     build_learning_inventory_csv,
@@ -100,6 +103,14 @@ if TYPE_CHECKING:
 
 
 GROUP_CHAT_TYPES = ("group", "supergroup")
+
+
+@dataclass(frozen=True, slots=True)
+class _AuthorizedDigest:
+    text: str
+    epochs: tuple[tuple[int, int], ...]
+
+
 LEARNING_CHAT_TYPES = ("group", "supergroup", "channel")
 LEARNING_SELECTION_LIMIT = MAX_BULK_LEARNING_SOURCES
 GROUP_LIST_CATEGORIES = {"ai", "permissions", "all"}
@@ -1255,7 +1266,10 @@ class ControlBot:
             return False
 
     def _owner(self, message: Message) -> bool:
-        sender = message.from_user
+        return self._private_owner(getattr(message, "from_user", None), message)
+
+    def _private_owner(self, sender, message) -> bool:
+        chat = getattr(message, "chat", None)
         return (
             type(self.owner_id) is int
             and self.owner_id > 0
@@ -1263,11 +1277,17 @@ class ControlBot:
             and type(sender.id) is int
             and sender.id == self.owner_id
             and getattr(sender, "is_bot", True) is False
+            and not isinstance(message, InaccessibleMessage)
+            and getattr(chat, "type", None) == "private"
+            and type(getattr(chat, "id", None)) is int
+            and chat.id == self.owner_id
             and self._admitted()
         )
 
     def _owner_callback(self, callback: CallbackQuery) -> bool:
-        return self._owner(callback)
+        return not getattr(callback, "inline_message_id", None) and self._private_owner(
+            callback.from_user, callback.message
+        )
 
     async def _deny(self, message: Message) -> None:
         # Không tiết lộ trạng thái hệ thống cho người lạ.
@@ -1684,7 +1704,28 @@ class ControlBot:
             for index, result in enumerate(results, start=1)
         )
 
-    async def _digest(self, period: str) -> str:
+    async def _require_digest_current(self, epochs) -> None:
+        if not self._admitted():
+            raise AuthorizationRevoked("owner_pairing_required")
+        async with self.database.session() as session:
+            await session.run_sync(lambda sync: require_digest_authorization(sync, epochs))
+        if not self._admitted():
+            raise AuthorizationRevoked("owner_pairing_required")
+
+    async def _digest_still_authorized(self, output: _AuthorizedDigest) -> bool:
+        try:
+            await self._require_digest_current(output.epochs)
+            return True
+        except PermissionError:
+            return False
+
+    async def _digest(self, period: str) -> _AuthorizedDigest | None:
+        try:
+            return await self._build_digest(period)
+        except PermissionError:
+            return None
+
+    async def _build_digest(self, period: str) -> _AuthorizedDigest:
         since, until = digest_window(period)
         async with self.database.session() as session:
             ai_enabled = await self._ai_enabled(session)
@@ -1693,32 +1734,35 @@ class ControlBot:
                 since=since,
                 until=until,
             )
-            evidence_rows: list[SourceEvidence] = []
-            for item in dataset.selected_items:
-                chat = TelegramChat(
+        epochs = dataset.authorization_epochs
+        await self._require_digest_current(epochs)
+        evidence_rows: list[SourceEvidence] = []
+        for item in dataset.selected_items:
+            chat = TelegramChat(
+                chat_id=item.chat_id,
+                title=item.title,
+                username=item.username,
+                chat_type=item.chat_type,
+            )
+            evidence_rows.append(
+                SourceEvidence(
                     chat_id=item.chat_id,
+                    message_id=item.message_id,
+                    score=1.0,
+                    text=item.text[:700],
+                    sent_at=item.sent_at,
                     title=item.title,
-                    username=item.username,
-                    chat_type=item.chat_type,
+                    url=telegram_message_url(chat, item.message_id),
+                    citation_priority=digest_citation_priority(item),
                 )
-                evidence_rows.append(
-                    SourceEvidence(
-                        chat_id=item.chat_id,
-                        message_id=item.message_id,
-                        score=1.0,
-                        text=item.text[:700],
-                        sent_at=item.sent_at,
-                        title=item.title,
-                        url=telegram_message_url(chat, item.message_id),
-                        citation_priority=digest_citation_priority(item),
-                    )
-                )
-            contexts = [
-                source_context(index, evidence)
-                for index, evidence in enumerate(evidence_rows, start=1)
-            ]
-            if ai_enabled and self.ai and self.ai.available and contexts:
-                try:
+            )
+        contexts = [
+            source_context(index, evidence)
+            for index, evidence in enumerate(evidence_rows, start=1)
+        ]
+        if ai_enabled and self.ai and self.ai.available and contexts:
+            try:
+                async with self.database.session() as session:
                     answer = await self.ai.answer(
                         session,
                         (
@@ -1736,46 +1780,64 @@ class ControlBot:
                             "nguồn primary_publisher."
                         ),
                         contexts,
+                        pre_submit=lambda: self._require_digest_current(epochs),
                     )
-                except RuntimeError as exc:
-                    answer = str(exc)
-                except Exception:
-                    answer = (
-                        "AI tạm thời không khả dụng; dữ liệu đã được rà soát nhưng chưa thể "
-                        "phân loại tự động."
-                    )
-                answer = prefer_primary_citations(answer, dataset.selected_items)
-            elif contexts:
+            except PermissionError:
+                raise
+            except RuntimeError as exc:
+                answer = str(exc)
+            except Exception:
                 answer = (
-                    "AI đang tắt. Dữ liệu trong ngày đã được rà soát, khử trùng và thống kê "
-                    "nhưng chưa thể tạo phần phân loại tự động."
+                    "AI tạm thời không khả dụng; dữ liệu đã được rà soát nhưng chưa thể "
+                    "phân loại tự động."
                 )
-            else:
-                answer = "Không có nội dung phù hợp trong khoảng thời gian này."
-            coverage = digest_coverage_text(dataset)
-            warning = (
-                f"CẢNH BÁO PHẠM VI\n"
-                f"Còn {dataset.missing_source_count} group/channel chưa được cấp quyền "
-                "tổng hợp hoặc chưa đồng bộ nội dung. Hãy dùng “Xuất kiểm kê nguồn học”, "
-                "đánh dấu CO và gửi lại file để bổ sung các nguồn này."
-                if dataset.missing_source_count
-                else "PHẠM VI ĐẦY ĐỦ\nTất cả group/channel đã tham gia đều được cấp quyền tổng hợp."
+            answer = prefer_primary_citations(answer, dataset.selected_items)
+        elif contexts:
+            answer = (
+                "AI đang tắt. Dữ liệu trong ngày đã được rà soát, khử trùng và thống kê "
+                "nhưng chưa thể tạo phần phân loại tự động."
             )
-            source_list = digest_source_list(dataset)
-            referenced = referenced_item_indexes(
-                answer,
-                item_count=len(evidence_rows),
+        else:
+            answer = "Không có nội dung phù hợp trong khoảng thời gian này."
+        await self._require_digest_current(epochs)
+        coverage = digest_coverage_text(dataset)
+        warning = (
+            f"CẢNH BÁO PHẠM VI\n"
+            f"Còn {dataset.missing_source_count} group/channel chưa được cấp quyền "
+            "tổng hợp hoặc chưa đồng bộ nội dung. Hãy dùng “Xuất kiểm kê nguồn học”, "
+            "đánh dấu CO và gửi lại file để bổ sung các nguồn này."
+            if dataset.missing_source_count
+            else "PHẠM VI ĐẦY ĐỦ\nTất cả group/channel đã tham gia đều được cấp quyền tổng hợp."
+        )
+        source_list = digest_source_list(dataset)
+        referenced = referenced_item_indexes(
+            answer,
+            item_count=len(evidence_rows),
+        )
+        cited_evidence = [evidence_rows[index] for index in referenced]
+        citations = (
+            citation_appendix(
+                cited_evidence,
+                source_numbers=[index + 1 for index in referenced],
             )
-            cited_evidence = [evidence_rows[index] for index in referenced]
-            citations = (
-                citation_appendix(
-                    cited_evidence,
-                    source_numbers=[index + 1 for index in referenced],
-                )
-                if cited_evidence
-                else "DẪN CHỨNG\nKhông có tin phù hợp để dẫn chứng."
-            )
-            output = "\n\n".join([answer, coverage, warning, source_list, citations])
+            if cited_evidence
+            else "DẪN CHỨNG\nKhông có tin phù hợp để dẫn chứng."
+        )
+        output = "\n\n".join([answer, coverage, warning, source_list, citations])
+        async with self.database.session() as session:
+            # Serialize policy changes only for the short persistence transaction.
+            await session.execute(text("BEGIN IMMEDIATE"))
+
+            def fence(sync, *_):
+                if not self._admitted():
+                    raise AuthorizationRevoked("owner_pairing_required")
+                require_digest_authorization(sync, epochs)
+                if not self._admitted():
+                    raise AuthorizationRevoked("owner_pairing_required")
+
+            await session.run_sync(fence)
+            event.listen(session.sync_session, "before_commit", fence)
+            event.listen(session.sync_session, "after_flush_postexec", fence)
             session.add(
                 Summary(
                     scope_type="daily_digest",
@@ -1795,7 +1857,7 @@ class ControlBot:
                     period_end=until,
                 )
             )
-            return output
+        return _AuthorizedDigest(output, epochs)
 
     def _register(self) -> None:
         @self.router.message(Command("pair"))
@@ -2736,18 +2798,22 @@ class ControlBot:
             await callback.answer("Đang tạo bản tóm tắt…")
             await self.bot.send_chat_action(callback.from_user.id, "typing")
             output = await self._digest(period)
+            if output is None:
+                return
             label = "HÔM NAY" if period == "today" else "HÔM QUA"
-            chunks = telegram_html_chunks(f"## TỔNG HỢP {label}\n\n{output}")
+            chunks = telegram_html_chunks(f"## TỔNG HỢP {label}\n\n{output.text}")
             for index, chunk in enumerate(chunks):
+                markup = (
+                    ai_menu_keyboard(enabled=await self._current_ai_enabled())
+                    if index == len(chunks) - 1 else None
+                )
+                if not await self._digest_still_authorized(output):
+                    return
                 await self.bot.send_message(
                     callback.from_user.id,
                     chunk,
                     parse_mode="HTML",
-                    reply_markup=(
-                        ai_menu_keyboard(enabled=await self._current_ai_enabled())
-                        if index == len(chunks) - 1
-                        else None
-                    ),
+                    reply_markup=markup,
                 )
 
         @self.router.callback_query(F.data == "ai:status")
@@ -4673,17 +4739,21 @@ class ControlBot:
             period = (command.args or "today").strip().lower()
             period = period if period in {"today", "yesterday"} else "today"
             output = await self._digest(period)
+            if output is None:
+                return
             label = "HÔM NAY" if period == "today" else "HÔM QUA"
-            chunks = telegram_html_chunks(f"## TỔNG HỢP {label}\n\n{output}")
+            chunks = telegram_html_chunks(f"## TỔNG HỢP {label}\n\n{output.text}")
             for index, chunk in enumerate(chunks):
+                markup = (
+                    ai_menu_keyboard(enabled=await self._current_ai_enabled())
+                    if index == len(chunks) - 1 else None
+                )
+                if not await self._digest_still_authorized(output):
+                    return
                 await message.answer(
                     chunk,
                     parse_mode="HTML",
-                    reply_markup=(
-                        ai_menu_keyboard(enabled=await self._current_ai_enabled())
-                        if index == len(chunks) - 1
-                        else None
-                    ),
+                    reply_markup=markup,
                 )
 
         @self.router.message(

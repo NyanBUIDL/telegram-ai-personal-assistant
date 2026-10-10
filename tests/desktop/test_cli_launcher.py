@@ -8,14 +8,20 @@ import socket
 import subprocess
 import sys
 import time
+from types import SimpleNamespace
 
 import pytest
+from desktop.test_launcher import (
+    controller,
+    fixture_bootstrap_diagnostics,
+    fixture_readiness_diagnostics,
+    stop,
+)
 from typer.testing import CliRunner
 
 from tg_assistant import cli, config
 from tg_assistant.config import Settings
 from tg_assistant.desktop import instance
-from tg_assistant.desktop.runtime_controller import RuntimeController
 from tg_assistant.paths import ensure_runtime_dirs
 from tg_assistant.services.maintenance import FileLock
 
@@ -40,51 +46,65 @@ def native_cli(tmp_path, monkeypatch):
     runtimes = []
 
     def make(command=None):
-        code = (
-            "from pathlib import Path; import sys; "
-            "from tg_assistant.config import Settings; "
-            "from tg_assistant.desktop.worker import serve_worker; "
-            "serve_worker(Settings(_env_file=None,data_dir=Path(sys.argv[1]),"
-            "admin_api_port=int(sys.argv[3])),instance_directory=Path(sys.argv[2]))"
-        )
-        runtime = RuntimeController(
-            settings,
-            worker_command=command
-            or [
-                sys.executable,
-                "-c",
-                code,
-                str(settings.data_dir),
-                str(control),
-                str(settings.admin_api_port),
-            ],
-        )
+        runtime = controller(settings, tmp_path, instance_directory=control)
+        if command is not None:
+            runtime.worker_command = command
+            runtime.fixture_worker_command = tuple(command)
         runtimes.append(runtime)
         return runtime
 
     monkeypatch.setattr(cli, "_native_controller", make, raising=False)
     yield settings, make, CliRunner()
     for runtime in runtimes:
-        if runtime.process and runtime.process.poll() is None:
-            deadline = time.monotonic() + 15
-            while runtime.process.poll() is None and time.monotonic() < deadline:
-                runtime._refresh()
-                runtime.stop()
-                time.sleep(0.05)
-            runtime.process.wait(timeout=5)
-        runtime.close()
+        stop(runtime)
 
 
 def await_ready(runtime):
     runtime.start().result(timeout=5)
-    deadline = time.monotonic() + 15
+    began = time.monotonic()
+    deadline = began + 15
     while time.monotonic() < deadline:
         state = runtime.refresh().result(timeout=2)
         if state.phase == "ready":
             return state
         assert state.phase != "error", state.code
         time.sleep(0.05)
-    pytest.fail("Synthetic worker never became ready")
+    runtime.fixture_failed_readiness = True
+    diagnostics = json.dumps(fixture_readiness_diagnostics(runtime, began), sort_keys=True)
+    pytest.fail("Synthetic worker never became ready; diagnostics=" + diagnostics)
+
+
+def test_native_readiness_timeout_identifies_bootstrap_without_private_values(native_cli, tmp_path, monkeypatch):
+    from tg_assistant.paths import current_user_sid
+
+    settings, make, _ = native_cli
+    runtime = make()
+    state_release = tmp_path / "state-release"
+    runtime.worker_command.append(str(state_release))
+    runtime.fixture_worker_command = tuple(runtime.worker_command)
+    try:
+        runtime.start().result(timeout=5)
+        deadline = time.monotonic() + 15
+        while time.monotonic() < deadline:
+            facts = fixture_bootstrap_diagnostics(runtime)
+            if any(step["phase"] == "state_write_started" for step in facts.get("bootstrap_steps", ())):
+                break
+            time.sleep(0.01)
+        else:
+            pytest.fail("Fixture did not reach identity publication")
+        assert not runtime.state_file.exists()
+        began = time.monotonic()
+        ticks = iter((began, began + 16))
+        with monkeypatch.context() as patch:
+            patch.setattr(sys.modules[__name__], "time", SimpleNamespace(monotonic=lambda: next(ticks)))
+            with pytest.raises(pytest.fail.Exception) as caught:
+                await_ready(runtime)
+        message = str(caught.value)
+        assert "state_write_started" in message and '"http": "not_attempted"' in message
+        for private in (str(settings.data_dir), runtime.launch_id, current_user_sid()):
+            assert private not in message
+    finally:
+        state_release.touch()
 
 
 @pytest.mark.skipif(os.name != "nt", reason="Normal Windows native CLI adapter")

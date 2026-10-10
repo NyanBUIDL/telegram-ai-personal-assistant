@@ -15,6 +15,7 @@ from ..db.models import (
     TelegramMessage,
 )
 from ..security import contains_secret, redact
+from .revocation import AuthorizationRevoked
 
 DIGEST_CHAT_TYPES = ("group", "supergroup", "channel")
 URL_RE = re.compile(r"(?i)\b(?:https?://|www\.|t\.me/)\S+")
@@ -102,6 +103,7 @@ class DailyDigestDataset:
     duplicate_count: int
     unique_items: list[DigestItem]
     selected_items: list[DigestItem]
+    authorization_epochs: tuple[tuple[int, int], ...]
     source_stats: dict[int, DigestSourceStats] = field(default_factory=dict)
 
     @property
@@ -257,29 +259,29 @@ async def load_daily_digest_dataset(
             ).all()
         )
     )
-    authorized_ids = list(
-        dict.fromkeys(
-            (
-                await session.scalars(
-                    select(TelegramChatPermission.chat_id)
-                    .join(
-                        TelegramChatPolicy,
-                        TelegramChatPolicy.chat_id == TelegramChatPermission.chat_id,
-                    )
-                    .join(
-                        TelegramChat,
-                        TelegramChat.chat_id == TelegramChatPermission.chat_id,
-                    )
-                    .where(
-                        TelegramChat.chat_type.in_(DIGEST_CHAT_TYPES),
-                        TelegramChatPolicy.allowed.is_(True),
-                        TelegramChatPermission.permission == PermissionName.SUMMARIZE.value,
-                        TelegramChatPermission.enabled.is_(True),
-                    )
+    authorization_epochs = tuple(
+        (chat_id, epoch)
+        for chat_id, epoch in (
+            await session.execute(
+                select(TelegramChatPermission.chat_id, TelegramChatPolicy.authorization_epoch)
+                .join(
+                    TelegramChatPolicy,
+                    TelegramChatPolicy.chat_id == TelegramChatPermission.chat_id,
                 )
-            ).all()
-        )
+                .join(
+                    TelegramChat,
+                    TelegramChat.chat_id == TelegramChatPermission.chat_id,
+                )
+                .where(
+                    TelegramChat.chat_type.in_(DIGEST_CHAT_TYPES),
+                    TelegramChatPolicy.allowed.is_(True),
+                    TelegramChatPermission.permission == PermissionName.SUMMARIZE.value,
+                    TelegramChatPermission.enabled.is_(True),
+                )
+            )
+        ).all()
     )
+    authorized_ids = [chat_id for chat_id, _ in authorization_epochs]
     raw_rows = (
         await session.execute(
             select(TelegramMessage, TelegramChat)
@@ -320,8 +322,26 @@ async def load_daily_digest_dataset(
         duplicate_count=duplicates,
         unique_items=unique,
         selected_items=selected,
+        authorization_epochs=authorization_epochs,
         source_stats=stats,
     )
+
+
+def require_digest_authorization(session, epochs: tuple[tuple[int, int], ...]) -> None:
+    """Use a fresh reader or the locked writer; never recapture an old dataset's epochs."""
+    with session.no_autoflush:
+        current = session.execute(
+            select(TelegramChatPolicy.chat_id, TelegramChatPolicy.authorization_epoch)
+            .join(TelegramChatPermission, TelegramChatPermission.chat_id == TelegramChatPolicy.chat_id)
+            .where(
+                TelegramChatPolicy.chat_id.in_([chat_id for chat_id, _ in epochs]),
+                TelegramChatPolicy.allowed.is_(True),
+                TelegramChatPermission.permission == PermissionName.SUMMARIZE.value,
+                TelegramChatPermission.enabled.is_(True),
+            )
+        ).all()
+    if dict(current) != dict(epochs):
+        raise AuthorizationRevoked("digest_authorization_revoked")
 
 
 def digest_coverage_text(dataset: DailyDigestDataset) -> str:

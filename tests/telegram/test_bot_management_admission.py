@@ -101,6 +101,12 @@ def callback_update(*, sender=OWNER):
                 "chat_instance": "synthetic-chat-instance",
                 "from": {"id": sender, "is_bot": False, "first_name": "Synthetic"},
                 "data": "ai:ask",
+                "message": {
+                    "message_id": 1,
+                    "date": 1700000000,
+                    "chat": {"id": sender, "type": "private"},
+                    "from": {"id": 123456, "is_bot": True, "first_name": "Synthetic Bot"},
+                },
             },
         }
     )
@@ -180,6 +186,36 @@ async def test_fresh_help_dispatch_works_then_stale_admission_denies_fsm_and_cal
         await value.dp.feed_update(sdk.bot, callback_update())
         assert sdk.session.delivered == original
         assert await fsm.get_state() == AiFlowState.waiting_question.state
+    finally:
+        await value.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("text", ["/help", "/ask confidential", "/digest"])
+async def test_owner_group_command_never_reaches_management_corpus(sdk, text):
+    value = control(sdk, admission=lambda: True)
+    payload = message_update(text).model_dump()
+    payload["message"]["chat"] = {"id": -99, "type": "supergroup"}
+    update = Update.model_validate(payload)
+    try:
+        await value.dp.feed_update(sdk.bot, update)
+        assert sdk.session.delivered == []
+    finally:
+        await value.close()
+
+
+@pytest.mark.asyncio
+async def test_private_bot_authored_callback_works_but_group_callback_is_silent(sdk):
+    value = control(sdk, admission=lambda: True)
+    try:
+        await value.dp.feed_update(sdk.bot, callback_update())
+        assert sdk.session.delivered
+        original = list(sdk.session.delivered)
+        payload = callback_update().model_dump()
+        payload["callback_query"]["message"]["chat"] = {"id": -99, "type": "supergroup"}
+        update = Update.model_validate(payload)
+        await value.dp.feed_update(sdk.bot, update)
+        assert sdk.session.delivered == original
     finally:
         await value.close()
 
