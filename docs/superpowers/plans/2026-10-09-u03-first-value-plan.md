@@ -13,7 +13,7 @@
 ## Global Constraints
 
 - Windows 10/11 x64; one active owner/profile per Windows SID; SQLite-only; no real credentials, paid live calls or existing-profile reset in development checks.
-- O04, V03 and U02 must be Verified before implementation. O04 follow-up `3f4913a838526af382e778d769c7f0d4ffe8739f` failed the separate Python3.13 queued-stop test in run37918805090; Python3.12 full1548/three scale gates passed but its40-minute job was cancelled before native-browser completion. The next diagnostic/budget/Unicode candidate and exact hosted acceptance remain pending. The independent keyword-search correction does not implement U03.
+- O04, V03 and U02 must be Verified before implementation. This dependency gate is now satisfied: exact CB6 O04 candidate passed all required jobs in run38011226810 and root accepted its receipt on10/10/2026. Earlier `3f4913a838526af382e778d769c7f0d4ffe8739f`/run37918805090 and2229 failure receipts remain historical. New U03 candidates require their own verification; O04 success does not accept U03.
 - Reuse the actual application/engine/account/poller/vector/guard. No second runtime or portable bearer proof. Management still requires current owner pairing, session, CSRF, Host/Origin and writer admission.
 - Preserve all 19 permissions, six AI modes, group `/ask`, AUTO confirmation, retention/quota, ordinary RAG/cache behavior and existing recovery/backup boundaries.
 - Telegram IDs are canonical nonzero decimal JSON strings. Reject numeric JSON, booleans, zero and noncanonical IDs; Python uses exact ints internally.
@@ -68,10 +68,10 @@ Private carriers live in `ai/observations.py`: frozen dataclasses with immutable
 - `OnboardingCoordinator.save_source_selection(source_id: int, *, transaction_update: Callable[[Connection], None]) -> OnboardingStatus` updates existing `SetupOptions.source_id`, invalidates downstream history and invokes the first-value metadata update in the same owning `_mutate` transaction. No nested BEGIN or duplicate source options store.
 - `FirstValueService.select_source(chat_id: int) -> None` uses that adjunct under actual admission; selection generation changes only on a changed source.
 
-- [ ] Write boundary tests: numeric/bool/zero/noncanonical/extra-field POST rejected without writes; valid negative large ID round-trips as string; setup-only forbidden; lost admission after body await forbidden; selected option and metadata commit/rollback together; selection alone changes no grants or jobs. DTO rejects malformed bot usernames and secrets.
-- [ ] Run `.venv-q01/Scripts/python.exe -m pytest tests/test_first_value_api.py tests/test_first_value_selection.py tests/test_contracts.py -q`; record expected missing-behavior RED, separately from import/environment errors.
-- [ ] Implement the strict wire model, approved DTO, transaction adjunct and default-deny service getter. Regenerate mirror with `python scripts/generate_contracts.py`; preserve existing public DTO shapes.
-- [ ] Run the named tests and contract drift check; expected all pass and drift exit 0. Record evidence, review and commit with root after integration checks.
+- [x] Write boundary tests: numeric/bool/zero/noncanonical/extra-field POST rejected without writes; valid negative large ID round-trips as string; setup-only forbidden; lost admission after body await forbidden; selected option and metadata commit/rollback together; selection alone changes no grants or jobs. DTO rejects malformed bot usernames and secrets.
+- [x] Run `.venv-q01/Scripts/python.exe -m pytest tests/test_first_value_api.py tests/test_first_value_selection.py tests/test_contracts.py -q`; record expected missing-behavior RED, separately from import/environment errors.
+- [x] Implement the strict wire model, approved DTO, transaction adjunct and default-deny service getter. Regenerate mirror with `python scripts/generate_contracts.py`; preserve existing public DTO shapes.
+- [x] Run the named tests and contract drift check; all pass and drift exit0. Independent review approved; root201 targeted tests passed with zero skips. Integrated installed product regression1646 passed/1 skipped, guided setup41, native browser8 and vector43 passed. Root records this implementation checkpoint separately from full U03 acceptance; exact new-candidate hosted CI remains pending.
 
 ## Task 2: Produce actual provider and selected RAG observations
 

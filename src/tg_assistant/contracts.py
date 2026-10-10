@@ -24,6 +24,7 @@ from pydantic import (
     SerializerFunctionWrapHandler,
     StrictBool,
     StrictInt,
+    StringConstraints,
     ValidationError,
     ValidationInfo,
     WithJsonSchema,
@@ -209,6 +210,28 @@ class OperationResult(PublicDTO):
     next_action: Text | None
 
 
+class FirstSourceStatus(PublicDTO):
+    profile_id: Identifier
+    source_id: TelegramId | None
+    learning_operation: OperationResult | None
+    answer_operation: OperationResult | None
+    bot_username: Annotated[
+        str, StringConstraints(strict=True, pattern=r"^[A-Za-z0-9_]{1,32}$"),
+        WithJsonSchema({"type": "string", "pattern": r"^[A-Za-z0-9_]{1,32}$(?![\s\S])"}),
+    ] | None
+    test_available: StrictBool
+    code: Identifier
+    message: Text
+    next_action: Text | None
+
+    @field_validator("bot_username")
+    @classmethod
+    def canonical_username(cls, value):
+        if value is not None and re.fullmatch(r"[A-Za-z0-9_]{1,32}", value) is None:
+            raise ValueError("bot_username_invalid")
+        return value
+
+
 def _guard_native_payload(value: object, depth: int = 0) -> None:
     if depth > NATIVE_PAYLOAD_MAX_DEPTH:
         raise ValueError("Native payload nesting exceeds the limit")
@@ -338,7 +361,7 @@ class MaintenanceLease(ContractModel):
 
 PUBLIC_CONTRACTS: tuple[type[PublicDTO], ...] = (
     ConnectionStatus, PublicProfile, EmbeddingProfile, OperationResult, NativeCommand,
-    OnboardingStatus, RecoveryPlan, RevocationReport, MigrationReport, BackupManifest,
+    OnboardingStatus, RecoveryPlan, RevocationReport, MigrationReport, BackupManifest, FirstSourceStatus,
 )
 
 

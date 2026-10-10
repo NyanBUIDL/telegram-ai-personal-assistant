@@ -2445,3 +2445,13 @@ textarea:focus-visible {
 @media (max-width: 600px) { .setup-dashboard { padding: 12px; } .setup-readiness { padding: 12px; } .setup-services { grid-template-columns: 1fr; } .setup-readiness .panel-heading { flex-wrap: wrap; gap: 12px; } }
 
 .setup-dashboard { background: var(--paper); min-height: 100vh; }
+.first-source-assistant { padding: 20px; margin-bottom: 24px; overflow-wrap: anywhere; }
+.first-source-assistant h2, .first-source-assistant h3 { font-family: var(--font-ui); }
+.first-source-filters { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 16px 0; }
+.first-source-filters label { min-width: 0; }
+.first-source-filters input, .first-source-filters select { display: block; width: 100%; min-width: 0; font-family: var(--font-ui); }
+.first-source-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 16px 0; }
+.first-source-assistant .button { white-space: normal; min-height: 44px; }
+.first-source-operation { border: 3px solid var(--ink); padding: 16px; margin: 16px 0; }
+.first-source-operation progress { width: 100%; }
+@media (max-width: 600px) { .first-source-filters { grid-template-columns: 1fr; } .first-source-assistant { padding: 12px; } .first-source-assistant .panel-heading { flex-wrap: wrap; gap: 12px; } }

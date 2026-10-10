@@ -139,6 +139,7 @@ class AdminContext:
     history_ai_filter_handler: HistoryAiFilterHandler | None = None
     history_sender_lookup_handler: HistorySenderLookupHandler | None = None
     management_admission: Callable[[], bool] | None = None
+    first_value_getter: Callable[[], Any] | None = None
 
 
 def _utc(value: datetime | None) -> datetime | None:
@@ -486,6 +487,9 @@ def create_admin_app(context: AdminContext) -> FastAPI:
     from .backups import install_backup_routes
 
     install_backup_routes(app, context, require_session, require_write_session)
+    from .first_value import install_first_value_routes
+
+    install_first_value_routes(app, context, require_session, require_write_session)
 
     async def resolve_history_sender_filter(
         db: AsyncSession,

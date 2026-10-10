@@ -16,7 +16,7 @@ from uuid import uuid4
 
 from pydantic import Field, ValidationError, field_validator
 from sqlalchemy import insert, select, text, update
-from sqlalchemy.engine import Engine
+from sqlalchemy.engine import Connection, Engine
 from sqlalchemy.exc import IntegrityError, OperationalError
 
 from ..contracts import (
@@ -146,7 +146,7 @@ class OnboardingCoordinator:
         with self.engine.connect() as connection:
             return self._read(connection)[0]
 
-    def _mutate(self, change):
+    def _mutate(self, change, *, transaction_update=None):
         # SQLite serializes before the read; MySQL locks the selected row. The
         # first-row insert race retries from a fresh locked transaction. No stale
         # in-memory snapshot ever replaces another coordinator's evidence.
@@ -166,6 +166,8 @@ class OnboardingCoordinator:
                             result = change(values, state)
                             values["revision"] = state.revision + 1
                             checked = _State.model_validate(values).model_dump(mode="json")
+                            if transaction_update is not None:
+                                transaction_update(connection)
                             if exists:
                                 updated = connection.execute(
                                     update(AppSetting)
@@ -199,6 +201,21 @@ class OnboardingCoordinator:
 
     def options(self):
         return self._load().options.model_dump(mode="json")
+
+    def save_source_selection(
+        self, source_id: int, *, transaction_update: Callable[[Connection], None]
+    ) -> OnboardingStatus:
+        if type(source_id) is not int or source_id == 0 or not callable(transaction_update):
+            raise ValueError("source_selection_invalid")
+
+        def change(values, state):
+            values["options"]["source_id"] = str(source_id)
+            if state.options.source_id != source_id:
+                self._invalidate(values, OnboardingStage.SOURCE_SELECTED)
+            values["error"] = None
+
+        self._mutate(change, transaction_update=transaction_update)
+        return self.status()
 
     def save_options(self, options: dict) -> OnboardingStatus:
         try:

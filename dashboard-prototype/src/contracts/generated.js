@@ -34,6 +34,18 @@
  * @property {boolean} cloud_consent
  */
 
+/** @typedef {Object} FirstSourceStatus
+ * @property {string} profile_id
+ * @property {(string|null)} source_id
+ * @property {(OperationResult|null)} learning_operation
+ * @property {(OperationResult|null)} answer_operation
+ * @property {(string|null)} bot_username
+ * @property {boolean} test_available
+ * @property {string} code
+ * @property {string} message
+ * @property {(string|null)} next_action
+ */
+
 /** @typedef {unknown} JsonValue */
 
 /** @typedef {Object} MigrationReport
@@ -304,6 +316,173 @@ export const contractSchema = {
         "cloud_consent"
       ],
       "title": "EmbeddingProfile",
+      "type": "object"
+    },
+    "FirstSourceStatus": {
+      "$defs": {
+        "OperationResult": {
+          "additionalProperties": false,
+          "properties": {
+            "code": {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$",
+              "title": "Code",
+              "type": "string"
+            },
+            "message": {
+              "maxLength": 2048,
+              "title": "Message",
+              "type": "string"
+            },
+            "next_action": {
+              "anyOf": [
+                {
+                  "maxLength": 2048,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Next Action"
+            },
+            "operation_id": {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$",
+              "title": "Operation Id",
+              "type": "string"
+            },
+            "progress": {
+              "anyOf": [
+                {
+                  "maximum": 100,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Progress"
+            },
+            "state": {
+              "$ref": "#/$defs/OperationState"
+            }
+          },
+          "required": [
+            "operation_id",
+            "state",
+            "progress",
+            "code",
+            "message",
+            "next_action"
+          ],
+          "title": "OperationResult",
+          "type": "object"
+        },
+        "OperationState": {
+          "enum": [
+            "queued",
+            "running",
+            "paused",
+            "completed",
+            "completed_with_warning",
+            "failed",
+            "cancelled",
+            "uncertain"
+          ],
+          "title": "OperationState",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "answer_operation": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/OperationResult"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "bot_username": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9_]{1,32}$(?![\\s\\S])",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Bot Username"
+        },
+        "code": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$",
+          "title": "Code",
+          "type": "string"
+        },
+        "learning_operation": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/OperationResult"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "message": {
+          "maxLength": 2048,
+          "title": "Message",
+          "type": "string"
+        },
+        "next_action": {
+          "anyOf": [
+            {
+              "maxLength": 2048,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Next Action"
+        },
+        "profile_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$",
+          "title": "Profile Id",
+          "type": "string"
+        },
+        "source_id": {
+          "anyOf": [
+            {
+              "pattern": "^-?[1-9][0-9]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Source Id"
+        },
+        "test_available": {
+          "title": "Test Available",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "profile_id",
+        "source_id",
+        "learning_operation",
+        "answer_operation",
+        "bot_username",
+        "test_available",
+        "code",
+        "message",
+        "next_action"
+      ],
+      "title": "FirstSourceStatus",
       "type": "object"
     },
     "MigrationReport": {

@@ -224,7 +224,7 @@ def test_public_schema_excludes_internal_credentials_and_leases(contracts):
     schema = contracts.public_contract_schema()
     assert set(schema["contracts"]) == {
         "ConnectionStatus", "PublicProfile", "EmbeddingProfile", "OperationResult", "NativeCommand",
-        "OnboardingStatus", "RecoveryPlan", "RevocationReport", "MigrationReport", "BackupManifest",
+        "OnboardingStatus", "RecoveryPlan", "RevocationReport", "MigrationReport", "BackupManifest", "FirstSourceStatus",
     }
     forbidden = {"raw_ticket", "claim_token", "session_id", "api_key", "bot_token", "api_hash", "otp", "password"}
 
@@ -250,6 +250,51 @@ console.log(JSON.stringify({{schema: contractSchema, results: cases.map(([name, 
     result = subprocess.run([str(NODE), "--input-type=module", "-e", script], input=json.dumps(cases),
                             capture_output=True, text=True, check=True, cwd=ROOT)
     return json.loads(result.stdout)
+
+
+def first_source(**changes):
+    return dict(profile_id="local-profile", source_id="-1009007199254740993",
+                learning_operation=None, answer_operation=None, bot_username=None,
+                test_available=False, code="selected", message="Đã chọn", next_action=None, **changes)
+
+
+def test_first_source_contract_is_registered_and_preserves_ids(contracts):
+    assert hasattr(contracts, "FirstSourceStatus"), "FirstSourceStatus is missing"
+    value = contracts.FirstSourceStatus.model_validate_json(json.dumps(first_source()))
+    assert value.source_id == -1009007199254740993
+    assert json.loads(value.model_dump_json())["source_id"] == "-1009007199254740993"
+    assert "FirstSourceStatus" in contracts.public_contract_schema()["contracts"]
+
+
+@pytest.mark.parametrize("username", ["", "@bot", "bot\n", " bot", "bot ", "https://t.me/bot", "a/b", "bot?x", "bot#x", "bót", "a" * 33, 123])
+def test_first_source_username_is_strict(contracts, username):
+    assert hasattr(contracts, "FirstSourceStatus"), "FirstSourceStatus is missing"
+    fields = first_source()
+    fields["bot_username"] = username
+    with pytest.raises(ValidationError):
+        contracts.FirstSourceStatus(**fields)
+
+
+def test_first_source_rejects_secrets_numeric_json_and_nested_mutation(contracts):
+    assert hasattr(contracts, "FirstSourceStatus"), "FirstSourceStatus is missing"
+    for fields in [{**first_source(), "bot_token": "synthetic-sensitive-marker"},
+                   {**first_source(), "source_id": -100123}, {**first_source(), "test_available": 1}]:
+        with pytest.raises(ValidationError):
+            contracts.FirstSourceStatus.model_validate_json(json.dumps(fields))
+    value = contracts.FirstSourceStatus(**{**first_source(), "bot_username": "Valid_bot",
+        "learning_operation": dict(operation_id="op-1", state="running", progress=0,
+                                   code="sync", message="Đang học", next_action=None)})
+    assert json.loads(value.model_dump_json())["learning_operation"]["progress"] == 0
+    object.__setattr__(value.learning_operation, "message", {"token": "synthetic-sensitive-marker"})
+    with pytest.raises(PydanticSerializationError):
+        value.model_dump_json()
+
+
+def test_first_source_browser_rejects_username_trailing_newline(contracts):
+    assert hasattr(contracts, "FirstSourceStatus"), "FirstSourceStatus is missing"
+    cases = [("FirstSourceStatus", {**first_source(), "bot_username": username})
+             for username in [None, "Valid_bot", "bot\n", "@bot", "a" * 33]]
+    assert run_browser(cases)["results"] == [True, True, False, False, False]
 
 
 def test_browser_schema_matches_python_and_enforces_wire_boundaries(contracts):

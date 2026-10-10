@@ -459,6 +459,12 @@ async def _serve(settings, paths, database, listener, *, setup_context=None, ins
                     if setup_context is not None:
                         setup_context.install_telegram(runtime.bot_runtime.account_observation)
                         setup_context.install_bot(runtime.bot_runtime.setup_observation)
+                        from ..services.first_value import FirstValueService
+
+                        runtime.first_value = FirstValueService(
+                            runtime=runtime, coordinator=setup_context.coordinator,
+                            windows_sid=current_user_sid(),
+                        )
                     running["runtime"] = runtime
 
                 def bot_runtime_factory(runtime):

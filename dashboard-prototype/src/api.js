@@ -79,6 +79,8 @@ async function request(path, options = {}) {
 }
 
 export const api = {
+  firstSourceStatus: async (signal) => assertContract("FirstSourceStatus", await request("/onboarding/first-source", { signal })),
+  selectFirstSource: async (sourceId, signal) => assertContract("FirstSourceStatus", await request("/onboarding/source-selection", { method: "POST", body: { source_id: canonicalChatId(sourceId) }, signal })),
   setupStatus: async (signal) => assertContract("OnboardingStatus", await request("/setup/status", { signal })),
   connections: async (signal) => {
     const rows = await request("/connections", { signal });
@@ -135,7 +137,7 @@ export const api = {
   },
   groupRecommendations: (inactiveDays = 60) =>
     request(`/groups/recommendations?inactive_days=${inactiveDays}`),
-  group: (chatId) => request(`/groups/${encodeURIComponent(chatId)}`),
+  group: (chatId, signal) => request(`/groups/${encodeURIComponent(chatId)}`, { signal }),
   checkCoverage: (chatId) =>
     request(`/groups/${encodeURIComponent(chatId)}/coverage-check`, { method: "POST" }),
   previewRecovery: (chatId) =>
@@ -258,9 +260,10 @@ export const api = {
       method: "POST",
       body: { scope, confirmation },
     }),
-  learningJobs: ({ status = "", limit = 200 } = {}) =>
+  learningJobs: ({ status = "", limit = 200, signal } = {}) =>
     request(
       `/learning-jobs?job_status=${encodeURIComponent(status)}&limit=${limit}`,
+      { signal },
     ),
   historyBackfillJobs: (chatId, limit = 10) =>
     request(

@@ -32,6 +32,7 @@ import { useDialogA11y } from "./useDialogA11y.js";
 import { AiView, ModelsView } from "./views/AiViews.jsx";
 import { GroupDetailView, GroupsView } from "./views/GroupsView.jsx";
 import { KnowledgeView } from "./views/KnowledgeView.jsx";
+import { FirstSourceAssistant } from "./components/FirstSourceAssistant.jsx";
 import {
   ActionsView,
   AuditView,
@@ -541,6 +542,7 @@ export function App() {
         ) : null}
 
         <div className="content">
+          {["overview", "groups", "knowledge"].includes(activePage) ? <FirstSourceAssistant session={session} refreshKey={refreshKey} onOpenGroup={openGroup} /> : null}
           {["overview", "connections"].includes(activePage) ? <SetupReadiness session={session} /> : null}
           {activePage === "overview" ? (
             <OverviewView

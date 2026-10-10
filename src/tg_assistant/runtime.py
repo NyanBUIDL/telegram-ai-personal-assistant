@@ -865,6 +865,7 @@ class Application:
         self.admin_app_ready = admin_app_ready
         self.runtime_ready = runtime_ready
         self.bot_runtime_factory, self.bot_runtime = bot_runtime_factory, None
+        self.first_value = None
         self.store = self.paths = self.database = self.user = None
         self.ai = self.embedding_ai = self.ai_router = None
         self.coingecko = self.ollama = self.rag = None
@@ -3761,6 +3762,7 @@ class Application:
                     history_ai_filter_handler=self._classify_history_delete_with_openai,
                     history_sender_lookup_handler=self._resolve_history_sender_identity,
                     management_admission=self.management_admitted,
+                    first_value_getter=lambda: self.first_value,
                 )
             )
             if self.admin_app_ready is not None:
@@ -3812,6 +3814,9 @@ class Application:
     async def _close_resources(self) -> None:
         self._closed = True
         self.stopping.set()
+        if getattr(self, "first_value", None) is not None:
+            # The retained SQL thread borrows the coordinator and runtime owners.
+            await self.first_value.close()
         errors = []
         for task in getattr(self, "_tasks", ()):
             task.cancel()

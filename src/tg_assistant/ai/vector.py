@@ -4,7 +4,10 @@ import json
 import os
 import tempfile
 import uuid
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
+from threading import Lock
 
 from qdrant_client import QdrantClient
 from qdrant_client.models import (
@@ -75,6 +78,37 @@ class LocalVectorStore:
         except BaseException:
             self.client.close()
             raise
+        self._observation_lock = Lock()
+        self._incarnation = str(uuid.uuid4())
+        self._revision = 0
+        self._mutations_inflight = 0
+        self._uncertain = False
+        self._closed = False
+
+    def observation_token(self) -> tuple[str, int] | None:
+        """Return a RAM snapshot; consumers must also retain the actual owner."""
+        with self._observation_lock:
+            if self._closed or self._uncertain or self._mutations_inflight:
+                return None
+            return self._incarnation, self._revision
+
+    @contextmanager
+    def _observed_mutation(self, *, closing: bool = False) -> Iterator[None]:
+        with self._observation_lock:
+            self._revision += 1
+            self._mutations_inflight += 1
+            if closing:
+                self._closed = True
+        try:
+            yield
+        except BaseException:
+            with self._observation_lock:
+                # A later unrelated write cannot reconcile a possibly partial effect.
+                self._uncertain = True
+            raise
+        finally:
+            with self._observation_lock:
+                self._mutations_inflight -= 1
 
     def point_id(self, reference_id: int, *, chat_id: int, message_id: int):
         if self.profile is None:
@@ -119,23 +153,22 @@ class LocalVectorStore:
     ) -> None:
         if not entries:
             return
-        self.client.upsert(
-            self.COLLECTION,
-            [
-                PointStruct(
-                    id=self.point_id(reference_id, chat_id=chat_id, message_id=message_id),
-                    vector=vector,
-                    payload={
-                        "chat_id": chat_id,
-                        "message_id": message_id,
-                        "reference_id": reference_id,
-                        "content_hash": (content_hashes or {}).get(reference_id),
-                        "store_id": self.profile.store_id if self.profile else None,
-                    },
-                )
-                for reference_id, vector, chat_id, message_id in entries
-            ],
-        )
+        points = [
+            PointStruct(
+                id=self.point_id(reference_id, chat_id=chat_id, message_id=message_id),
+                vector=vector,
+                payload={
+                    "chat_id": chat_id,
+                    "message_id": message_id,
+                    "reference_id": reference_id,
+                    "content_hash": (content_hashes or {}).get(reference_id),
+                    "store_id": self.profile.store_id if self.profile else None,
+                },
+            )
+            for reference_id, vector, chat_id, message_id in entries
+        ]
+        with self._observed_mutation():
+            self.client.upsert(self.COLLECTION, points)
 
     def search(
         self,
@@ -215,16 +248,17 @@ class LocalVectorStore:
             return 0
         from qdrant_client.models import HasIdCondition, MatchAny
 
-        self.client.delete(
-            self.COLLECTION,
-            points_selector=Filter(
-                should=[
-                    HasIdCondition(has_id=unique),
-                    FieldCondition(key="reference_id", match=MatchAny(any=unique)),
-                ]
-            ),
-            wait=True,
-        )
+        with self._observed_mutation():
+            self.client.delete(
+                self.COLLECTION,
+                points_selector=Filter(
+                    should=[
+                        HasIdCondition(has_id=unique),
+                        FieldCondition(key="reference_id", match=MatchAny(any=unique)),
+                    ]
+                ),
+                wait=True,
+            )
         return len(unique)
 
     def count(self, *, chat_id: int | None = None) -> int:
@@ -249,4 +283,5 @@ class LocalVectorStore:
         )
 
     def close(self) -> None:
-        self.client.close()
+        with self._observed_mutation(closing=True):
+            self.client.close()
