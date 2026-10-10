@@ -333,8 +333,10 @@
         "P01",
         "S03"
       ],
-      "status": "Planned",
-      "evidence": [],
+      "status": "InProgress",
+      "evidence": [
+        "docs/handoff/evidence/task-P02.md"
+      ],
       "acceptance": "Real installer on cleanVM đạt; unsignedcandidate label rõ, publicdistribution certificate/license gates verified."
     },
     {

@@ -53,7 +53,7 @@ Ngày lập: 02/10/2026. **Thiết kế đã duyệt; implementation đang thự
 ### M5 — Đóng gói Windows
 
 - [ ] **P01 — Build reproducible và đóng gói đủ resources** · Platform · phụ thuộc: D01, U04, R01 · InProgress.
-- [ ] **P02 — Installer per-user, nâng cấp/gỡ an toàn** · Platform · phụ thuộc: P01, S03 · Planned.
+- [ ] **P02 — Installer per-user, nâng cấp/gỡ an toàn** · Platform · phụ thuộc: P01, S03 · InProgress.
 
 ### M6 — Nghiệm thu và bàn giao beta
 
