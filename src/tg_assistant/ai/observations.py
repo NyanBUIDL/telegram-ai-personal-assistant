@@ -153,3 +153,213 @@ class ProviderAnswerResult:
             capability.capability_fingerprint,
         ):
             raise ValueError("execution and capability disagree")
+
+
+def _telegram_id(name: str, value: object, *, positive: bool = False) -> None:
+    if type(value) is not int or value == 0 or (positive and value < 0):
+        raise ValueError(f"{name} must be an exact Telegram integer ID")
+
+
+def _utc_bound(name: str, value: object) -> datetime:
+    if type(value) is not datetime or value.utcoffset() is None:
+        raise ValueError(f"{name} must be an aware datetime")
+    return value.astimezone(UTC)
+
+
+@dataclass(frozen=True)
+class SourceIndexBinding:
+    profile_id: str
+    owner_id: int
+    pair_fingerprint: str
+    selection_generation: int
+    restore_epoch: str
+    selected_chat_id: int
+    source_epoch: int
+    source_policy_fingerprint: str
+    embedding_provider: str
+    embedding_endpoint_id: str
+    embedding_model: str
+    embedding_model_version: str
+    embedding_dimension: int
+    embedding_store_id: str
+    active_index_generation: int
+    vector_owner_fingerprint: str
+    retrieval_eligibility_fingerprint: str
+    chat_candidates: tuple[ChatModelCandidate, ...]
+
+    def __post_init__(self) -> None:
+        for name in (
+            "profile_id",
+            "restore_epoch",
+            "embedding_provider",
+            "embedding_endpoint_id",
+            "embedding_model",
+            "embedding_model_version",
+            "embedding_store_id",
+        ):
+            _identity(name, getattr(self, name))
+        for name in (
+            "pair_fingerprint",
+            "source_policy_fingerprint",
+            "vector_owner_fingerprint",
+            "retrieval_eligibility_fingerprint",
+        ):
+            _fingerprint(name, getattr(self, name))
+        _telegram_id("owner_id", self.owner_id, positive=True)
+        _telegram_id("selected_chat_id", self.selected_chat_id)
+        for name in (
+            "selection_generation",
+            "source_epoch",
+            "active_index_generation",
+            "embedding_dimension",
+        ):
+            _count(name, getattr(self, name))
+        if not self.embedding_dimension:
+            raise ValueError("embedding_dimension must be positive")
+        if (
+            type(self.chat_candidates) is not tuple
+            or not self.chat_candidates
+            or not all(isinstance(item, ChatModelCandidate) for item in self.chat_candidates)
+        ):
+            raise ValueError("chat_candidates must be an immutable candidate tuple")
+        if len({item.provider for item in self.chat_candidates}) != len(self.chat_candidates):
+            raise ValueError("chat_candidates must have unique providers")
+
+
+@dataclass(frozen=True)
+class CitedReference:
+    chat_id: int
+    message_id: int
+    reference_id: int
+    content_hash: str
+    context_hash: str
+    semantic_used: bool
+    keyword_used: bool
+
+    def __post_init__(self) -> None:
+        _telegram_id("chat_id", self.chat_id)
+        for name in ("message_id", "reference_id"):
+            _telegram_id(name, getattr(self, name), positive=True)
+        for name in ("content_hash", "context_hash"):
+            value = getattr(self, name)
+            if (
+                type(value) is not str
+                or len(value) != 64
+                or any(char not in "0123456789abcdef" for char in value)
+            ):
+                raise ValueError(f"{name} must be SHA256")
+        if (
+            type(self.semantic_used) is not bool
+            or type(self.keyword_used) is not bool
+            or not (self.semantic_used or self.keyword_used)
+        ):
+            raise ValueError("reference requires exact retrieval participants")
+
+
+@dataclass(frozen=True)
+class RetrievalScope:
+    selected_chat_id: int
+    after: datetime | None
+    before: datetime
+    sender_id: int | None
+    has: str | None
+    content_type: str | None
+    query_route: str
+    embedding_route: str
+
+    def __post_init__(self) -> None:
+        _telegram_id("selected_chat_id", self.selected_chat_id)
+        if self.sender_id is not None:
+            _telegram_id("sender_id", self.sender_id)
+        object.__setattr__(self, "before", _utc_bound("before", self.before))
+        if self.after is not None:
+            object.__setattr__(self, "after", _utc_bound("after", self.after))
+            if self.after > self.before:
+                raise ValueError("retrieval window is empty")
+        if self.has not in (
+            None,
+            "link",
+            "file",
+            "image",
+            "document",
+            "audio",
+        ) or self.content_type not in (None, "task", "decision"):
+            raise ValueError("unsupported retrieval filter")
+        _identity("query_route", self.query_route)
+        _identity("embedding_route", self.embedding_route)
+
+
+@dataclass(frozen=True)
+class FirstValueAnswerObservation:
+    binding: SourceIndexBinding
+    execution: SettledProviderExecution
+    query_embedding_request_id: str
+    cited_refs: tuple[CitedReference, ...]
+    retrieval_mode: str
+    after: datetime | None
+    before: datetime
+    sender_id: int | None
+    has: str | None
+    content_type: str | None
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.binding, SourceIndexBinding) or not isinstance(
+            self.execution, SettledProviderExecution
+        ):
+            raise TypeError("typed binding and execution required")
+        _identity("query_embedding_request_id", self.query_embedding_request_id)
+        if (
+            type(self.cited_refs) is not tuple
+            or not 1 <= len(self.cited_refs) <= 8
+            or not all(
+                isinstance(ref, CitedReference) and ref.chat_id == self.binding.selected_chat_id
+                for ref in self.cited_refs
+            )
+        ):
+            raise ValueError("bounded immutable selected references required")
+        if len({(ref.chat_id, ref.message_id) for ref in self.cited_refs}) != len(self.cited_refs):
+            raise ValueError("duplicate cited references")
+        if self.retrieval_mode not in ("semantic", "keyword", "hybrid"):
+            raise ValueError("unsupported retrieval mode")
+        scope = RetrievalScope(
+            self.binding.selected_chat_id,
+            self.after,
+            self.before,
+            self.sender_id,
+            self.has,
+            self.content_type,
+            self.execution.route or "local_rag",
+            "cloud_embedding",
+        )
+        object.__setattr__(self, "after", scope.after)
+        object.__setattr__(self, "before", scope.before)
+        if self.execution.profile_id != self.binding.profile_id:
+            raise ValueError("execution profile mismatch")
+
+
+@dataclass(frozen=True)
+class QualifyingRagSuccess:
+    answer: str = field(repr=False)
+    observation: FirstValueAnswerObservation
+
+    def __post_init__(self) -> None:
+        if (
+            not isinstance(self.answer, str)
+            or not self.answer.strip()
+            or not isinstance(self.observation, FirstValueAnswerObservation)
+        ):
+            raise ValueError("qualified answer and observation required")
+
+
+@dataclass(frozen=True)
+class NonqualifyingRagResult:
+    code: str
+    answer: str | None = field(default=None, repr=False)
+
+    def __post_init__(self) -> None:
+        _identity("code", self.code)
+        if self.answer is not None and not isinstance(self.answer, str):
+            raise ValueError("answer must be text or None")
+
+
+RagObservedResult = QualifyingRagSuccess | NonqualifyingRagResult

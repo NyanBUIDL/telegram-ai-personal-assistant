@@ -95,8 +95,9 @@ class SearchService:
         limit: int = 20,
         preauthorized: bool = False,
         default_after: datetime | None = None,
+        parsed_query: SearchQuery | None = None,
     ) -> list[SearchResult]:
-        parsed = parse_search_query(query)
+        parsed = parsed_query if parsed_query is not None else parse_search_query(query)
         requested = [parsed.chat_id] if parsed.chat_id is not None else chat_ids
         if preauthorized:
             authorized = set(chat_ids)
