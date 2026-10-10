@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sys
 from datetime import UTC, datetime, timedelta
 
 import httpx
@@ -430,6 +431,34 @@ async def test_admin_api_operational_filters_selection_preferences_and_docs(
     guide = await client.get("/api/v1/docs/user-guide")
     assert guide.status_code == 200
     assert "bộ não chung" in guide.json()["content"]
+
+
+async def test_admin_documents_follow_frozen_resource_root(
+    admin_client, tmp_path, monkeypatch,
+) -> None:
+    bundle = tmp_path / "Gói đóng gói"
+    bundle.mkdir()
+    expected = "Hướng dẫn đi cùng bản cài thử."
+    (bundle / "USER_GUIDE.md").write_text(expected, encoding="utf-8")
+    monkeypatch.setattr(sys, "_MEIPASS", str(bundle), raising=False)
+    client, secret = admin_client
+    assert (await client.get("/api/v1/docs")).status_code == 401
+    assert (await client.get("/api/v1/docs/user-guide")).status_code == 401
+    login = await client.post(
+        "/api/v1/auth/login", json={"code": dashboard_login_code(secret)},
+    )
+    assert login.status_code == 200
+
+    catalog = await client.get("/api/v1/docs")
+    assert catalog.status_code == 200
+    entries = {item["id"]: item for item in catalog.json()["items"]}
+    assert entries["user-guide"]["available"] is True
+    assert entries["readme"]["available"] is False
+    guide = await client.get("/api/v1/docs/user-guide")
+    assert guide.status_code == 200
+    assert guide.json()["content"] == expected
+    assert (await client.get("/api/v1/docs/readme")).status_code == 404
+    assert (await client.get("/api/v1/docs/unknown")).status_code == 404
 
 
 def test_retry_is_only_available_for_failed_learning_jobs() -> None:

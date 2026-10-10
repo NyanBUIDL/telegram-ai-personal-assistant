@@ -39,6 +39,7 @@ from ..db.models import (
     TelegramChatPolicy,
     TelegramMessage,
 )
+from ..paths import resource_path
 from ..policy import PolicyEngine
 from ..security import contains_secret, redact
 from ..services.actions import PendingActionService
@@ -2756,7 +2757,7 @@ def create_admin_app(context: AdminContext) -> FastAPI:
     async def documents_catalog(
         _session: AdminSession = Depends(require_session),
     ) -> dict:
-        root = Path(__file__).resolve().parents[3]
+        root = resource_path()
         return {
             "items": [
                 {
@@ -2778,7 +2779,7 @@ def create_admin_app(context: AdminContext) -> FastAPI:
         if not document:
             raise HTTPException(status_code=404, detail="Tài liệu không tồn tại.")
         file_name, description = document
-        path = Path(__file__).resolve().parents[3] / file_name
+        path = resource_path(file_name)
         if not path.is_file():
             raise HTTPException(status_code=404, detail="Tài liệu chưa được tạo.")
         return {
