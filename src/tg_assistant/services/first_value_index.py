@@ -165,23 +165,39 @@ def _read_json(path: Path):
 
 @contextmanager
 def _bounded(connection, seconds: float):
-    """SQLite VM-step and monotonic budget; always cleared before the connection returns."""
+    """Nested owned SQLite budgets consume and restore their outer budget."""
     raw = getattr(connection.connection, "dbapi_connection", None)
-    if raw is None or not hasattr(raw, "set_progress_handler"):
+    if connection.dialect.name != "sqlite" or raw is None:
         raise _Refuse
+    if hasattr(raw, "set_progress_handler"):
+        install = raw.set_progress_handler
+    elif hasattr(raw, "run_async") and hasattr(raw.driver_connection, "set_progress_handler"):
+        def install(callback, interval):
+            raw.run_async(lambda driver: driver.set_progress_handler(callback, interval))
+    else:
+        raise _Refuse
+    key = "first_value_sqlite_budget"
+    prior = connection.info.get(key)
     deadline = time.monotonic() + seconds
     remaining = VM_STEPS // 1000
 
     def handler():
         nonlocal remaining
         remaining -= 1
-        return 1 if remaining <= 0 or time.monotonic() >= deadline else 0
+        return 1 if (remaining <= 0 or time.monotonic() >= deadline
+                     or (prior is not None and prior[0]())) else 0
 
-    raw.set_progress_handler(handler, 1000)
+    install(handler, 1000)
+    connection.info[key] = (handler, 1000)
     try:
         yield
     finally:
-        raw.set_progress_handler(None, 0)
+        if prior is None:
+            connection.info.pop(key, None)
+            install(None, 0)
+        else:
+            connection.info[key] = prior
+            install(*prior)
 
 
 def _setting_text(connection, key: str, limit: int) -> str | None:

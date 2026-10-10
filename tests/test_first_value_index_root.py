@@ -209,7 +209,8 @@ def test_sqlite_vm_budget_interrupts_by_one_hundred_thousand_steps_and_clears(tm
 
                     raw.set_progress_handler(measured, steps)
 
-            bridge = SimpleNamespace(connection=SimpleNamespace(dbapi_connection=ProgressProbe()))
+            bridge = SimpleNamespace(connection=SimpleNamespace(dbapi_connection=ProgressProbe()),
+                                     dialect=connection.dialect, info=connection.info)
             with pytest.raises(OperationalError, match="interrupted"), _bounded(bridge, 2):
                 connection.exec_driver_sql(
                     "WITH RECURSIVE n(x) AS (VALUES(1) UNION ALL SELECT x+1 FROM n "

@@ -213,6 +213,12 @@ class FirstSourcePreviewService:
 
         def release(*_):
             active[0] = False
+            validated = session.sync_session.info.get("first_source_validated_actions", {})
+            if validated.get(action.action_id) is capture:
+                validated.pop(action.action_id)
+            if not validated:
+                session.sync_session.info.pop("first_source_validated_actions", None)
 
         event.listen(session.sync_session, "after_commit", release, once=True)
         event.listen(session.sync_session, "after_rollback", release, once=True)
+        session.sync_session.info.setdefault("first_source_validated_actions", {})[action.action_id] = capture
