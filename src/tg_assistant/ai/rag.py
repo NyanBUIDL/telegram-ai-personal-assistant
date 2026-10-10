@@ -719,7 +719,7 @@ class RagService:
                 semantic_keys.add(key)
                 combined[key] = score
         await fence()
-        chat = await session.get(TelegramChat, scope.selected_chat_id)
+        chat = await session.scalar(select(TelegramChat).where(TelegramChat.chat_id == scope.selected_chat_id))
         contexts, evidence_rows, actual_rows = [], [], []
         context_tokens = 0
         for (chat_id, message_id), score in sorted(

@@ -51,6 +51,7 @@ async def guided(selection, tmp_path):
     pair = ["pair-one"]
     runtime.bot_runtime.pairing_verification = lambda: SimpleNamespace(owner_id=123, fingerprint=pair[0])
     owner = service(selection)
+    runtime.database.fence = owner._fence
     await owner.select_source(A)
     async with runtime.database.session() as db:
         db.add_all([TelegramChat(chat_id=chat, chat_type="supergroup", title=str(chat)) for chat in (A, B)])
@@ -94,19 +95,28 @@ async def effects(guided):
 
 
 async def execute(guided):
-    task = asyncio.create_task(guided.runtime._execute_actions())
+    database = guided.runtime.database
+    async with database.session() as db:
+        expected = set(await db.scalars(select(PendingAction.action_id).where(PendingAction.status == "confirmed")))
+    assert expected
+    finished = set()
+    sync_class = database.sessions.class_.sync_session_class
+    def committed(sync):
+        if sync.bind is not database.engine.sync_engine:
+            return
+        finished.update(action.action_id for action in sync.identity_map.values()
+            if isinstance(action, PendingAction) and action.action_id in expected
+            and action.status in {"executed", "failed", "cancelled", "expired", "uncertain"})
+        if expected <= finished:
+            guided.runtime.stopping.set()
+    event.listen(sync_class, "after_commit", committed)
     try:
-        for _ in range(100):
-            async with guided.runtime.database.session() as db:
-                states = (await db.scalars(select(PendingAction.status))).all()
-            if states and all(state not in {"confirmed", "executing"} for state in states):
-                break
-            await asyncio.sleep(.01)
-        else:
-            pytest.fail("Action did not finish")
+        await asyncio.wait_for(guided.runtime._execute_actions(), 3)
+    except TimeoutError:
+        pytest.fail("Action did not finish")
     finally:
         guided.runtime.stopping.set()
-        await asyncio.wait_for(task, 3)
+        event.remove(sync_class, "after_commit", committed)
 
 
 async def test_preview_only_and_truthful_permissions(guided):
@@ -116,6 +126,8 @@ async def test_preview_only_and_truthful_permissions(guided):
     assert action.action_type == "enable_group_learning"
     assert action.action_id.startswith("fv1-")
     assert await effects(guided) == before
+
+    assert guided.owner.history().header.learning is None
     assert set(action.payload) == {"limit", "first_source_preview", "authorization_epochs"}
     assert "1000" in action.preview and str(A) in action.preview
     assert "send_messages" in action.preview and "group_ai_ask" in action.preview
@@ -187,6 +199,11 @@ async def test_changed_capture_cannot_grant_or_queue(guided, change, boundary):
         async with guided.runtime.database.session() as db:
             with pytest.raises((PermissionError, ValueError)):
                 await actions(guided).confirm(db, action.action_id, 123)
+    elif change == "block_regrant":
+        async with guided.runtime.database.session() as db:
+            cancelled = await db.get(PendingAction, action.action_id)
+            assert cancelled.status == "cancelled"
+            assert cancelled.error == "source_authorization_revoked"
     else:
         await execute(guided)
     assert await effects(guided) == before
@@ -210,6 +227,7 @@ async def test_owner_one_use_expiry_and_default_deny(guided, change):
     finally:
         guided.state.current[0] = True
     assert await effects(guided) == before
+    assert guided.owner.history().header.learning is None
 
 
 @pytest.mark.parametrize("chat", [B, 999])
@@ -343,6 +361,7 @@ async def test_model_change_at_final_commit_rolls_back_effects(guided, statement
     finally:
         event.remove(guided.runtime.database.engine.sync_engine, "after_cursor_execute", change)
     assert await effects(guided) == before
+    assert guided.owner.history().header.learning is None
 
 
 async def test_restart_requires_new_preview_and_monotonic_expiry(guided, monkeypatch):

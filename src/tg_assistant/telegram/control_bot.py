@@ -1221,12 +1221,14 @@ class ControlBot:
         bot_instance: Bot | None = None,
         admission: Callable[[], bool] | None = None,
         first_source_validator=None,
+        first_value_getter=None,
         polling_runner: Callable[[Dispatcher, Bot], Awaitable[None]] | None = None,
     ) -> None:
         if bot_instance is not None and not isinstance(bot_instance, Bot):
             raise _ManagementUnavailable()
         self._owns_bot, self._closing = bot_instance is None, False
         self._admission, self._polling_runner = admission, polling_runner
+        self._first_value_getter = first_value_getter
         self.bot = Bot(token) if self._owns_bot else bot_instance
         self.dp, self.router = Dispatcher(), Router()
         self.owner_id, self.database, self.policy, self.pairing = (
@@ -4686,9 +4688,12 @@ class ControlBot:
 
         @self.router.message(Command("ask"))
         async def ask(message: Message, command: CommandObject) -> None:
+            question = (command.args or "").strip()
+            first_value = self._first_value_getter() if self._first_value_getter else None
+            if first_value is not None and await first_value.answer_selected(message, question):
+                return
             if not self._owner(message):
                 return await self._deny(message)
-            question = (command.args or "").strip()
             if not question:
                 await self._send_ai_menu(
                     message.chat.id,

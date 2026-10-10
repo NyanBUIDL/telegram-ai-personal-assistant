@@ -3190,7 +3190,20 @@ class Application:
                                             raise ValueError("source_learning_in_progress")
                                 except (TypeError, ValueError, OverflowError, AttributeError):
                                     raise ValueError("source_learning_in_progress") from None
+                                capture = session.sync_session.info.get("first_source_validated_actions", {}).get(action.action_id)
+                                if capture is None or action.status != "executing" or action.error is not None:
+                                    raise ValueError("first_source_preview_stale")
                                 await self.policy.apply_template(session, chat_id, "knowledge")
+                                if action.status != "executing":
+                                    if (action.status != "cancelled" or action.error != "source_authorization_revoked"
+                                            or action.payload.get("external_effect_started")
+                                            or session.sync_session.info.get("first_source_validated_actions", {}).get(action.action_id) is not capture
+                                            or (action.action_id, action.action_type, action.chat_id, action.requested_by)
+                                            != (capture.action_id, "enable_group_learning", capture.source_id, capture.owner_id)
+                                            or action.payload != json.loads(capture.payload)):
+                                        raise ValueError("first_source_preview_stale")
+                                    # This confirmed preset cancels stale work, including itself, under its writer lock.
+                                    action.status, action.error = "executing", None
                                 authorization_epoch = await source_epoch(session, chat_id)
                             active_job = next(
                                 (
@@ -3228,6 +3241,9 @@ class Application:
                             source.requested_for_learning = True
                             source.last_job_id = job.id
                             source.last_error = None
+                            if guided_preview:
+                                await self.first_value.associate_learning(session, action=action,
+                                    job=job, source_epoch=authorization_epoch)
                             action.payload = {
                                 **action.payload,
                                 "job_id": job.id,
@@ -3699,6 +3715,7 @@ class Application:
             bot_instance=self.bot_runtime.bot,
             admission=self.management_admitted,
             first_source_validator=self._validate_first_source_action,
+            first_value_getter=lambda: self.first_value,
             polling_runner=self.bot_runtime.run_updates,
         )
         self.scheduler.start()

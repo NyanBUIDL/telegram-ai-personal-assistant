@@ -4,12 +4,14 @@ from __future__ import annotations
 import asyncio
 import base64
 import hashlib
+import html
 import json
 import re
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
+from html.parser import HTMLParser
 from pathlib import Path
 from time import monotonic
 from typing import Annotated, Literal
@@ -72,6 +74,54 @@ TerminalCode = Literal["nonqualifying", "cancelled_before_effect", "deadline", "
 def _require(condition, code="first_value_state_invalid"):
     if not condition:
         raise ValueError(code)
+
+
+def _answer_html_chunks(answer):
+    """Validate the whole converted answer before splitting balanced purpose chunks."""
+    from ..telegram.control_bot import markdown_to_telegram_html
+
+    class Parser(HTMLParser):
+        def __init__(self):
+            super().__init__(convert_charrefs=True)
+            self.tokens, self.stack = [], []
+
+        def handle_starttag(self, tag, attrs):
+            _require(tag in {"b", "i", "s", "code", "pre", "blockquote", "a"}, "nonqualifying")
+            _require(not attrs or (tag == "a" and len(attrs) == 1 and attrs[0][0] == "href"
+                     and re.match(r"^https?://[^\s]+$", attrs[0][1] or "")), "nonqualifying")
+            _require(not any(item in {"code", "pre", "a"} for item in self.stack), "nonqualifying")
+            opening = "<" + tag + (f' href="{html.escape(attrs[0][1], quote=True)}"' if attrs else "") + ">"
+            self.tokens.append(("open", tag, opening))
+            self.stack.append(tag)
+
+        def handle_endtag(self, tag):
+            _require(self.stack and self.stack.pop() == tag, "nonqualifying")
+            self.tokens.append(("close", tag, f"</{tag}>"))
+
+        def handle_data(self, value):
+            _require(all(ord(char) >= 32 or char in "\n\t" for char in value), "nonqualifying")
+            self.tokens.extend(("text", "", html.escape(char, quote=False)) for char in value)
+
+    parser = Parser()
+    parser.feed(markdown_to_telegram_html(answer))
+    parser.close()
+    _require(not parser.stack and parser.tokens, "nonqualifying")
+    chunks, stack, current = [], [], ""
+    def units(value):
+        return len(value.encode("utf-16-le")) // 2
+    for kind, tag, value in parser.tokens:
+        following = stack + [(tag, value)] if kind == "open" else stack[:-1] if kind == "close" else stack
+        suffix = "".join(f"</{name}>" for name, _ in reversed(following))
+        if units(current + value + suffix) > 3900:
+            chunks.append(current + "".join(f"</{name}>" for name, _ in reversed(stack)))
+            current = "".join(opening for _, opening in stack)
+        _require(units(current + value + suffix) <= 3900 and len(chunks) < 16, "nonqualifying")
+        current += value
+        stack = following
+    if current:
+        chunks.append(current)
+    _require(1 <= len(chunks) <= 16, "nonqualifying")
+    return chunks
 
 
 def _timestamp(value, info):
@@ -1140,6 +1190,169 @@ class FirstValueService:
                     phase="cancelled" if attempt.phase == "accepted" else "uncertain",
                     terminal_code="interrupted")
 
+    async def answer_selected(self, message, question: str) -> bool:
+        from aiogram.types import Message
+
+        from ..security import contains_secret
+
+        # Audience and update identity precede even READY fallthrough.
+        try:
+            self._admit()
+            with self._fence.operation(), self._engine.connect() as connection:
+                state = _read_namespace(connection, namespace=self._namespace)
+                selected = self.coordinator._read(connection)[0].options.source_id
+            explicit = any(match.group(1) == str(selected) for match in
+                re.finditer(r"(?<!\S)in:([^\s]+)", question))
+            identity = self._bot.service.verified_identity
+            owner = self.runtime.user.owner_id
+            audience = (isinstance(message, Message) and message.chat.type == "private"
+                and message.chat.id == owner and message.from_user is not None
+                and message.from_user.id == owner and message.from_user.is_bot is False
+                and type(owner) is int and owner > 0 and message.message_id > 0
+                and identity is not None and message.bot is self._bot.bot
+                and message.bot.id == identity.bot_id)
+            if not audience:
+                return explicit
+            if any((attempt.bot_id, attempt.owner_id, attempt.incoming_message_id) ==
+                    (identity.bot_id, owner, message.message_id) for attempt in state.attempts):
+                return True
+            if self.coordinator.status().profile.setup_stage == OnboardingStage.READY:
+                return False
+            if not explicit:
+                return False
+            if (not self._initialized or self._provider_transition or self._answer_tasks
+                    or not question.strip() or len(question) > 2048 or contains_secret(question)):
+                return True
+            with self._transaction() as connection:
+                document, _ = self._bot.repository._load(connection)
+                request = _RequestIdentity(bot_id=identity.bot_id, owner_id=owner,
+                    incoming_message_id=message.message_id,
+                    enrollment_generation=document["enrollment"]["generation"])
+                binding = self.current_binding
+                _require(self.authorize_current_in_transaction(connection, binding), "nonqualifying")
+                accepted_at, deadline = datetime.now(UTC), monotonic() + 300
+                attempt, created = self._accept_in_transaction(connection, request=request,
+                    binding=binding, accepted_at=accepted_at)
+            if not created:
+                return True
+            cancelled = asyncio.Event()
+            operation = asyncio.create_task(self._deliver_selected(message, question, binding, attempt, deadline, cancelled))
+            self._answer_tasks.add(operation)
+            # Cancel authority immediately, but retain the actual SDK/provider work to drain.
+            while not operation.done():
+                try:
+                    await asyncio.shield(operation)
+                except asyncio.CancelledError:
+                    cancelled.set()
+            operation.result()
+            self._answer_tasks.discard(operation)
+            return True
+        except (Exception, asyncio.CancelledError):
+            # A denied update must not be resurrected by the management update gate.
+            return True
+
+    async def _deliver_selected(self, message, question, binding, attempt, deadline, cancelled):
+        from aiogram.types import Message
+
+        from ..ai.observations import QualifyingRagSuccess, RetrievalScope
+
+        reader, rag = self.reader, self.runtime.rag
+        configuration = self.configuration_fingerprint
+        result, checked, receipt = None, None, None
+        returned = []
+
+        def authorize(connection):
+            _require(not cancelled.is_set() and monotonic() < deadline
+                     and datetime.now(UTC) < attempt.expires_at, "deadline")
+            _require(self.reader is reader and self.runtime.rag is rag
+                     and self.configuration_fingerprint == configuration
+                     and self.authorize_current_in_transaction(connection, binding, checked), "nonqualifying")
+            pair = self._request_authority(connection, attempt)
+            _require(pair.fingerprint == attempt.pair_fingerprint, "nonqualifying")
+            return True
+
+        async def pre_submit():
+            with self._transaction() as connection:
+                authorize(connection)
+
+        async def references():
+            nonlocal checked
+            checked = await reader.check_used_references(binding, scope, result.observation.cited_refs)
+            _require(checked is not None, "nonqualifying")
+            await pre_submit()
+
+        try:
+            with self._transaction() as connection:
+                authorize(connection)
+                attempt = self._transition_in_transaction(connection, attempt=attempt, phase="generating")
+            async with self.runtime.database.session() as session:
+                result = await rag.answer_selected_observed(session, question,
+                    actor_id=attempt.owner_id, owner_id=attempt.owner_id, binding=binding, pre_submit=pre_submit)
+            await pre_submit()
+            _require(isinstance(result, QualifyingRagSuccess) and result.observation.binding is binding, "nonqualifying")
+            observation = result.observation
+            scope = RetrievalScope(binding.selected_chat_id, observation.after, observation.before,
+                observation.sender_id, observation.has, observation.content_type,
+                observation.execution.route or "local_rag", "cloud_embedding")
+            chunks = _answer_html_chunks(result.answer)
+            await references()
+            with self._transaction() as connection:
+                authorize(connection)
+                attempt = self._transition_in_transaction(connection, attempt=attempt,
+                    phase="delivering", chunk_count=len(chunks))
+            for ordinal, chunk in enumerate(chunks, 1):
+                await references()
+                with self._transaction() as connection:
+                    authorize(connection)
+                    attempt = self._submit_in_transaction(connection, attempt=attempt, ordinal=ordinal)
+                delivered = await message.answer(chunk, parse_mode="HTML")
+                _require(isinstance(delivered, Message) and delivered.chat.type == "private"
+                    and delivered.chat.id == attempt.owner_id and type(delivered.message_id) is int
+                    and delivered.message_id > 0 and delivered.message_id not in returned, "delivery_uncertain")
+                returned.append(delivered.message_id)
+                with self._transaction() as connection:
+                    attempt = self._returned_in_transaction(connection, attempt=attempt,
+                        ordinal=ordinal, message_id=delivered.message_id)
+            await references()
+            execution = asdict(observation.execution)
+            execution["cost_usd"] = str(execution["cost_usd"])
+            receipt = _Receipt(schema_version=1, namespace=self._namespace, revision=0,
+                request_digest=attempt.request_digest, attempt_revision=attempt.revision + 1,
+                completed_at=datetime.now(UTC), configuration_fingerprint=configuration,
+                binding=asdict(binding), execution=execution,
+                query_embedding_request_id=observation.query_embedding_request_id,
+                cited_refs=tuple(asdict(ref) for ref in observation.cited_refs),
+                retrieval_mode=observation.retrieval_mode, scope=asdict(scope), message_ids=tuple(returned))
+
+            def final_authorize(connection):
+                return (authorize(connection) and tuple(returned) == attempt.returned_message_ids
+                    and self._receipt_contexts(connection, receipt)
+                    and self._receipt_ledgers(connection, receipt, attempt))
+
+            # No await/offload: owning-loop RAM fences cannot change during this short physical CAS.
+            with self._transaction() as connection:
+                attempt = self._complete_in_transaction(connection, attempt=attempt, receipt=receipt,
+                    authorize=final_authorize)
+            self._receipt_check = (receipt, binding, checked)
+        except (Exception, asyncio.CancelledError) as error:
+            try:
+                # Reconcile an ambiguous commit once; never repeat generation or sending.
+                state = self.history()
+                actual = next(item for item in state.attempts if item.request_digest == attempt.request_digest)
+                if actual.phase == "completed":
+                    if receipt is not None and receipt in state.receipts:
+                        self._receipt_check = (receipt, binding, checked)
+                    return
+                if actual.phase in ACTIVE:
+                    with self._transaction() as connection:
+                        self._transition_in_transaction(connection, attempt=actual,
+                            phase="cancelled" if actual.phase == "accepted" else "uncertain",
+                            terminal_code="cancelled_before_effect" if actual.phase == "accepted" else
+                                "nonqualifying" if str(error) == "nonqualifying" and actual.submitted_ordinal == 0
+                                else "delivery_uncertain")
+            except Exception:
+                return  # Committed phase/ordinal remains a tombstone until admitted startup recovery.
+
     async def associate_learning(self, session, *, action, job, source_epoch):
         """Adjunct of the validated action's existing writer transaction, after flush."""
         from ..db.models import BackgroundJob, PendingAction, TelegramChatPolicy
@@ -1283,7 +1496,8 @@ class FirstValueService:
                 answer_state = "completed_with_warning"
             reconcile = attempt.phase in ACTIVE and not self._answer_tasks and not self._provider_transition
             answer = OperationResult(operation_id=attempt.request_digest, state=answer_state, progress=None,
-                code="answer_verified" if current else "answer_requires_recheck" if attempt.phase == "completed" else "answer_" + attempt.phase,
+                code="answer_verified" if current else "answer_requires_recheck" if attempt.phase == "completed"
+                    else "answer_nonqualifying" if attempt.terminal_code == "nonqualifying" else "answer_" + attempt.phase,
                 message="Đã xác minh câu trả lời từ nguồn hiện tại." if current else "Đã lưu trạng thái lần hỏi nguồn đã chọn.",
                 next_action=None if current else "Khởi động lại ứng dụng và kiểm tra lần gửi trước khi hỏi tiếp." if reconcile
                     else "Kiểm tra trạng thái nguồn và lần gửi trước khi hỏi tiếp.")

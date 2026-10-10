@@ -493,6 +493,11 @@ async def test_real_selected_semantic_execution_and_context_hash(selected):
     assert ref.content_hash == hashlib.sha256(row.text.encode()).hexdigest()
     request = selected.wire.requests[-1]["json"]
     context = request["input"].split("NGUỒN:\n", 1)[1].rsplit("\n\nCÂU HỎI:\n", 1)[0]
+    async with selected.service.database.session() as session:
+        chat = await session.scalar(select(TelegramChat).where(TelegramChat.chat_id == CHAT))
+        assert chat.id != CHAT
+    assert "Group/channel: Source\n" in context
+    assert f"Link: https://t.me/c/{str(CHAT)[4:]}/1\n" in context
     assert ref.context_hash == hashlib.sha256(context.encode()).hexdigest()
     ledger = {item.request_id: item for item in await selected.rig.rows()}
     assert ledger[observation.query_embedding_request_id].operation == "embedding"
