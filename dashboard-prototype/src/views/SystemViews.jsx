@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowsOut,
   Brain,
@@ -94,7 +94,7 @@ export function ConnectionsView({
           <div>
             <b>
               {isLive
-                ? "Admin API và SSE đang hoạt động"
+                ? "Kênh SSE đã kết nối"
                 : isOffline
                   ? "Dashboard đang offline"
                   : realtimeState === "connecting"
@@ -103,7 +103,7 @@ export function ConnectionsView({
             </b>
             <span>
               {isLive
-                ? "Snapshot mới có thể cập nhật các chỉ số vận hành."
+                ? "Kết nối luồng không chứng minh các dịch vụ đã sẵn sàng. Kiểm tra từng dịch vụ và thời điểm quan sát."
                 : `Giữ snapshot gần nhất${
                     lastRealtimeAt ? ` từ ${formatDate(lastRealtimeAt)}` : ""
                   }; thao tác ghi cần kiểm tra lại kết nối.`}
@@ -119,6 +119,7 @@ export function ConnectionsView({
           ) : null}
         </div>
       </section>
+      {[overview, ai, workers].some(resource => resource.error) ? <p role="alert">DỮ LIỆU CŨ · Một phần snapshot chưa tải được. Kiểm tra lại kết nối trước khi thao tác.</p> : null}
       <section className="connection-grid">
         {rows.map(([name, description, state, tone, detail]) => (
           <article className="connection-card" key={name}>
@@ -269,9 +270,12 @@ export function DocumentationView({ refreshKey }) {
   const [docSearch, setDocSearch] = useState("");
   const [expanded, setExpanded] = useState(false);
   const documentTriggerRef = useRef(null);
+  const readerGeneration = useRef(0);
+  const closeReader = () => { readerGeneration.current += 1; setReader(null); };
+  useEffect(() => () => { readerGeneration.current += 1; }, []);
   const dialogRef = useDialogA11y(
     Boolean(reader),
-    () => setReader(null),
+    closeReader,
     documentTriggerRef,
   );
   const visibleContent = useMemo(() => {
@@ -284,12 +288,15 @@ export function DocumentationView({ refreshKey }) {
   }, [reader, docSearch]);
 
   const openDocument = async (document) => {
+    const generation = ++readerGeneration.current;
     setReaderError(null);
+    setDocSearch("");
     setReader({ ...document, content: "", loading: true });
     try {
-      setReader(await api.document(document.id));
+      const result = await api.document(document.id);
+      if (generation === readerGeneration.current) setReader(result);
     } catch (error) {
-      setReaderError(error);
+      if (generation === readerGeneration.current) { setReaderError(error); setReader(current => ({ ...current, loading: false })); }
     }
   };
   return (
@@ -348,7 +355,7 @@ export function DocumentationView({ refreshKey }) {
       </section>
       {reader ? (
         <div className="modal-backdrop doc-reader-backdrop" onMouseDown={(event) => {
-          if (event.target === event.currentTarget) setReader(null);
+          if (event.target === event.currentTarget) closeReader();
         }}>
           <article
             ref={dialogRef}
@@ -375,7 +382,7 @@ export function DocumentationView({ refreshKey }) {
                 <button className="icon-button" aria-label="Mở rộng trình đọc" onClick={() => setExpanded((value) => !value)}>
                   <ArrowsOut size={20} />
                 </button>
-                <button className="icon-button" aria-label="Đóng trình đọc" onClick={() => setReader(null)}>
+                <button className="icon-button" aria-label="Đóng trình đọc" onClick={closeReader}>
                   <X size={22} />
                 </button>
               </div>

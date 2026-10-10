@@ -502,9 +502,21 @@ class RagService:
                     "cloud_consent": embedding.cloud_consent,
                 },
             )
+            configured_endpoint = embedding._configured_base_url
+            configured = ModelSelection.parse(
+                embedding.provider,
+                {
+                    "service": "embeddings",
+                    "model": embedding.embedding_model,
+                    "endpoint": configured_endpoint,
+                    "cloud_consent": embedding.cloud_consent,
+                },
+            )
+            if selection.endpoint != configured.endpoint:
+                raise AiPolicyError("Selected embedding identity changed")
             if (
                 embedding.provider,
-                selection.endpoint_id,
+                f"endpoint-{hashlib.sha256(configured_endpoint.encode()).hexdigest()[:32]}",
                 embedding.embedding_model,
                 profile.embedding_version,
                 embedding.embedding_dimension,
@@ -707,7 +719,7 @@ class RagService:
                 semantic_keys.add(key)
                 combined[key] = score
         await fence()
-        chat = await session.get(TelegramChat, scope.selected_chat_id)
+        chat = await session.scalar(select(TelegramChat).where(TelegramChat.chat_id == scope.selected_chat_id))
         contexts, evidence_rows, actual_rows = [], [], []
         context_tokens = 0
         for (chat_id, message_id), score in sorted(

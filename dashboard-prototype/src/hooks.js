@@ -1,43 +1,57 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 export function useResource(loader, dependencies = [], refreshKey = 0) {
   const loaderRef = useRef(loader);
   loaderRef.current = loader;
+  const owner = useMemo(() => ({ active: false, generation: 0 }), dependencies);
+  const ownerRef = useRef(owner);
+  ownerRef.current = owner;
   const [state, setState] = useState({
+    owner,
     data: null,
     error: null,
     loading: true,
   });
 
   const reload = useCallback(async () => {
-    setState((current) => ({ ...current, error: null, loading: true }));
+    if (!owner.active || ownerRef.current !== owner) return null;
+    const generation = ++owner.generation;
+    const isCurrent = () => owner.active && ownerRef.current === owner && owner.generation === generation;
+    setState((current) => ({ owner, data: current.owner === owner ? current.data : null, error: current.owner === owner ? current.error : null, loading: true }));
     try {
       const data = await loaderRef.current();
-      setState({ data, error: null, loading: false });
+      if (!isCurrent()) return null;
+      setState({ owner, data, error: null, loading: false });
       return data;
     } catch (error) {
-      setState((current) => ({ ...current, error, loading: false }));
+      if (isCurrent()) setState((current) => ({ ...current, error, loading: false }));
       return null;
     }
-  }, []);
+  }, [owner]);
 
   useEffect(() => {
-    let active = true;
-    setState((current) => ({ ...current, error: null, loading: true }));
-    loaderRef
-      .current()
-      .then((data) => {
-        if (active) setState({ data, error: null, loading: false });
-      })
-      .catch((error) => {
-        if (active) setState((current) => ({ ...current, error, loading: false }));
-      });
+    owner.active = true;
+    reload();
     return () => {
-      active = false;
+      owner.active = false;
+      owner.generation += 1;
     };
-  }, [...dependencies, refreshKey]);
+  }, [owner, reload, refreshKey]);
 
-  return { ...state, reload };
+  return state.owner === owner ? { data: state.data, error: state.error, loading: state.loading, reload } : { data: null, error: null, loading: true, reload };
+}
+
+export function useObservedAt() {
+  const [observedAt, setObservedAt] = useState(() => Date.now());
+  useEffect(() => {
+    const recomputeAge = () => setObservedAt(Date.now());
+    // Wall time must advance even while a refresh is pending after sleep.
+    const clock = setInterval(recomputeAge, 1000);
+    window.addEventListener("focus", recomputeAge);
+    document.addEventListener("visibilitychange", recomputeAge);
+    return () => { clearInterval(clock); window.removeEventListener("focus", recomputeAge); document.removeEventListener("visibilitychange", recomputeAge); };
+  }, []);
+  return observedAt;
 }
 
 export function useDebouncedValue(value, delay = 300) {

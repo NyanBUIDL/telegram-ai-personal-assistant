@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import sqlite3
+from contextlib import closing
 from zipfile import ZipFile
 
 import httpx
@@ -95,17 +97,21 @@ async def test_backup_routes_require_owner_csrf_and_origin(backup_admin):
     assert not list((settings.data_dir / "backups").glob("backup-*.zip"))
 
 
-async def test_dashboard_creates_lists_real_backup_without_paths(backup_admin):
+async def test_dashboard_creates_lists_real_backup_without_paths(backup_admin, tmp_path):
     client, settings, _ = backup_admin
     headers = await login(client)
     response = await client.post("/api/v1/backups", json={}, headers=headers)
     assert response.status_code == 201, response.text
-    assert response.json()["manifest"]["schema_revision"] == "0009"
     assert str(settings.data_dir) not in response.text
     archives = list((settings.data_dir / "backups").glob("backup-*.zip"))
     assert len(archives) == 1
     with ZipFile(archives[0]) as archive:
         assert set(archive.namelist()) == {"manifest.json", "database.sqlite3"}
+        snapshot = tmp_path / "backup.sqlite3"
+        snapshot.write_bytes(archive.read("database.sqlite3"))
+        with closing(sqlite3.connect(snapshot)) as database:
+            revision = database.execute("SELECT version_num FROM alembic_version").fetchone()[0]
+            assert response.json()["manifest"]["schema_revision"] == revision
     listing = await client.get("/api/v1/backups")
     assert listing.status_code == 200
     assert listing.json()["items"][0]["id"] == response.json()["id"]

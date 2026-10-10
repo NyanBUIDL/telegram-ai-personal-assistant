@@ -153,7 +153,7 @@ async def test_queued_job_cannot_reallow_blocked_chat(session, mode):
         calls.append(kwargs["chat_id"])
         return 0
 
-    app.user.sync_history = sync
+    app.user.stage_history_page = sync
     await app._process_learning_jobs()
     policy = await session.scalar(
         select(TelegramChatPolicy).where(TelegramChatPolicy.chat_id == 100)
@@ -443,7 +443,8 @@ async def test_owner_ask_command_rechecks_before_each_delivery(session, revoke_a
                 await RevocationService(Database(session), 1).revoke_source(100, 1, "keep")
 
     control._ask_ai = answer
-    message = SimpleNamespace(from_user=SimpleNamespace(id=1, is_bot=False), answer=send)
+    message = SimpleNamespace(from_user=SimpleNamespace(id=1, is_bot=False),
+                              chat=SimpleNamespace(id=1, type="private"), answer=send)
     handler = next(
         item.callback for item in control.router.message.handlers if item.callback.__name__ == "ask"
     )

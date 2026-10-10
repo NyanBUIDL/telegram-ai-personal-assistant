@@ -2,7 +2,7 @@ import { defineConfig } from '@playwright/test';
 
 export default defineConfig({
   testDir: './tests/e2e',
-  testMatch: ['onboarding-dashboard.spec.js', 'first-value.spec.js'],
+  testMatch: ['onboarding-dashboard.spec.js', 'first-value.spec.js', 'runtime-status.spec.js', 'management-recovery.spec.js'],
   workers: 1,
   retries: 0,
   forbidOnly: true,

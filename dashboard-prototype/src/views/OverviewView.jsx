@@ -12,7 +12,8 @@ import {
 
 import { api } from "../api.js";
 import { formatBytes, formatDate, formatNumber, humanize, statusTone } from "../format.js";
-import { useResource } from "../hooks.js";
+import { useObservedAt, useResource } from "../hooks.js";
+import { connectionPresentation } from "../statusPresentation.js";
 import {
   Badge,
   EmptyState,
@@ -26,7 +27,7 @@ function StatBlock({ label, value, note, tone, icon: Icon }) {
     <article className={`stat-block stat-block--${tone}`}>
       <div className="stat-topline">
         <span>{label}</span>
-        <small>LIVE</small>
+        <small>24 GIỜ</small>
         <Icon size={24} weight="bold" aria-hidden="true" />
       </div>
       <strong>{value}</strong>
@@ -51,12 +52,12 @@ function RuntimeChart({ history = [] }) {
       item.data_bytes || 0,
     ]),
   );
-  const height = (value) => `${Math.max(3, Math.round(((value || 0) / maxValue) * 100))}%`;
+  const height = (value) => `${Math.max(0, Math.round(((value || 0) / maxValue) * 100))}%`;
 
   return (
     <section className="panel activity-panel">
       <PanelHeader
-        eyebrow="RUNTIME TELEMETRY · LIVE"
+        eyebrow="RUNTIME TELEMETRY"
         title="Tài nguyên theo thời gian"
         action={<Badge tone="teal">{sampled.length} MẪU</Badge>}
       />
@@ -87,63 +88,68 @@ function RuntimeChart({ history = [] }) {
             </div>
           </div>
           <div className="chart-summary">
-            <b>{formatBytes(sampled.at(-1)?.rss_bytes)}</b>
+            <b>{sampled.at(-1)?.rss_bytes == null ? "—" : formatBytes(sampled.at(-1).rss_bytes)}</b>
             <span>RAM của tiến trình tại lần đo gần nhất.</span>
           </div>
         </>
       ) : (
         <EmptyState
           title="Chưa có mẫu telemetry"
-          description="Scheduler sẽ ghi mẫu đầu tiên trong vòng một phút."
+          description="Mở telemetry hoặc kiểm tra ứng dụng Windows để xem lần đo tiếp theo."
         />
       )}
     </section>
   );
 }
 
-function HealthPanel({ overview, onNavigate }) {
+function HealthPanel({ overview, onNavigate, observedAt, unavailable }) {
   const health = overview.health || [];
+  const ready = health.length > 0 && health.every(item => connectionPresentation(item, observedAt, unavailable).online);
   return (
     <section className="panel pulse-panel">
       <PanelHeader
-        eyebrow="SERVICE HEALTH · LIVE"
+        eyebrow="SERVICE HEALTH"
         title="Nhịp hệ thống"
         action={
-          <Badge tone={health.some((item) => item.status !== "ok") ? "yellow" : "success"}>
-            {health.length || "RUNTIME"} SERVICE
+          <Badge tone={ready ? "success" : "yellow"}>
+            {health.length ? `${health.length} SERVICE` : "CHƯA BIẾT"}
           </Badge>
         }
       />
       <div className="service-list">
         {health.length ? (
-          health.map((service) => (
+          health.map((service) => {
+            const presentation = connectionPresentation(service, observedAt, unavailable);
+            return (
             <div className="service-row" key={service.component}>
               <span
                 className={`service-light service-light--${
-                  service.status === "ok" ? "online" : "warning"
+                  presentation.online ? "online" : "warning"
                 }`}
               />
               <div>
                 <b>{humanize(service.component)}</b>
                 <small>Cập nhật {formatDate(service.checked_at)}</small>
+                {!presentation.online ? <small>{service.next_action || "Mở Kết nối và bấm Kiểm tra lại."}</small> : null}
               </div>
               <strong>
-                {service.latency_ms == null ? humanize(service.status) : `${service.latency_ms} ms`}
+                {presentation.label}{presentation.online && service.latency_ms != null ? ` · ${service.latency_ms} ms` : ""}
               </strong>
             </div>
-          ))
+          ); })
         ) : (
           <div className="service-row">
-            <span className="service-light service-light--online" />
+            <span className="service-light service-light--warning" />
             <div>
               <b>Admin API</b>
-              <small>Phiên dashboard đang hoạt động</small>
+              <small>Mở Kết nối và bấm Kiểm tra lại.</small>
             </div>
-            <strong>ONLINE</strong>
+            <strong>CHƯA BIẾT</strong>
           </div>
         )}
       </div>
       <div className="pulse-actions">
+        <button className="text-action" onClick={() => onNavigate("connections")}>Kiểm tra kết nối</button>
         <button className="text-action" onClick={() => onNavigate("workers")}>
           Mở telemetry
           <Pulse size={18} weight="bold" />
@@ -262,6 +268,7 @@ export function OverviewView({ refreshKey, onReview, onNavigate }) {
   const workers = useResource(api.workers, [], refreshKey);
   const pending = useResource(() => api.pendingActions("pending", 20), [], refreshKey);
   const audit = useResource(() => api.audit({ pageSize: 10 }), [], refreshKey);
+  const observedAt = useObservedAt();
 
   if (overview.loading && !overview.data) return <LoadingState label="Đang tải tổng quan…" />;
   if (overview.error && !overview.data)
@@ -269,18 +276,22 @@ export function OverviewView({ refreshKey, onReview, onNavigate }) {
 
   const data = overview.data || {};
   const runtime = data.runtime;
+  const health = data.health || [];
+  const ready = health.length > 0 && health.every(item => connectionPresentation(item, observedAt, Boolean(overview.error)).online);
   return (
     <>
+      {overview.error ? <section className="panel"><p>DỮ LIỆU CŨ · Tổng quan chưa cập nhật được. Kiểm tra lại để đọc trạng thái hiện tại.</p><ErrorState error={overview.error} onRetry={overview.reload} /></section> : null}
+      {[[workers, "Telemetry"], [pending, "Hành động chờ"], [audit, "Audit"]].map(([resource, label]) => resource.error && resource.data ? <section className="panel" key={label}><p>DỮ LIỆU CŨ · {label}</p><ErrorState error={resource.error} onRetry={resource.reload} /></section> : null)}
       <section className="overview-context-strip" aria-label="Trạng thái hệ thống">
         <div>
-          <span>Admin API</span>
-          <b>CONNECTED</b>
-          <small>Owner auth · CSRF · SSE realtime</small>
+          <span>Trạng thái đã đo</span>
+          <b>{ready ? "SẴN SÀNG" : overview.error ? "DỮ LIỆU CŨ" : "CHƯA XÁC NHẬN"}</b>
+          <small>{ready ? "Kết quả kiểm tra trong một phút" : "Mở Kết nối và bấm Kiểm tra lại"}</small>
         </div>
         <div>
           <span>Global AI provider</span>
-          <b>{String(data.ai_provider || "off").toUpperCase()}</b>
-          <small>{data.ai_model || "AI đang tắt"}</small>
+          <b>{data.ai_provider == null ? "CHƯA BIẾT" : String(data.ai_provider).toUpperCase()}</b>
+          <small>{data.ai_model || (data.ai_provider === "off" ? "AI đang tắt" : "Chưa có thông tin model")}</small>
         </div>
         <button className="button button--primary" onClick={() => onNavigate("telegram-features")}>
           <PaperPlaneTilt size={19} weight="fill" />
@@ -291,28 +302,28 @@ export function OverviewView({ refreshKey, onReview, onNavigate }) {
       <section className="stats-grid" aria-label="Chỉ số 24 giờ">
         <StatBlock
           label="Tin nhắn 24 giờ"
-          value={formatNumber(data.messages)}
-          note={`Trên ${formatNumber(data.joined_sources)} nguồn đã tham gia`}
+          value={data.messages == null ? "—" : formatNumber(data.messages)}
+          note={data.joined_sources == null ? "Chưa có số nguồn đã tham gia" : `Trên ${formatNumber(data.joined_sources)} nguồn đã tham gia`}
           tone="teal"
           icon={PaperPlaneTilt}
         />
         <StatBlock
           label="Yêu cầu /ask"
-          value={formatNumber(data.ask_requests)}
+          value={data.ask_requests == null ? "—" : formatNumber(data.ask_requests)}
           note="Câu hỏi bot ghi nhận · không gồm embedding"
           tone="paper"
           icon={Sparkle}
         />
         <StatBlock
           label="Hành động chờ"
-          value={String(data.pending_actions || 0).padStart(2, "0")}
+          value={data.pending_actions == null ? "—" : String(data.pending_actions).padStart(2, "0")}
           note="Cần owner xác nhận"
           tone="yellow"
           icon={Clock}
         />
         <StatBlock
           label="Bị chặn hoặc lỗi"
-          value={formatNumber(data.blocked_or_failed)}
+          value={data.blocked_or_failed == null ? "—" : formatNumber(data.blocked_or_failed)}
           note="Audit trong 24 giờ"
           tone="magenta"
           icon={ShieldCheck}
@@ -323,20 +334,20 @@ export function OverviewView({ refreshKey, onReview, onNavigate }) {
         <div>
           <Cpu size={30} />
           <span>RAM</span>
-          <b>{formatBytes(runtime?.rss_bytes)}</b>
-          <Badge tone="teal">PID {runtime?.pid || "—"}</Badge>
+          <b>{runtime?.rss_bytes == null ? "—" : formatBytes(runtime.rss_bytes)}</b>
+          <Badge tone="teal">PID {runtime?.pid ?? "—"}</Badge>
         </div>
         <div>
           <Database size={30} />
           <span>Dữ liệu</span>
-          <b>{formatBytes(runtime?.data_bytes)}</b>
-          <Badge tone="paper">MYSQL</Badge>
+          <b>{runtime?.data_bytes == null ? "—" : formatBytes(runtime.data_bytes)}</b>
+          <Badge tone="paper">DỮ LIỆU</Badge>
         </div>
         <div>
           <HardDrives size={30} />
           <span>Vector</span>
-          <b>{formatBytes(runtime?.vector_bytes)}</b>
-          <Badge tone="yellow">{runtime?.queued_jobs || 0} QUEUED</Badge>
+          <b>{runtime?.vector_bytes == null ? "—" : formatBytes(runtime.vector_bytes)}</b>
+          <Badge tone="yellow">{runtime?.queued_jobs ?? "—"} QUEUED</Badge>
         </div>
         <div>
           <Cpu size={30} />
@@ -356,15 +367,15 @@ export function OverviewView({ refreshKey, onReview, onNavigate }) {
         ) : (
           <RuntimeChart history={workers.data?.history || []} />
         )}
-        <HealthPanel overview={data} onNavigate={onNavigate} />
+        <HealthPanel overview={data} onNavigate={onNavigate} observedAt={observedAt} unavailable={Boolean(overview.error)} />
       </section>
       <section className="dashboard-grid dashboard-grid--bottom">
-        <PendingTable
+        {pending.error && !pending.data ? <section className="panel"><ErrorState error={pending.error} onRetry={pending.reload} /></section> : pending.loading && !pending.data ? <LoadingState label="Đang tải hành động chờ…" /> : <PendingTable
           actions={pending.data?.items || []}
           onReview={onReview}
           onNavigate={onNavigate}
-        />
-        <AuditFeed items={audit.data?.items || []} onNavigate={onNavigate} />
+        />}
+        {audit.error && !audit.data ? <section className="panel"><ErrorState error={audit.error} onRetry={audit.reload} /></section> : audit.loading && !audit.data ? <LoadingState label="Đang tải audit…" /> : <AuditFeed items={audit.data?.items || []} onNavigate={onNavigate} />}
       </section>
     </>
   );

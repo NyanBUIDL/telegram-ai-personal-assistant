@@ -11,7 +11,7 @@ from tg_assistant.admin_api import AdminContext, create_admin_app, dashboard_log
 from tg_assistant.admin_api.app import _job_json, _update_job_state
 from tg_assistant.config import Settings
 from tg_assistant.db.base import Base, Database
-from tg_assistant.db.models import BackgroundJob, TelegramChat, TelegramMessage
+from tg_assistant.db.models import BackgroundJob, KnowledgeSource, TelegramChat, TelegramMessage
 from tg_assistant.policy import PolicyEngine
 from tg_assistant.services.ollama import OllamaService
 
@@ -145,6 +145,62 @@ async def test_admin_api_requires_login_and_csrf(admin_client) -> None:
     )
     assert confirmed.status_code == 200
     assert confirmed.json()["status"] == "confirmed"
+
+
+@pytest.mark.parametrize("current_owner", [False, True])
+async def test_retry_projects_source_state_only_for_current_job(admin_client, current_owner):
+    client, secret = admin_client
+    context = client._transport.app.state.admin_context
+    chat_id = -1001315055119
+    payload = {
+        "chat_id": chat_id, "owner_id": context.owner_id, "source_epoch": 1,
+        "action_id": "fv1-exhausted", "limit": 1000,
+        "history_read": 1000, "history_read_reserved": 1000,
+        "history_completed": False, "history_stop_reason": "confirmation_limit",
+    }
+    if current_owner:
+        payload = {"chat_id": chat_id, "owner_id": context.owner_id,
+                   "source_epoch": 1, "history_completed": True}
+    error = "embedding timeout" if current_owner else "history_limit_reached"
+    async with context.database.session() as session:
+        failed = BackgroundJob(job_type="learn_group", status="failed", attempts=3,
+                               last_error=error, payload=payload)
+        completed = BackgroundJob(job_type="learn_group", status="completed",
+                                  payload={**payload, "history_completed": True})
+        session.add_all([failed, completed])
+        await session.flush()
+        failed_id, completed_id = failed.id, completed.id
+        source_job_id = failed_id if current_owner else completed_id
+        session.add(KnowledgeSource(chat_id=chat_id, last_job_id=source_job_id,
+                                    status="failed" if current_owner else "learned",
+                                    last_error=error if current_owner else None))
+
+    endpoint = f"/api/v1/learning-jobs/{failed_id}/retry"
+    assert (await client.post(endpoint)).status_code == 401
+    login = await client.post("/api/v1/auth/login", json={"code": dashboard_login_code(secret)})
+    assert login.status_code == 200
+    assert (await client.post(endpoint)).status_code == 403
+    async with context.database.session() as session:
+        assert (await session.get(BackgroundJob, failed_id)).status == "failed"
+        source = await session.get(KnowledgeSource, chat_id)
+        assert source.last_job_id == source_job_id
+        assert source.status == ("failed" if current_owner else "learned")
+
+    client._transport.raise_app_exceptions = False
+    response = await client.post(endpoint, headers={"X-CSRF-Token": login.json()["csrf_token"]})
+    async with context.database.session() as session:
+        failed = await session.get(BackgroundJob, failed_id)
+        assert failed.status == "queued" and failed.attempts == 0 and failed.last_error is None
+        assert failed.payload == payload
+        assert (await session.get(BackgroundJob, completed_id)).status == "completed"
+        source = await session.get(KnowledgeSource, chat_id)
+        assert source.last_job_id == source_job_id
+        assert source.status == ("queued" if current_owner else "learned")
+        assert source.last_error is None
+    assert response.status_code == 200
+    assert response.json()["status"] == "queued"
+    assert response.json()["id"] == failed_id
+    assert response.json()["updated_at"] is not None
 
 
 async def test_admin_api_rejects_invalid_login_code(admin_client) -> None:

@@ -13,9 +13,11 @@ export class ApiError extends Error {
 }
 
 let csrfToken = "";
+let authGeneration = 0;
 let authFailureHandler = null;
 
 export function setCsrfToken(value) {
+  authGeneration += 1;
   csrfToken = value || "";
 }
 
@@ -27,7 +29,8 @@ export function onAuthFailure(handler) {
 }
 
 async function request(path, options = {}) {
-  const { responseType, ...fetchOptions } = options;
+  const { responseType, expectedStatus, requireCurrentAuth, ...fetchOptions } = options;
+  const generation = authGeneration;
   const method = (options.method || "GET").toUpperCase();
   const headers = new Headers(options.headers || {});
   const isWrite = !["GET", "HEAD", "OPTIONS"].includes(method);
@@ -52,29 +55,52 @@ async function request(path, options = {}) {
     });
   } catch (error) {
     throw new ApiError(
-      "Không kết nối được Admin API. Hãy kiểm tra ứng dụng đang chạy.",
+      isWrite
+        ? "Chưa rõ thao tác đã được nhận. Kiểm tra ứng dụng Windows và tải lại trạng thái trước khi gửi lại."
+        : "Không kết nối được Admin API. Hãy kiểm tra ứng dụng Windows đang chạy rồi tải lại.",
       0,
       error,
     );
   }
 
   const contentType = response.headers.get("content-type") || "";
-  const payload =
-    responseType === "blob" && response.ok
+  let payload;
+  try {
+    payload = responseType === "blob" && response.ok
       ? await response.blob()
-      : contentType.includes("application/json")
-        ? await response.json()
-        : await response.text();
+      : contentType.includes("application/json") ? await response.json() : await response.text();
+  } catch {
+    if (response.ok) throw new ApiError("Chưa đọc được kết quả. Kiểm tra ứng dụng Windows và tải lại trạng thái trước khi gửi lại.", isWrite ? 0 : 502);
+    payload = null;
+  }
 
   if (!response.ok) {
-    const message =
-      typeof payload === "object" && payload?.detail
-        ? String(payload.detail)
-        : `Admin API trả về HTTP ${response.status}.`;
+    const code = payload?.detail?.code;
+    const guidance = {
+      backup_in_progress: "Đang có bản sao lưu được tạo. Chờ hoàn tất rồi tải lại danh sách trước khi tạo tiếp.",
+      maintenance_in_progress: "Ứng dụng đang bảo trì hoặc khôi phục. Chờ thao tác Windows hoàn tất rồi tải lại.",
+      backup_failed: "Chưa tạo được bản sao lưu. Kiểm tra dung lượng và quyền thư mục trong ứng dụng Windows, rồi tải lại danh sách.",
+      backup_request_invalid: "Yêu cầu sao lưu không hợp lệ. Tải lại dashboard và dùng nút Tạo bản sao lưu.",
+    };
+    const statuses = {
+      401: "Phiên quản lý đã hết hiệu lực. Mở lại dashboard từ ứng dụng Windows.",
+      403: "Không đủ quyền thực hiện. Kiểm tra quyền nguồn và phiên owner trong ứng dụng Windows, rồi tải lại trạng thái.",
+      409: "Trạng thái đã thay đổi hoặc dịch vụ chưa sẵn sàng. Kiểm tra Kết nối trên Windows và tải lại trạng thái trước khi thử lại.",
+      429: "Đã chạm giới hạn yêu cầu. Chờ một lúc rồi tải lại trạng thái trước khi thử lại.",
+      500: "Máy chủ chưa xác nhận kết quả. Kiểm tra ứng dụng Windows và tải lại trạng thái; không gửi lại khi kết quả chưa rõ.",
+      503: "Dịch vụ tạm thời không khả dụng. Kiểm tra ứng dụng Windows rồi tải lại trạng thái trước khi thử lại.",
+    };
+    // Only fixed guidance crosses this boundary; rejected inputs and dependency errors may contain secrets.
+    const message = (Object.hasOwn(guidance, code) && guidance[code]) || statuses[response.status] || `Yêu cầu chưa được chấp nhận (HTTP ${response.status}). Kiểm tra lựa chọn và tải lại trạng thái.`;
     const error = new ApiError(message, response.status, payload);
-    if (response.status === 401 && authFailureHandler) authFailureHandler(error);
+    if (response.status === 401) {
+      authGeneration += 1;
+      authFailureHandler?.(error);
+    }
     throw error;
   }
+  if ((requireCurrentAuth || isWrite) && generation !== authGeneration) throw new ApiError("Phiên đã thay đổi. Mở lại dashboard trước khi tiếp tục.", 401);
+  if (expectedStatus && response.status !== expectedStatus) throw new ApiError("Chưa xác nhận hoàn tất. Tải lại trạng thái trước khi gửi yêu cầu tiếp.", response.status);
   return payload;
 }
 
@@ -225,7 +251,7 @@ export const api = {
       body,
     }),
   pendingActions: (state = "pending", limit = 100) =>
-    request(`/pending-actions?state=${encodeURIComponent(state)}&limit=${limit}`),
+    request(`/pending-actions?state=${encodeURIComponent(state)}&limit=${limit}`, { requireCurrentAuth: true }),
   confirmAction: (actionId) =>
     request(`/pending-actions/${encodeURIComponent(actionId)}/confirm`, {
       method: "POST",
@@ -278,7 +304,7 @@ export const api = {
   learningJobs: ({ status = "", limit = 200, signal } = {}) =>
     request(
       `/learning-jobs?job_status=${encodeURIComponent(status)}&limit=${limit}`,
-      { signal },
+      { signal, requireCurrentAuth: true },
     ),
   historyBackfillJobs: (chatId, limit = 10) =>
     request(
@@ -296,10 +322,10 @@ export const api = {
       `/learning-jobs/${encodeURIComponent(jobId)}/${encodeURIComponent(operation)}`,
       { method: "POST" },
     ),
-  aiConfig: () => request("/ai/config"),
+  aiConfig: () => request("/ai/config", { requireCurrentAuth: true }),
   setProvider: (provider) =>
     request("/ai/provider", { method: "PUT", body: { provider } }),
-  ollamaModels: () => request("/ollama/models"),
+  ollamaModels: () => request("/ollama/models", { requireCurrentAuth: true }),
   pullOllamaModel: (model) =>
     request("/ollama/models/pull", { method: "POST", body: { model } }),
   ollamaDownloads: (limit = 20) =>
@@ -324,15 +350,18 @@ export const api = {
       body: { model },
     }),
   storage: () => request("/storage"),
+  backups: () => request("/backups"),
+  createBackup: () => request("/backups", { method: "POST", body: {}, expectedStatus: 201 }),
   cleanupPreview: () => request("/storage/cleanup-preview", { method: "POST" }),
   createCleanupAction: () =>
     request("/storage/cleanup-action", { method: "POST" }),
   workers: () => request("/workers"),
-  audit: ({ query = "", outcome = "", page = 1, pageSize = 100 } = {}) =>
+  audit: ({ query = "", outcome = "", page = 1, pageSize = 100, supportExport = false } = {}) =>
     request(
       `/audit?query=${encodeURIComponent(query)}&outcome=${encodeURIComponent(
         outcome,
-      )}&page=${page}&page_size=${pageSize}`,
+      )}&page=${page}&page_size=${pageSize}${supportExport ? "&support_export=true" : ""}`,
+      { requireCurrentAuth: supportExport },
     ),
   documents: () => request("/docs"),
   document: (id) => request(`/docs/${encodeURIComponent(id)}`),

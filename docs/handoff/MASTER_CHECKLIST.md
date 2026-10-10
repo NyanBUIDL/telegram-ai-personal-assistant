@@ -48,12 +48,12 @@ Ngày lập: 02/10/2026. **Thiết kế đã duyệt; implementation đang thự
 ### M4 — Quản trị hoàn chỉnh
 
 - [ ] **U03 — Nguồn/quyền/học/câu hỏi đầu có hướng dẫn** · Experience · phụ thuộc: O04, V03, U02 · InProgress.
-- [ ] **U04 — Quản lý, lỗi/recovery, backup và hỗ trợ trong UI** · Experience · phụ thuộc: U03, S03 · Planned.
+- [ ] **U04 — Quản lý, lỗi/recovery, backup và hỗ trợ trong UI** · Experience · phụ thuộc: U03, S03 · InProgress.
 
 ### M5 — Đóng gói Windows
 
-- [ ] **P01 — Build reproducible và đóng gói đủ resources** · Platform · phụ thuộc: D01, U04, R01 · Planned.
-- [ ] **P02 — Installer per-user, nâng cấp/gỡ an toàn** · Platform · phụ thuộc: P01, S03 · Planned.
+- [ ] **P01 — Build reproducible và đóng gói đủ resources** · Platform · phụ thuộc: D01, U04, R01 · InProgress.
+- [ ] **P02 — Installer per-user, nâng cấp/gỡ an toàn** · Platform · phụ thuộc: P01, S03 · InProgress.
 
 ### M6 — Nghiệm thu và bàn giao beta
 

@@ -25,24 +25,32 @@ import {
   PanelHeader,
 } from "../ui.jsx";
 
-export function AiView({ refreshKey, onToast }) {
+export function AiView({ refreshKey, onToast, onNavigate }) {
   const resource = useResource(api.aiConfig, [], refreshKey);
   const [selectedProvider, setSelectedProvider] = useState("");
   const [confirming, setConfirming] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [providerError, setProviderError] = useState(null);
+  const [acceptedProvider, setAcceptedProvider] = useState(null);
 
   useEffect(() => {
-    if (resource.data) setSelectedProvider(resource.data.provider);
+    if (resource.data) { setSelectedProvider(resource.data.provider); setAcceptedProvider(null); }
   }, [resource.data]);
 
   const changeProvider = async () => {
     setSaving(true);
+    setProviderError(null);
     try {
       const result = await api.setProvider(selectedProvider);
-      onToast(result.message || `Đã chuyển sang ${selectedProvider}.`);
+      setAcceptedProvider(result.provider);
+      setSelectedProvider(result.provider);
+      onToast(`Máy chủ đã chọn provider ${result.provider}.`);
       setConfirming(false);
       await resource.reload();
     } catch (error) {
+      setSelectedProvider(acceptedProvider || resource.data.provider);
+      setConfirming(false);
+      setProviderError(error);
       onToast(error.message, "error");
     } finally {
       setSaving(false);
@@ -52,8 +60,8 @@ export function AiView({ refreshKey, onToast }) {
   if (resource.loading && !resource.data) return <LoadingState label="Đang tải cấu hình AI…" />;
   if (resource.error && !resource.data)
     return <ErrorState error={resource.error} onRetry={resource.reload} />;
-  const config = resource.data;
-  if (!config) return null;
+  if (!resource.data) return null;
+  const config = { ...resource.data, provider: acceptedProvider || resource.data.provider };
 
   const usage = config.usage_24h || {};
   const efficiency = config.efficiency || {};
@@ -78,6 +86,7 @@ export function AiView({ refreshKey, onToast }) {
 
   return (
     <section className="ops-stack">
+      {providerError ? <div role="alert"><p>{providerError.message}</p><p>Đang hiển thị provider được xác nhận gần nhất. Mở Kết nối rồi dùng cấu hình AI trên Windows; không tự bật cloud fallback.</p><button className="button button--outline" onClick={() => onNavigate?.("connections")}>Mở Kết nối</button></div> : null}
       <section className="ops-mode-switch">
         <div>
           <p className="eyebrow">GLOBAL PROVIDER · LIVE</p>
@@ -91,6 +100,7 @@ export function AiView({ refreshKey, onToast }) {
             <button
               key={provider}
               role="radio"
+              disabled={saving}
               aria-checked={selectedProvider === provider}
               className={selectedProvider === provider ? "is-active" : ""}
               onClick={() => {
@@ -117,6 +127,7 @@ export function AiView({ refreshKey, onToast }) {
           <div className="ops-panel-actions">
             <button
               className="button button--outline"
+              disabled={saving}
               onClick={() => {
                 setSelectedProvider(config.provider);
                 setConfirming(false);
@@ -140,7 +151,7 @@ export function AiView({ refreshKey, onToast }) {
         <div>
           <Cloud size={30} />
           <span>Provider</span>
-          <b>{config.provider.toUpperCase()}</b>
+          <b>{(acceptedProvider || config.provider).toUpperCase()}</b>
           <Badge tone={config.provider === "off" ? "magenta" : "success"}>
             {config.provider === "off" ? "OFF" : "ACTIVE"}
           </Badge>
@@ -307,12 +318,22 @@ export function ModelsView({ refreshKey, onCreatedAction, onToast }) {
   const [embeddingModel, setEmbeddingModel] = useState("");
   const [busy, setBusy] = useState("");
   const [activationPreview, setActivationPreview] = useState(null);
+  const [activationError, setActivationError] = useState(null);
+  const [activationUncertain, setActivationUncertain] = useState(false);
   const activationTriggerRef = useRef(null);
+  const activationRecoveryRef = useRef(null);
+  const wasActivationUncertain = useRef(false);
   const activationDialogRef = useDialogA11y(
     Boolean(activationPreview),
-    () => setActivationPreview(null),
+    () => { if (!busy) setActivationPreview(null); },
     activationTriggerRef,
   );
+  useEffect(() => {
+    if (!activationPreview && (activationUncertain || wasActivationUncertain.current)) {
+      (activationUncertain ? activationRecoveryRef.current : activationTriggerRef.current)?.focus();
+    }
+    wasActivationUncertain.current = activationUncertain;
+  }, [activationPreview, activationUncertain]);
 
   const allModels = useMemo(() => resource.data?.items || [], [resource.data]);
   const chatModels = useMemo(
@@ -389,7 +410,9 @@ export function ModelsView({ refreshKey, onCreatedAction, onToast }) {
   };
 
   const previewActivation = async () => {
+    if (activationUncertain || busy) return;
     setBusy("activation-preview");
+    setActivationError(null);
     try {
       setActivationPreview(await api.previewActivateOllama(chatModel, embeddingModel));
     } catch (error) {
@@ -400,12 +423,39 @@ export function ModelsView({ refreshKey, onCreatedAction, onToast }) {
   };
 
   const activate = async () => {
-    const result = await run(
-      "activate",
-      () => api.activateOllama(chatModel, embeddingModel),
-      "Đã kích hoạt model Ollama và kho vector tương ứng.",
-    );
-    if (result) setActivationPreview(null);
+    if (activationUncertain || busy) return;
+    setBusy("activate");
+    setActivationError(null);
+    try {
+      await api.activateOllama(activationPreview.requested.chat_model, activationPreview.requested.embedding_model);
+      onToast("Máy chủ đã xác nhận kích hoạt model.");
+      setBusy("");
+      setActivationPreview(null);
+      await resource.reload();
+    } catch (error) {
+      if (error.status === 0 || error.status >= 500) setActivationUncertain(true);
+      setActivationError(error);
+    } finally {
+      setBusy("");
+    }
+  };
+
+  const reconcileActivation = async () => {
+    setBusy("activation-reconcile");
+    try {
+      const models = await resource.reload();
+      if (!models) throw new Error("Chưa đọc được trạng thái model mới. Giữ kết quả chưa rõ và đối chiếu lại.");
+      await api.aiConfig();
+      setActivationUncertain(false);
+      setActivationError(null);
+      setBusy("");
+      setActivationPreview(null);
+      onToast("Đã đọc lại cấu hình và model. Hãy xem ảnh hưởng mới trước khi kích hoạt.");
+    } catch (error) {
+      setActivationError(error);
+    } finally {
+      setBusy("");
+    }
   };
 
   const cancelDownload = async (job) => {
@@ -601,7 +651,7 @@ export function ModelsView({ refreshKey, onCreatedAction, onToast }) {
               <button
                 ref={activationTriggerRef}
                 className="button button--primary"
-                disabled={Boolean(busy) || !chatModel || !embeddingModel}
+                disabled={Boolean(busy) || activationUncertain || resource.loading || Boolean(resource.error) || !chatModel || !embeddingModel}
                 onClick={previewActivation}
               >
                 <CheckCircle size={18} />
@@ -624,12 +674,13 @@ export function ModelsView({ refreshKey, onCreatedAction, onToast }) {
         />
       ) : null}
 
+      {activationUncertain && !activationPreview ? <div><ErrorState error={activationError} /><button ref={activationRecoveryRef} className="button button--outline" disabled={Boolean(busy)} onClick={reconcileActivation}>Đối chiếu cấu hình model</button></div> : null}
       {activationPreview ? (
         <div
           className="modal-backdrop"
           role="presentation"
           onMouseDown={(event) => {
-            if (event.target === event.currentTarget && busy !== "activate") {
+            if (event.target === event.currentTarget && !busy) {
               setActivationPreview(null);
             }
           }}
@@ -651,13 +702,14 @@ export function ModelsView({ refreshKey, onCreatedAction, onToast }) {
               <button
                 className="icon-button"
                 aria-label="Đóng"
-                disabled={busy === "activate"}
+                disabled={Boolean(busy)}
                 onClick={() => setActivationPreview(null)}
               >
                 <X size={22} weight="bold" />
               </button>
             </header>
             <div className="modal-body" id="activation-description">
+              {activationError ? <ErrorState error={activationError} /> : null}
               <div className="review-summary">
                 <div><span>Chat model</span><b>{activationPreview.requested.chat_model}</b></div>
                 <div><span>Embedding model</span><b>{activationPreview.requested.embedding_model}</b></div>
@@ -679,16 +731,17 @@ export function ModelsView({ refreshKey, onCreatedAction, onToast }) {
               </div>
             </div>
             <footer className="modal-actions modal-footer">
+              {activationUncertain ? <button className="button button--outline" disabled={Boolean(busy)} onClick={reconcileActivation}>Đối chiếu cấu hình model</button> : null}
               <button
                 className="button button--outline"
-                disabled={busy === "activate"}
+                disabled={Boolean(busy)}
                 onClick={() => setActivationPreview(null)}
               >
                 Hủy
               </button>
               <button
                 className="button button--primary"
-                disabled={busy === "activate"}
+                disabled={Boolean(busy) || activationUncertain}
                 onClick={activate}
               >
                 {busy === "activate" ? "Đang kích hoạt…" : "Xác nhận kích hoạt"}

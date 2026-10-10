@@ -17,10 +17,10 @@ from test_first_value_provider import rig as rig
 
 from tg_assistant.ai import rag
 from tg_assistant.ai.budget import reservation_model
-from tg_assistant.ai.engine import AiPolicyError
+from tg_assistant.ai.engine import AiEngine, AiPolicyError, make_embedding_engine
 from tg_assistant.ai.router import AiRouter
 from tg_assistant.ai.vector import LocalVectorStore
-from tg_assistant.contracts import EmbeddingProfile
+from tg_assistant.config import Settings
 from tg_assistant.db.base import Database
 from tg_assistant.db.models import (
     AiBudgetLock,
@@ -32,7 +32,6 @@ from tg_assistant.db.models import (
     VectorStore,
 )
 from tg_assistant.policy import PolicyEngine
-from tg_assistant.services.provider_connections import ModelSelection
 from tg_assistant.services.revocation import (
     AuthorizationRevoked,
     AuthorizedAnswer,
@@ -128,7 +127,7 @@ def test_selected_carriers_exist_and_reject_mutable_scope():
 
 
 @pytest_asyncio.fixture
-async def selected(rig, tmp_path):
+async def selected(rig, tmp_path, request):
     from tg_assistant.ai.observations import SourceIndexBinding
 
     database = Database(str(rig.factory.kw["bind"].url))
@@ -164,25 +163,32 @@ async def selected(rig, tmp_path):
         return httpx.Response(200, json=response)
 
     value.wire = rig.wire(respond)
-    value.ai = rig.engine("ollama", value.wire, embedding_dimension=3)
-    identity = ModelSelection.parse(
-        "ollama",
-        {
-            "service": "embeddings",
-            "model": value.ai.embedding_model,
-            "endpoint": str(value.ai.client.base_url),
-            "cloud_consent": True,
-        },
-    )
-    profile = EmbeddingProfile(
-        provider="ollama",
-        endpoint_id=identity.endpoint_id,
-        model=value.ai.embedding_model,
+    value.settings = Settings(
+        _env_file=None,
+        data_dir=tmp_path,
+        profile_id=PROFILE,
+        ai_provider="ollama",
+        embedding_provider="ollama",
+        ollama_base_url=getattr(request, "param", "http://127.0.0.1:11434/v1"),
+        ollama_embedding_model="embedding-u03-test",
+        ollama_vector_size=3,
         embedding_version="v1",
-        dimension=3,
-        store_id="store-u03",
         cloud_consent=False,
     )
+    value.ai = AiEngine(
+        api_key=None,
+        budget=rig.budget,
+        provider="ollama",
+        base_url=value.settings.ollama_base_url,
+        model="qwen3:u03-test",
+        embedding_model=value.settings.active_embedding_model,
+        max_output_tokens=200,
+        embedding_dimension=3,
+    )
+    await value.ai.client._client.aclose()
+    value.ai.client._client = httpx.AsyncClient(transport=value.wire.transport)
+    rig.engines.append(value.ai)
+    profile = value.settings.embedding_profile
     value.vectors = LocalVectorStore(tmp_path / "vectors", 3, profile=profile)
     value.policy = PolicyEngine()
     async with rig.factory() as session:
@@ -307,6 +313,136 @@ async def test_real_database_session_wrapper_qualifies_unchanged_owner(selected)
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "selected",
+    [
+        "http://127.0.0.1:11434/v1/",
+        "http://localhost:11434/v1",
+        "http://LOCALHOST:11434/v1",
+        "http://[::1]:11434/v1",
+    ],
+    indirect=True,
+)
+async def test_canonical_sdk_endpoint_preserves_persistent_corpus(selected, tmp_path):
+    from tg_assistant.ai.observations import QualifyingRagSuccess
+
+    settings, vectors = selected.settings, selected.vectors
+    profile = settings.embedding_profile
+    path = settings.resolved_semantic_vector_path
+    manifest = tmp_path / "vectors" / "embedding-profile.json"
+    original_manifest = manifest.read_bytes()
+    row = await selected.add()
+    point_id = vectors.point_id(row.id, chat_id=CHAT, message_id=1)
+    async with selected.rig.factory() as session:
+        store = await session.get(VectorStore, profile.store_id)
+        original_registry = (store.store_id, store.endpoint_id, store.path)
+    if "localhost" in settings.ollama_base_url.lower():
+        selected.ai.client.base_url = "http://127.0.0.1:11434/v1"
+    assert str(selected.ai.client.base_url).endswith("/v1/")
+    result = await selected.ask()
+    assert isinstance(result, QualifyingRagSuccess)
+    assert result.observation.binding is selected.binding
+    assert result.observation.cited_refs[0].reference_id == row.id
+    candidate = selected.binding.chat_candidates[0]
+    assert candidate.endpoint_id.startswith("ollama-")
+    assert len(candidate.endpoint_id) == len("ollama-") + 16
+    assert result.observation.execution.endpoint_id == candidate.endpoint_id
+    assert settings.embedding_profile == profile == vectors.profile
+    assert settings.resolved_semantic_vector_path == path
+    assert manifest.read_bytes() == original_manifest
+    assert vectors.point_id(row.id, chat_id=CHAT, message_id=1) == point_id
+    async with selected.rig.factory() as session:
+        store = await session.get(VectorStore, profile.store_id)
+        assert (store.store_id, store.endpoint_id, store.path) == original_registry
+    vectors.close()
+    selected.vectors = LocalVectorStore(
+        tmp_path / "vectors", 3, profile=profile, require_existing=True
+    )
+    assert selected.vectors.search([1.0, 0.0, 0.0], allowed_chat_ids=[CHAT])[0][0] == row.id
+    # Original spellings and IPv4/IPv6 identities never merge existing corpora.
+    alternate = Settings(
+        _env_file=None,
+        **{
+            **settings.model_dump(),
+            "ollama_base_url": "http://localhost:11434/v1"
+            if settings.ollama_base_url != "http://localhost:11434/v1"
+            else "http://127.0.0.1:11434/v1",
+        },
+    )
+    assert alternate.embedding_profile.store_id != profile.store_id
+    with pytest.raises(ValueError, match="preserve the existing corpus"):
+        LocalVectorStore(tmp_path / "vectors", 3, profile=alternate.embedding_profile)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("wrong_constructor", [True, False])
+async def test_other_embedding_endpoint_refused_before_effects(selected, wrong_constructor):
+    await selected.add()
+    if wrong_constructor:
+        settings = Settings(
+            _env_file=None,
+            **{
+                **selected.settings.model_dump(),
+                "ollama_base_url": "http://127.0.0.1:11435/v1",
+            },
+        )
+        engine = make_embedding_engine(settings, selected.rig.budget)
+        await engine.client._client.aclose()
+        engine.client._client = httpx.AsyncClient(transport=selected.wire.transport)
+        selected.rig.engines.append(engine)
+        selected.service.embedding_ai = engine
+    else:
+        selected.ai.client.base_url = "http://127.0.0.1:11435/v1"
+    with pytest.raises(AiPolicyError):
+        await selected.ask()
+    assert selected.rig.http_total == 0
+    assert not await selected.rig.rows()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("owner", ["client", "configured"])
+@pytest.mark.parametrize("after_embedding", [False, True])
+async def test_endpoint_mutation_after_await_stops_next_submission(
+    selected, owner, after_embedding
+):
+    await selected.add()
+
+    async def mutate(value):
+        if after_embedding and value.rig.http_total < 1:
+            return
+        if owner == "client":
+            value.ai.client.base_url = "http://127.0.0.1:11435/v1"
+        else:
+            value.ai._configured_base_url = "http://localhost:11434/v1"
+
+    selected.tamper = mutate
+    with pytest.raises(AiPolicyError):
+        await selected.ask()
+    assert selected.rig.http_total == int(after_embedding)
+    assert all(row.operation == "embedding" for row in await selected.rig.rows())
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "endpoint",
+    [
+        "http://127.0.0.1:11434/wrong",
+        "http://127.0.0.1:11434/v1?query=1",
+        "http://user:pass@127.0.0.1:11434/v1",
+        "http://192.0.2.1:11434/v1",
+        "http://[::1]:11434/v1",
+    ],
+)
+async def test_invalid_or_other_canonical_live_endpoint_cannot_borrow_profile(selected, endpoint):
+    await selected.add()
+    selected.ai.client.base_url = endpoint
+    with pytest.raises((AiPolicyError, ValueError)):
+        await selected.ask()
+    assert selected.rig.http_total == 0
+    assert not await selected.rig.rows()
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize("replace_factory", [True, False])
 async def test_first_callback_cannot_replace_real_database_factory_or_bind(
     selected, replace_factory
@@ -357,6 +493,11 @@ async def test_real_selected_semantic_execution_and_context_hash(selected):
     assert ref.content_hash == hashlib.sha256(row.text.encode()).hexdigest()
     request = selected.wire.requests[-1]["json"]
     context = request["input"].split("NGUỒN:\n", 1)[1].rsplit("\n\nCÂU HỎI:\n", 1)[0]
+    async with selected.service.database.session() as session:
+        chat = await session.scalar(select(TelegramChat).where(TelegramChat.chat_id == CHAT))
+        assert chat.id != CHAT
+    assert "Group/channel: Source\n" in context
+    assert f"Link: https://t.me/c/{str(CHAT)[4:]}/1\n" in context
     assert ref.context_hash == hashlib.sha256(context.encode()).hexdigest()
     ledger = {item.request_id: item for item in await selected.rig.rows()}
     assert ledger[observation.query_embedding_request_id].operation == "embedding"
@@ -1053,29 +1194,24 @@ async def test_default_question_time_inclusive_and_future_microsecond_excluded(
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("provider", ["openai", "openrouter"])
 async def test_independent_cloud_query_embedding_uses_bound_profile_and_real_ledger(
-    selected, tmp_path
+    selected, tmp_path, provider
 ):
-    embedding = selected.rig.engine("openai", selected.wire, embedding_dimension=3)
-    embedding.embedding_model = "text-embedding-3-small"
-    identity = ModelSelection.parse(
-        "openai",
-        {
-            "service": "embeddings",
-            "model": embedding.embedding_model,
-            "endpoint": str(embedding.client.base_url),
-            "cloud_consent": True,
-        },
-    )
-    profile = EmbeddingProfile(
-        provider="openai",
-        endpoint_id=identity.endpoint_id,
-        model=embedding.embedding_model,
+    settings = Settings(
+        _env_file=None,
+        data_dir=tmp_path,
+        profile_id=PROFILE,
+        embedding_provider=provider,
         embedding_version="cloud-v1",
-        dimension=3,
-        store_id="cloud-store",
+        cloud_embedding_dimension=3,
         cloud_consent=True,
     )
+    embedding = make_embedding_engine(settings, selected.rig.budget, "synthetic-fixture-key")
+    await embedding.client._client.aclose()
+    embedding.client._client = httpx.AsyncClient(transport=selected.wire.transport)
+    selected.rig.engines.append(embedding)
+    profile = settings.embedding_profile
     selected.vectors.close()
     selected.vectors = LocalVectorStore(tmp_path / "cloud-vectors", 3, profile=profile)
     selected.service.vectors = selected.vectors
@@ -1116,8 +1252,8 @@ async def test_independent_cloud_query_embedding_uses_bound_profile_and_real_led
     ledger = {row.request_id: row for row in await selected.rig.rows()}
     query = ledger[observation.query_embedding_request_id]
     assert (query.provider, query.model, query.route, query.is_local) == (
-        "openai",
-        "text-embedding-3-small",
+        provider,
+        "text-embedding-3-small" if provider == "openai" else "openai/text-embedding-3-small",
         "cloud_embedding",
         False,
     )

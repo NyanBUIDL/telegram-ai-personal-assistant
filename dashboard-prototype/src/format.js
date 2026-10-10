@@ -15,10 +15,12 @@ export function formatBytes(value) {
 
 export function formatDate(value, options = {}) {
   if (!value) return "—";
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return "—";
   return new Intl.DateTimeFormat("vi-VN", {
     dateStyle: options.dateStyle || "short",
     timeStyle: options.timeStyle || "short",
-  }).format(new Date(value));
+  }).format(date);
 }
 
 export function formatRelative(value) {
@@ -41,21 +43,15 @@ export function formatRelative(value) {
 export function statusTone(status) {
   const value = String(status || "").toLowerCase();
   if (
-    ["success", "ok", "online", "completed", "executed", "running"].some((item) =>
-      value.includes(item),
-    )
+    ["success", "ok", "online", "completed", "executed", "running"].includes(value)
   )
     return "success";
   if (
-    ["fail", "error", "blocked", "denied", "cancelled", "expired"].some((item) =>
-      value.includes(item),
-    )
+    ["fail", "failed", "error", "blocked", "denied", "cancelled", "expired"].includes(value)
   )
     return "magenta";
   if (
-    ["pending", "queued", "paused", "warning", "requested"].some((item) =>
-      value.includes(item),
-    )
+    ["pending", "queued", "paused", "warning", "requested", "pause_requested", "completed_with_warning", "uncertain", "unknown", "stale", "checking", "degraded", "disconnected"].includes(value)
   )
     return "yellow";
   return "teal";

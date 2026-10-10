@@ -10,10 +10,11 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request, Response, status
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.security import APIKeyCookie
 from pydantic import TypeAdapter, ValidationError
-from sqlalchemy import String, cast, func, or_, select
+from sqlalchemy import LargeBinary, String, and_, case, cast, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.exc import StaleDataError
 from starlette.middleware.trustedhost import TrustedHostMiddleware
@@ -21,7 +22,7 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 from .. import __version__
 from ..ai.vector import LocalVectorStore
 from ..config import Settings
-from ..contracts import OwnerId, TelegramId
+from ..contracts import OperationState, OwnerId, TelegramId
 from ..db.base import Database, folded_contains
 from ..db.models import (
     AiUsage,
@@ -44,7 +45,7 @@ from ..db.models import (
 from ..paths import resource_path
 from ..policy import PolicyEngine
 from ..security import contains_secret, redact
-from ..services.actions import PendingActionService
+from ..services.actions import SUPPORTED_ACTIONS, PendingActionService
 from ..services.history_export import (
     encode_csv_row,
     history_csv_header,
@@ -148,6 +149,44 @@ def _utc(value: datetime | None) -> datetime | None:
     if value is None:
         return None
     return value.replace(tzinfo=UTC) if value.tzinfo is None else value
+
+
+SUPPORT_AUDIT_ACTIONS = frozenset(SUPPORTED_ACTIONS) | {
+    "auto_delete_non_admin_link", "auto_moderation_rights_check", "auto_moderation_role_check",
+    "dashboard_ai_efficiency_updated", "dashboard_ai_provider_changed", "dashboard_ai_route_updated",
+    "dashboard_learning_pause", "dashboard_learning_pause_all", "dashboard_learning_resume",
+    "dashboard_learning_resume_all", "dashboard_learning_retry", "dashboard_login",
+    "dashboard_ollama_activated", "dashboard_ollama_pull_cancelled", "dashboard_ollama_pull_queued",
+    "dashboard_pending_action_cancelled", "dashboard_pending_action_confirmed",
+    "dashboard_pending_action_created", "dashboard_preferences_updated", "dashboard_source_limits_updated",
+    "history_backfill", "history_backfill_completed", "history_delete_ai_filter",
+    "history_link_delete", "history_link_delete_completed", "history_link_delete_preview_created",
+    "knowledge_source_note_updated", "ollama_model_pull", "ollama_model_pulled", "revoke_source",
+    "vector_coverage_warning", "vector_recovery_incomplete", "vector_recovery_pause",
+    "vector_recovery_preview_created", "vector_recovery_resume", "vector_recovery_verified",
+}
+SUPPORT_AUDIT_TARGETS = {
+    "background_job", "chat_policy", "dashboard", "knowledge_batch", "knowledge_source",
+    "memory", "ollama_model", "pending_action", "storage", "task", "telegram_chat", "telegram_message",
+}
+SUPPORT_AUDIT_OUTCOMES = {state.value for state in OperationState} | {
+    "confirmed", "denied_kept", "failed_safe_kept", "pause_requested", "pending", "requested",
+    "success", "warning",
+}
+
+
+def _support_audit_string(column, allowed, byte_limit, fallback):
+    # Only fixed known values cross this boundary; free text is never projected.
+    return case((and_(func.length(cast(column, LargeBinary)) <= byte_limit,
+                      column.in_(sorted(allowed))), column), else_=fallback).label(column.key)
+
+
+def _support_audit_time(value: str | None) -> datetime | None:
+    try:
+        parsed = datetime.fromisoformat(value) if value else None
+        return _utc(parsed).astimezone(UTC) if parsed is not None else None
+    except (ValueError, OverflowError):
+        return None
 
 
 def _audit(
@@ -421,6 +460,13 @@ def create_admin_app(context: AdminContext) -> FastAPI:
         else:
             for old_token in tuple(current_auth.sessions):
                 current_auth.revoke_session(old_token)
+
+    @app.exception_handler(RequestValidationError)
+    async def invalid_request(_request, _error):
+        return JSONResponse(
+            status_code=422,
+            content={"code": "invalid_request", "detail": "Dữ liệu yêu cầu không hợp lệ."},
+        )
 
     @app.exception_handler(MaintenanceBusy)
     async def maintenance_busy(_request, _error):
@@ -2102,7 +2148,7 @@ def create_admin_app(context: AdminContext) -> FastAPI:
             source = None
             if (job.payload or {}).get("chat_id") is not None:
                 source = await db.get(KnowledgeSource, int(job.payload["chat_id"]))
-            if source:
+            if source and source.last_job_id == job.id:
                 source.status = job.status
                 source.last_error = job.last_error
             db.add(
@@ -2114,6 +2160,8 @@ def create_admin_app(context: AdminContext) -> FastAPI:
                     target_id=job_id,
                 )
             )
+            await db.flush()
+            await db.refresh(job)
         return _job_json(job)
 
     @app.get("/api/v1/ai/config")
@@ -2668,6 +2716,7 @@ def create_admin_app(context: AdminContext) -> FastAPI:
         outcome: str | None = Query(default=None, max_length=32),
         page: int = Query(default=1, ge=1),
         page_size: int = Query(default=100, ge=1, le=500),
+        support_export: bool = Query(default=False),
         _session: AdminSession = Depends(require_session),
     ) -> dict:
         conditions = []
@@ -2681,6 +2730,33 @@ def create_admin_app(context: AdminContext) -> FastAPI:
             )
         if outcome:
             conditions.append(AuditLog.outcome == outcome)
+        if support_export:
+            try:
+                async with context.database.session() as db:
+                    total = int((await db.scalar(
+                        select(func.count(AuditLog.id)).where(*conditions)
+                    )) or 0)
+                    rows = (await db.execute(
+                        select(
+                            case((func.length(cast(AuditLog.occurred_at, LargeBinary)) <= 40,
+                                  cast(AuditLog.occurred_at, String)), else_=None).label("occurred_at"),
+                            _support_audit_string(AuditLog.action, SUPPORT_AUDIT_ACTIONS, 128, "other"),
+                            _support_audit_string(AuditLog.target_type, SUPPORT_AUDIT_TARGETS, 64, "other"),
+                            _support_audit_string(AuditLog.outcome, SUPPORT_AUDIT_OUTCOMES, 32, "unknown"),
+                        )
+                        .where(*conditions)
+                        .order_by(AuditLog.occurred_at.desc())
+                        .offset((page - 1) * page_size)
+                        .limit(page_size)
+                    )).mappings().all()
+            except PermissionError:
+                withdraw_sessions()
+                raise HTTPException(status_code=403, detail="owner_pairing_required") from None
+            await require_session(_session.token)
+            return {
+                "items": [{**row, "occurred_at": _support_audit_time(row["occurred_at"])} for row in rows],
+                "page": page, "page_size": page_size, "total": total,
+            }
         async with context.database.session() as db:
             total = int(
                 (await db.scalar(select(func.count(AuditLog.id)).where(*conditions))) or 0
@@ -2701,14 +2777,14 @@ def create_admin_app(context: AdminContext) -> FastAPI:
                 {
                     "id": row.id,
                     "occurred_at": _utc(row.occurred_at),
-                    "actor_id": str(row.actor_id) if row.actor_id is not None else None,
-                    "action": row.action,
-                    "target_type": row.target_type,
-                    "target_id": row.target_id,
-                    "outcome": row.outcome,
-                    "reason": row.reason,
+                    "actor_id": redact(str(row.actor_id)) if row.actor_id is not None else None,
+                    "action": redact(row.action),
+                    "target_type": redact(row.target_type),
+                    "target_id": redact(row.target_id),
+                    "outcome": redact(row.outcome),
+                    "reason": redact(row.reason),
                     "details": redact(row.details_redacted),
-                    "correlation_id": row.correlation_id,
+                    "correlation_id": redact(row.correlation_id),
                 }
                 for row in rows
             ],

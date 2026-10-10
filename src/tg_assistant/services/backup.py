@@ -198,6 +198,13 @@ class BackupService:
             raise RuntimeError("backup_invalid") from None
 
     def _preserve_security(self, live, staged):
+        from ..paths import current_user_sid
+        from .first_value import _namespace, _read_namespace, invalidate_first_value_after_restore
+
+        profile_id, windows_sid = self.settings.profile_id, current_user_sid()
+        # Validate bounded private history before the generic JSON retention fetch.
+        first_value = _read_namespace(live, namespace=_namespace(profile_id, windows_sid))
+        raw_first_value = []
         metadata = sa.MetaData()
         metadata.reflect(bind=staged)
         # Consent settings and billing history are current live authority. Their
@@ -214,13 +221,25 @@ class BackupService:
             if name not in metadata.tables:
                 continue
             original = sa.Table(name, sa.MetaData(), autoload_with=live)
-            retained[name] = [dict(row) for row in live.execute(sa.select(original)).mappings()]
+            selected = sa.select(original)
+            if name == "app_settings" and first_value.sizes:
+                keys = tuple(first_value.sizes)
+                columns = [column for column in original.c if column.name != "value"]
+                columns.append(sa.cast(original.c.value, sa.String).label("_fv_raw_value"))
+                raw_first_value = [dict(row) for row in live.execute(
+                    sa.select(*columns).where(original.c.key.in_(keys)).limit(257)).mappings()]
+                selected = selected.where(original.c.key.not_in(keys))
+            retained[name] = [dict(row) for row in live.execute(selected).mappings()]
         for name in reversed(retention_order):
             if name in retained:
                 staged.execute(metadata.tables[name].delete())
         for name in retention_order:
             if retained.get(name):
                 staged.execute(metadata.tables[name].insert(), retained[name])
+        if raw_first_value:
+            # Explicit TEXT binding preserves validated immutable JSON bytes without double encoding.
+            staged.execute(metadata.tables["app_settings"].insert().values(
+                value=sa.bindparam("_fv_raw_value", type_=sa.String)), raw_first_value)
         policies = metadata.tables["telegram_chat_policies"]
         permissions = metadata.tables["telegram_chat_permissions"]
         live_policies = sa.Table("telegram_chat_policies", sa.MetaData(), autoload_with=live)
@@ -314,6 +333,7 @@ class BackupService:
         from .vector_reliability import invalidate_restored_index
 
         invalidate_restored_index(staged)
+        invalidate_first_value_after_restore(staged, profile_id=profile_id, windows_sid=windows_sid)
 
     def _prepare(self, stage, live, manifest):
         with stage.connect() as connection:

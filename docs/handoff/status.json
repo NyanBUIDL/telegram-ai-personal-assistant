@@ -302,8 +302,10 @@
         "U03",
         "S03"
       ],
-      "status": "Planned",
-      "evidence": [],
+      "status": "InProgress",
+      "evidence": [
+        "docs/handoff/evidence/task-U04.md"
+      ],
       "acceptance": "Owner quản lý thường ngày không terminal, errors không leave UIstate khác backend."
     },
     {
@@ -316,8 +318,10 @@
         "U04",
         "R01"
       ],
-      "status": "Planned",
-      "evidence": [],
+      "status": "InProgress",
+      "evidence": [
+        "docs/handoff/evidence/task-P01.md"
+      ],
       "acceptance": "Artifact độc lập máy dev và tái build traceable commit/dependencyhash."
     },
     {
@@ -329,8 +333,10 @@
         "P01",
         "S03"
       ],
-      "status": "Planned",
-      "evidence": [],
+      "status": "InProgress",
+      "evidence": [
+        "docs/handoff/evidence/task-P02.md"
+      ],
       "acceptance": "Real installer on cleanVM đạt; unsignedcandidate label rõ, publicdistribution certificate/license gates verified."
     },
     {
@@ -459,6 +465,7 @@
   ],
   "completion_notification": "Báo người dùng beta-ready chỉ khi G0–G6 Verified; nêu commit, installer/hash, test evidence, limitations. Nếu bị chặn, báo điều kiện cụ thể; không coi hết lượt hoặc docs xong là product xong.",
   "source_amendments": [
-    "docs/superpowers/specs/2026-10-06-sqlite-only-amendment.md"
+    "docs/superpowers/specs/2026-10-06-sqlite-only-amendment.md",
+    "docs/superpowers/specs/2026-10-10-owner-preview-amendment.md"
   ]
 }

@@ -399,7 +399,8 @@ def test_migration0009_and_restore_metadata_are_real_and_repeatable(incremental_
     before = fingerprint(connection)
     command.upgrade(config, "head")
     assert fingerprint(connection) == before
-    assert connection.execute(sa.text("SELECT version_num FROM alembic_version")).scalar() == "0009"
+    from alembic.script import ScriptDirectory
+    assert connection.execute(sa.text("SELECT version_num FROM alembic_version")).scalar() == ScriptDirectory.from_config(config).get_current_head()
     connection.execute(
         sa.insert(AppSetting).values(key="knowledge_checkpoint:embedding-test:20", value=2)
     )
@@ -618,10 +619,15 @@ async def test_mixed_dirty_clean_quota_batch_keeps_admitted_candidate_reachable(
 
     app, calls, _ = incremental_case
 
-    async def synthetic_history(session, **kwargs):
-        return 0
+    from tg_assistant.telegram.user_client import HistorySyncPage
 
-    app.user = SimpleNamespace(owner_id=1, sync_history=synthetic_history)
+    async def synthetic_history(session, **kwargs):
+        return object()
+
+    async def apply_history(session, staged):
+        return HistorySyncPage(0, 0, 0, True, 0, 0)
+
+    app.user = SimpleNamespace(owner_id=1, stage_history_page=synthetic_history, apply_history_page=apply_history)
     async with app.database.session() as session:
         await app.policy.set_allowed(session, 10, False)
         policy = await session.scalar(
@@ -683,10 +689,15 @@ async def test_higher_dirty_delete_does_not_advance_checkpoint_over_clean_pendin
 
     app, calls, _ = incremental_case
 
-    async def synthetic_history(session, **kwargs):
-        return 0
+    from tg_assistant.telegram.user_client import HistorySyncPage
 
-    app.user = SimpleNamespace(owner_id=1, sync_history=synthetic_history)
+    async def synthetic_history(session, **kwargs):
+        return object()
+
+    async def apply_history(session, staged):
+        return HistorySyncPage(0, 0, 0, True, 0, 0)
+
+    app.user = SimpleNamespace(owner_id=1, stage_history_page=synthetic_history, apply_history_page=apply_history)
     async with app.database.session() as session:
         await app.policy.set_allowed(session, 10, False)
         policy = await session.scalar(

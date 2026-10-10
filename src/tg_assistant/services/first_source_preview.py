@@ -161,8 +161,11 @@ class FirstSourcePreviewService:
             f"Cấp/bảo đảm quyền: {', '.join(sorted(target))}. "
             f"Gỡ quyền đang bật: {', '.join(sorted(removed)) or 'không có'}. "
             f"Giữ group_ai_ask: {'bật' if 'group_ai_ask' in enabled else 'tắt'}. "
-            "Đồng bộ tối đa 1000 tin lịch sử, làm sạch/lập chỉ mục; monitor_new_messages và "
-            "auto_knowledge tiếp tục xử lý tin mới theo retention/quota hiện tại. "
+            "Đọc tối đa 1000 tin lịch sử cho lần xác nhận này, kể cả tin dò mốc và tin bị lọc. "
+            "Nếu đã có mốc đồng bộ, tiếp tục từ mốc đang dở; nếu chưa có, lấy tin gần nhất. "
+            "Hết giới hạn mà còn lịch sử chưa đọc thì dừng, chưa lập chỉ mục và cần bản xem trước/xác nhận mới. "
+            "Lập chỉ mục tự động của nguồn cũng chờ hoàn tất khoảng lịch sử; "
+            "monitor_new_messages vẫn theo dõi tin mới theo retention/quota hiện tại. "
             f"Chế độ AI: {policy.get('ai_mode', 'inherit')}; tuyến chat cấu hình: {models}; "
             f"embedding cấu hình: {embedding.provider}/{embedding.embedding_model}. "
             f"Cloud consent hiện tại: {'đã đồng ý' if consent else 'chưa đồng ý'}. "
@@ -213,6 +216,12 @@ class FirstSourcePreviewService:
 
         def release(*_):
             active[0] = False
+            validated = session.sync_session.info.get("first_source_validated_actions", {})
+            if validated.get(action.action_id) is capture:
+                validated.pop(action.action_id)
+            if not validated:
+                session.sync_session.info.pop("first_source_validated_actions", None)
 
         event.listen(session.sync_session, "after_commit", release, once=True)
         event.listen(session.sync_session, "after_rollback", release, once=True)
+        session.sync_session.info.setdefault("first_source_validated_actions", {})[action.action_id] = capture

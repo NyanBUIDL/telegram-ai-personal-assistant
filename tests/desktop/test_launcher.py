@@ -293,7 +293,7 @@ def open_fixture_diagnostic(path):
     return os.fdopen(descriptor, "rb")
 
 
-def controller(settings, tmp_path):
+def controller(settings, tmp_path, *, instance_directory=None):
     lifecycle = module("tg_assistant.desktop.runtime_controller")
     runtime = observe_fixture_readiness(
         track_fixture_starts(
@@ -303,7 +303,7 @@ def controller(settings, tmp_path):
                     sys.executable,
                     str(Path(__file__).resolve().parents[1] / "fixtures/launcher_worker.py"),
                     str(settings.data_dir),
-                    str(tmp_path / "sid-instance"),
+                    str(instance_directory if instance_directory is not None else tmp_path / "sid-instance"),
                     str(settings.admin_api_port),
                 ],
             )
@@ -601,17 +601,20 @@ def test_cleanup_pending_start_keeps_acquisition_and_drain_deadlines_separate(
     acquisition_began = None
     forced = []
     original_force = force_fixture_worker_exit
+    state_release = tmp_path / "state-release"
+    original_refresh = runtime._refresh
+    if exit_during_stop:
+        runtime.worker_command.append(str(state_release))
+        runtime.fixture_worker_command = tuple(runtime.worker_command)
+
+    def refresh():
+        if exit_during_stop and producer_charged:
+            state_release.touch()
+        return original_refresh()
 
     def producer_result(*args, **kwargs):
         nonlocal producer_charged, acquisition_began
         result = original_result(*args, **kwargs)
-        if exit_during_stop and not producer_charged:
-            # Make the real identity ready before the helper's post-producer
-            # stop, without a refresh that itself publishes the sticky stop.
-            ready_by = real_time.monotonic() + 15
-            while not runtime.state_file.exists() and real_time.monotonic() < ready_by:
-                real_time.sleep(0.01)
-            assert runtime.state_file.exists()
         # Charge only the helper's clock for actual producer completion.
         # Product clocks and the real worker's identity/health are untouched.
         if not producer_charged:
@@ -624,6 +627,7 @@ def test_cleanup_pending_start_keeps_acquisition_and_drain_deadlines_separate(
         was_sent = runtime._stop_sent
         original_stop()
         if not was_sent and runtime._stop_sent:
+            assert runtime._stop_target[0] == runtime.launch_id
             # The real marker was bound to the actual worker before this charge.
             if exit_during_stop:
                 runtime.process.wait(timeout=15)
@@ -636,6 +640,7 @@ def test_cleanup_pending_start_keeps_acquisition_and_drain_deadlines_separate(
 
     monkeypatch.setattr(startup, "result", producer_result)
     monkeypatch.setattr(runtime, "stop", publish_stop)
+    monkeypatch.setattr(runtime, "_refresh", refresh)
     monkeypatch.setattr(sys.modules[__name__], "time", clock)
     monkeypatch.setattr(sys.modules[__name__], "force_fixture_worker_exit", force)
     timer = threading.Timer(0.2, release.set)
@@ -655,6 +660,7 @@ def test_cleanup_pending_start_keeps_acquisition_and_drain_deadlines_separate(
         assert not process_incarnation_exists(*recorded)
     finally:
         release.set()
+        state_release.touch()
         # Real time remains available for independent leak cleanup if RED fails.
         monkeypatch.setattr(sys.modules[__name__], "time", real_time)
         stop(runtime)

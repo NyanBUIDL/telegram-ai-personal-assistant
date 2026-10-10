@@ -81,14 +81,25 @@ async def reconcile_saved_provider_settings(runtime, *, current_sid=current_user
     if not sid or sid != expected:
         raise ValueError("provider_sid_mismatch")
     runtime._native_provider_sid = expected
-    owned_fence = fence or MaintenanceService(
-        runtime.settings.data_dir / "config", profile_id=runtime.settings.profile_id
-    )
-    try:
-        return await _reconcile(runtime, expected, current_sid, owned_fence)
-    finally:
-        if fence is None:
-            owned_fence.close()
+    async def apply():
+        owned_fence = fence or MaintenanceService(
+            runtime.settings.data_dir / "config", profile_id=runtime.settings.profile_id
+        )
+        try:
+            return await _reconcile(runtime, expected, current_sid, owned_fence)
+        finally:
+            if fence is None:
+                owned_fence.close()
+
+    first_value = getattr(runtime, "first_value", None)
+    if first_value is not None:
+        # Drain outside _knowledge_lock: retained reader work may need that lock.
+        # The actual apply still revalidates the snapshot/SID under both fences.
+        return await first_value.activate_providers(apply, needs_change=lambda: (
+            bool(getattr(runtime, "_native_provider_retired", ()))
+            or getattr(runtime, "_native_provider_signature", None) != _snapshot(runtime)[1]
+        ))
+    return await apply()
 
 
 async def _reconcile(runtime, expected, current_sid, owned_fence):

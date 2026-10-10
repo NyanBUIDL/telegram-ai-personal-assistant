@@ -1890,6 +1890,10 @@ class Application:
                             select(TelegramChatPolicy).where(TelegramChatPolicy.chat_id == chat_id)
                         )
                         source = await refresh_source_usage(session, chat_id, self.rag.vectors)
+                        learning = await session.get(BackgroundJob, source.last_job_id) if source.last_job_id else None
+                        if (learning and str((learning.payload or {}).get("action_id", "")).startswith("fv1-")
+                                and (learning.payload or {}).get("history_completed") is not True):
+                            continue
                         refresh_limit = allowed_index_count(policy, source, 100)
                         retention_since = (
                             datetime.now(UTC) - timedelta(days=policy.retention_days)
@@ -2442,17 +2446,16 @@ class Application:
             if not job:
                 return
             payload = dict(job.payload or {})
-            payload.update(
-                {
-                    "phase": "syncing",
-                    "progress": 10,
-                    "processed": 0,
-                    "total": int(payload.get("limit", 1000)),
-                    "synced_messages": 0,
-                }
-            )
+            if not payload.get("history_completed"):
+                payload.update(phase="syncing", progress=None, total=None, total_messages=None)
+            for key in ("processed", "synced_messages", "synced_count", "history_read", "history_skipped"):
+                payload.setdefault(key, 0)
             job.payload = payload
-            if payload.get("chat_id") is not None:
+            fetch_budget = None
+            if str(payload.get("action_id", "")).startswith("fv1-") and not payload.get("history_completed"):
+                fetch_budget = min(int(payload.get("limit", 1000)), 1000) - max(
+                    int(payload.get("history_read") or 0), int(payload.get("history_read_reserved") or 0))
+            if payload.get("chat_id") is not None and (fetch_budget is None or fetch_budget > 0):
                 chat_id = int(payload["chat_id"])
                 source = await session.get(KnowledgeSource, chat_id)
                 if not source:
@@ -2464,117 +2467,106 @@ class Application:
                 source.last_error = None
         try:
             async with self._knowledge_lock:
-                # Phase 1 is committed first so MySQL remains the source of truth
-                # even when the external embedding request fails.
+                if fetch_budget is not None:
+                    async with self.database.session() as session:
+                        job = await session.get(BackgroundJob, job_id)
+                        if not job or await honor_learning_pause(session, job) or job.status != "running":
+                            return
+                        await self._job_fence(session, job, PermissionName.SYNC_HISTORY)
+                        payload = dict(job.payload or {})
+                        if fetch_budget <= 0:
+                            job.status, job.last_error = "failed", "history_limit_reached"
+                            job.locked_by = job.locked_at = None
+                            job.payload = {**payload, "history_completed": False,
+                                           "history_stop_reason": "confirmation_limit", "mysql_synced": False}
+                            source = await session.get(KnowledgeSource, int(payload["chat_id"]))
+                            if source and source.last_job_id == job.id:
+                                source.status, source.last_error = job.status, job.last_error
+                                source.requested_for_learning = False
+                            return
+                        # A failed or interrupted fetch must not silently renew the confirmed allowance.
+                        job.payload = {**payload, "history_read_reserved": int(payload.get("history_read") or 0) + fetch_budget}
+                # Stage Telegram reads without holding SQLite's writer lock.
+                sync_started = monotonic()
+                staged = None
                 async with self.database.session() as session:
                     job = await session.get(BackgroundJob, job_id)
-                    if not job:
-                        return
-                    if await honor_learning_pause(session, job):
-                        log.info("learning_job_paused", job_id=job.id, phase="before_sync")
-                        return
-                    if job.status != "running":
+                    if not job or await honor_learning_pause(session, job) or job.status != "running":
                         return
                     payload = dict(job.payload or {})
-                    chat_id = int(payload["chat_id"])
-                    owner_id = int(payload["owner_id"])
-                    limit = min(max(int(payload.get("limit", 1000)), 1), 1000)
-                    chat = await session.scalar(
-                        select(TelegramChat).where(
-                            TelegramChat.chat_id == chat_id,
-                            TelegramChat.chat_type.in_(
-                                (
-                                    "group",
-                                    "supergroup",
-                                    "channel",
-                                )
-                            ),
-                        )
-                    )
+                    chat_id, owner_id = int(payload["chat_id"]), int(payload["owner_id"])
+                    epoch = await self._job_fence(session, job, PermissionName.SYNC_HISTORY)
+                    chat = await session.scalar(select(TelegramChat).where(
+                        TelegramChat.chat_id == chat_id,
+                        TelegramChat.chat_type.in_(("group", "supergroup", "channel"))))
                     if not chat:
                         raise LookupError(f"Không tìm thấy group/channel {chat_id}.")
-                    epoch = await self._job_fence(session, job, PermissionName.SYNC_HISTORY)
-                    policy = await session.scalar(
-                        select(TelegramChatPolicy).where(TelegramChatPolicy.chat_id == chat_id)
-                    )
-                    current_message_count = int(
-                        (
-                            await session.scalar(
-                                select(func.count(TelegramMessage.id)).where(
-                                    TelegramMessage.chat_id == chat_id,
-                                    TelegramMessage.is_deleted.is_(False),
-                                )
-                            )
+                    title = chat.title
+                    if not payload.get("history_completed"):
+                        continuation_cursor = (
+                            (epoch, payload["interval_upper"], payload["interval_after"])
+                            if payload.get("history_completed") is False
+                            and payload.get("interval_upper") is not None
+                            and payload.get("interval_after") is not None
+                            else None
                         )
-                        or 0
-                    )
-                    if policy and policy.max_messages:
-                        limit = min(
-                            limit,
-                            max(0, policy.max_messages - current_message_count),
-                        )
-                    sync_started = monotonic()
-                    synced = (
-                        await self.user.sync_history(
-                            session,
-                            chat_id=chat_id,
-                            actor_id=owner_id,
-                            owner_id=int(self.user.owner_id),
-                            limit=limit,
-                        )
-                        if limit > 0
-                        else 0
-                    )
-                    sync_duration_ms = (monotonic() - sync_started) * 1000
-                    await self._source_fence(chat_id, PermissionName.SYNC_HISTORY, epoch)
-                    await session.flush()
-                    mysql_message_count = int(
-                        (
-                            await session.scalar(
-                                select(func.count(TelegramMessage.id)).where(
-                                    TelegramMessage.chat_id == chat_id,
-                                    TelegramMessage.is_deleted.is_(False),
-                                )
-                            )
-                        )
-                        or 0
-                    )
-                    mysql_text_count = int(
-                        (
-                            await session.scalar(
-                                select(func.count(TelegramMessage.id)).where(
-                                    TelegramMessage.chat_id == chat_id,
-                                    TelegramMessage.is_deleted.is_(False),
-                                    TelegramMessage.text.is_not(None),
-                                    func.length(func.trim(TelegramMessage.text)) > 0,
-                                )
-                            )
-                        )
-                        or 0
-                    )
-                    job.payload = {
-                        **payload,
-                        "phase": "embedding",
-                        "progress": 55,
-                        "processed": 0,
-                        "total": mysql_text_count,
-                        "synced_messages": synced,
-                        "total_messages": limit,
-                        "vectors_created": 0,
-                        "title": chat.title,
-                        "synced_count": synced,
-                        "mysql_message_count": mysql_message_count,
-                        "mysql_before": current_message_count,
-                        "mysql_after": mysql_message_count,
-                        "mysql_text_count": mysql_text_count,
-                        "mysql_synced": True,
-                        "sync_duration_ms": round(sync_duration_ms, 2),
-                    }
-                    source = await session.get(KnowledgeSource, chat_id)
-                    if source:
-                        source.mysql_message_count = mysql_message_count
-                        source.text_message_count = mysql_text_count
-                    await refresh_source_usage(session, chat_id, self.rag.vectors)
+                        staged = await self.user.stage_history_page(
+                            session, chat_id=chat_id, actor_id=owner_id,
+                            owner_id=int(self.user.owner_id), limit=payload.get("limit", 1000),
+                            continuation_cursor=continuation_cursor,
+                            **({"fetch_budget": fetch_budget} if fetch_budget is not None else {}))
+                if staged is not None:
+                    async with self.database.session() as session:
+                        await session.execute(text("BEGIN IMMEDIATE"))
+                        job = await session.get(BackgroundJob, job_id)
+                        await self._job_fence(session, job, PermissionName.SYNC_HISTORY)
+                        await require_authorization(session, chat_id, PermissionName.SYNC_HISTORY, epoch)
+                        current_message_count = int((await session.scalar(select(func.count(TelegramMessage.id)).where(
+                            TelegramMessage.chat_id == chat_id, TelegramMessage.is_deleted.is_(False)))) or 0)
+                        page = await self.user.apply_history_page(session, staged)
+                        payload = dict(job.payload or {})
+                        synced = int(payload.get("synced_count") or 0) + page.saved
+                        payload.update(synced_count=synced, synced_messages=synced,
+                                       history_read=int(payload.get("history_read") or 0) + page.read,
+                                       history_skipped=int(payload.get("history_skipped") or 0) + page.skipped,
+                                       history_completed=page.completed, interval_upper=page.upper_id,
+                                       interval_after=page.after_id, history_stop_reason=page.stop_reason,
+                                       title=title, sync_duration_ms=round((monotonic() - sync_started) * 1000, 2))
+                        if fetch_budget is not None:
+                            payload["history_read_reserved"] = payload["history_read"]
+                        source = await session.get(KnowledgeSource, chat_id)
+                        if not page.completed:
+                            payload.update(phase="syncing", progress=None, total=None,
+                                           total_messages=None, mysql_synced=False)
+                            job.payload = payload
+                            requeue_interrupted_learning_job(job, now=datetime.now(UTC) + timedelta(seconds=2))
+                            if fetch_budget is not None and page.read >= fetch_budget:
+                                job.status, job.last_error = "failed", "history_limit_reached"
+                                job.payload = {**payload, "history_stop_reason": "confirmation_limit"}
+                            elif page.stop_reason == "quota":
+                                job.status = "paused"
+                                job.paused_at = datetime.now(UTC)
+                                job.last_error = "history_quota_reached"
+                            if source:
+                                source.status = job.status
+                                source.requested_for_learning = job.status != "failed"
+                                source.last_error = job.last_error
+                            return
+                        await session.flush()
+                        mysql_message_count = int((await session.scalar(select(func.count(TelegramMessage.id)).where(
+                            TelegramMessage.chat_id == chat_id, TelegramMessage.is_deleted.is_(False)))) or 0)
+                        mysql_text_count = int((await session.scalar(select(func.count(TelegramMessage.id)).where(
+                            TelegramMessage.chat_id == chat_id, TelegramMessage.is_deleted.is_(False),
+                            TelegramMessage.text.is_not(None), func.length(func.trim(TelegramMessage.text)) > 0))) or 0)
+                        payload.update(phase="embedding", progress=55, processed=0, total=mysql_text_count,
+                                       total_messages=None, vectors_created=0, mysql_message_count=mysql_message_count,
+                                       mysql_before=current_message_count, mysql_after=mysql_message_count,
+                                       mysql_text_count=mysql_text_count, mysql_synced=True)
+                        job.payload = payload
+                        if source:
+                            source.mysql_message_count = mysql_message_count
+                            source.text_message_count = mysql_text_count
+                        await refresh_source_usage(session, chat_id, self.rag.vectors)
 
                 # Phase 2 only reads committed MySQL rows and creates derived vectors.
                 async with self.database.session() as session:
@@ -2852,6 +2844,7 @@ class Application:
                     action = await session.get(PendingAction, action_id)
                     if action is None or action.status != "confirmed":
                         continue
+                    sync_action = action.action_type == "sync_chat_history"
                     guided_preview = action_id.startswith("fv1-") or "first_source_preview" in (action.payload or {})
                     try:
                         if action.requested_by != self.user.owner_id:
@@ -3048,14 +3041,36 @@ class Application:
                                 enabled=enabled,
                             )
                         elif action.action_type == "sync_chat_history":
-                            synced = await self.user.sync_history(
-                                session,
-                                chat_id=int(action.chat_id),
-                                actor_id=action.requested_by,
-                                owner_id=int(self.user.owner_id),
-                                limit=min(max(int(action.payload.get("limit", 1000)), 1), 1000),
-                            )
-                            action.payload = {**action.payload, "synced_count": synced}
+                            async with self.database.session() as stage_session:
+                                staged = await self.user.stage_history_page(
+                                    stage_session, chat_id=int(action.chat_id), actor_id=action.requested_by,
+                                    owner_id=int(self.user.owner_id), limit=action.payload.get("limit", 1000),
+                                    check_exhaustion=True)
+                            await session.rollback()
+                            await session.execute(text("BEGIN IMMEDIATE"))
+                            action = await session.get(PendingAction, action_id)
+                            if action is None or action.status != "executing":
+                                raise AuthorizationRevoked("action_no_longer_executable")
+                            if action.requested_by != self.user.owner_id:
+                                raise AuthorizationRevoked("not_owner")
+                            await validate_action_epoch(session, action)
+                            page = await self.user.apply_history_page(session, staged)
+                            action.payload = {**action.payload, "synced_count": page.saved,
+                                              "history_read": page.read, "history_skipped": page.skipped,
+                                              "history_completed": page.completed,
+                                              "interval_upper": page.upper_id, "interval_after": page.after_id}
+                            if page.completed:
+                                action.status, action.executed_at = "executed", datetime.now(UTC)
+                                action.error = None
+                                session.add(self._audit_row(action, "success"))
+                            else:
+                                code = "history_quota_reached" if page.stop_reason == "quota" else "history_sync_incomplete"
+                                action.status = "failed"
+                                action.error = f"{code}: Đã lưu bền vững {page.saved} tin; khoảng đồng bộ chưa hoàn tất. Cần xác nhận đồng bộ mới."
+                                session.add(self._audit_row(action, "failed", code))
+                            await validate_action_epoch(session, action)
+                            await session.commit()
+                            continue
                         elif action.action_type == "backfill_chat_history":
                             chat_id = int(action.chat_id)
                             active_backfills = list(
@@ -3208,7 +3223,20 @@ class Application:
                                             raise ValueError("source_learning_in_progress")
                                 except (TypeError, ValueError, OverflowError, AttributeError):
                                     raise ValueError("source_learning_in_progress") from None
+                                capture = session.sync_session.info.get("first_source_validated_actions", {}).get(action.action_id)
+                                if capture is None or action.status != "executing" or action.error is not None:
+                                    raise ValueError("first_source_preview_stale")
                                 await self.policy.apply_template(session, chat_id, "knowledge")
+                                if action.status != "executing":
+                                    if (action.status != "cancelled" or action.error != "source_authorization_revoked"
+                                            or action.payload.get("external_effect_started")
+                                            or session.sync_session.info.get("first_source_validated_actions", {}).get(action.action_id) is not capture
+                                            or (action.action_id, action.action_type, action.chat_id, action.requested_by)
+                                            != (capture.action_id, "enable_group_learning", capture.source_id, capture.owner_id)
+                                            or action.payload != json.loads(capture.payload)):
+                                        raise ValueError("first_source_preview_stale")
+                                    # This confirmed preset cancels stale work, including itself, under its writer lock.
+                                    action.status, action.error = "executing", None
                                 authorization_epoch = await source_epoch(session, chat_id)
                             active_job = next(
                                 (
@@ -3246,6 +3274,9 @@ class Application:
                             source.requested_for_learning = True
                             source.last_job_id = job.id
                             source.last_error = None
+                            if guided_preview:
+                                await self.first_value.associate_learning(session, action=action,
+                                    job=job, source_epoch=authorization_epoch)
                             action.payload = {
                                 **action.payload,
                                 "job_id": job.id,
@@ -3628,11 +3659,11 @@ class Application:
                                     error=str(redact(str(exc))),
                                 )
                     except Exception as exc:
-                        if guided_preview:
+                        if guided_preview or sync_action:
                             # A rejected final fence must roll back every tentative grant/job first.
                             await session.rollback()
                             action = await session.get(PendingAction, action_id)
-                            if action is None:
+                            if action is None or (sync_action and action.status != "executing"):
                                 continue
                         action.status = (
                             "uncertain"
@@ -3643,7 +3674,7 @@ class Application:
                         )
                         action.error = str(redact(str(exc)))[:1000]
                         session.add(self._audit_row(action, "failed", str(exc)[:1000]))
-                        if guided_preview:
+                        if guided_preview or sync_action:
                             await session.commit()
                         log.warning("action_failed", action_id=action.action_id, error=str(exc))
             await asyncio.sleep(2)
@@ -3717,6 +3748,7 @@ class Application:
             bot_instance=self.bot_runtime.bot,
             admission=self.management_admitted,
             first_source_validator=self._validate_first_source_action,
+            first_value_getter=lambda: self.first_value,
             polling_runner=self.bot_runtime.run_updates,
         )
         self.scheduler.start()

@@ -1,5 +1,5 @@
 [build-system]
-requires = ["hatchling>=1.27"]
+requires = ["hatchling==1.27.0"]
 build-backend = "hatchling.build"
 
 [project]
@@ -77,3 +77,22 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["S105"]
 "src/tg_assistant/admin_api/**" = ["B008"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"README.md" = "tg_assistant/_resources/README.md"
+"USER_GUIDE.md" = "tg_assistant/_resources/USER_GUIDE.md"
+"alembic/env.py" = "tg_assistant/_resources/alembic/env.py"
+"alembic/versions/0001_initial_schema.py" = "tg_assistant/_resources/alembic/versions/0001_initial_schema.py"
+"alembic/versions/0002_knowledge_source_inventory.py" = "tg_assistant/_resources/alembic/versions/0002_knowledge_source_inventory.py"
+"alembic/versions/0003_ai_routing_operations.py" = "tg_assistant/_resources/alembic/versions/0003_ai_routing_operations.py"
+"alembic/versions/0004_local_first_ai.py" = "tg_assistant/_resources/alembic/versions/0004_local_first_ai.py"
+"alembic/versions/0005_vector_store_reliability.py" = "tg_assistant/_resources/alembic/versions/0005_vector_store_reliability.py"
+"alembic/versions/0006_authorization_epoch.py" = "tg_assistant/_resources/alembic/versions/0006_authorization_epoch.py"
+"alembic/versions/0007_job_leases.py" = "tg_assistant/_resources/alembic/versions/0007_job_leases.py"
+"alembic/versions/0008_ai_reservations.py" = "tg_assistant/_resources/alembic/versions/0008_ai_reservations.py"
+"alembic/versions/0009_vector_dirty.py" = "tg_assistant/_resources/alembic/versions/0009_vector_dirty.py"
+"alembic/versions/0010_bounded_catchup.py" = "tg_assistant/_resources/alembic/versions/0010_bounded_catchup.py"
+"dashboard-prototype/public/auth-bootstrap.js" = "tg_assistant/_resources/dashboard-prototype/public/auth-bootstrap.js"
+"dashboard-prototype/public/fonts/PeterObscure.ttf" = "tg_assistant/_resources/dashboard-prototype/public/fonts/PeterObscure.ttf"
+"dashboard-prototype/public/fonts/DarleySans-Regular.otf" = "tg_assistant/_resources/dashboard-prototype/public/fonts/DarleySans-Regular.otf"
+"dashboard-prototype/dist/client" = "tg_assistant/_resources/dashboard-prototype/dist/client"

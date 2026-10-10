@@ -2,6 +2,7 @@
 # ruff: noqa: F811 - shared fixtures
 import asyncio
 import importlib
+from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 
@@ -51,6 +52,7 @@ async def guided(selection, tmp_path):
     pair = ["pair-one"]
     runtime.bot_runtime.pairing_verification = lambda: SimpleNamespace(owner_id=123, fingerprint=pair[0])
     owner = service(selection)
+    runtime.database.fence = owner._fence
     await owner.select_source(A)
     async with runtime.database.session() as db:
         db.add_all([TelegramChat(chat_id=chat, chat_type="supergroup", title=str(chat)) for chat in (A, B)])
@@ -94,19 +96,126 @@ async def effects(guided):
 
 
 async def execute(guided):
-    task = asyncio.create_task(guided.runtime._execute_actions())
+    database = guided.runtime.database
+    async with database.session() as db:
+        expected = set(await db.scalars(select(PendingAction.action_id).where(PendingAction.status == "confirmed")))
+    assert expected
+    finished = set()
+    terminal = asyncio.Event()
+    terminal_session = None
+    original_session = database.session
+    @asynccontextmanager
+    async def completed_session():
+        # Finish the committed session and owner notice before cancelling idle polling.
+        async with original_session() as db:
+            yield db
+        if db.sync_session is terminal_session:
+            terminal.set()
+    sync_class = database.sessions.class_.sync_session_class
+    def committed(sync):
+        nonlocal terminal_session
+        if sync.bind is not database.engine.sync_engine:
+            return
+        finished.update(action.action_id for action in sync.identity_map.values()
+            if isinstance(action, PendingAction) and action.action_id in expected
+            and action.status in {"executed", "failed", "cancelled", "expired", "uncertain"})
+        if expected <= finished:
+            guided.runtime.stopping.set()
+            terminal_session = sync
+    event.listen(sync_class, "after_commit", committed)
+    database.session = completed_session
+    executor = asyncio.create_task(guided.runtime._execute_actions())
+    waiter = asyncio.create_task(terminal.wait())
     try:
-        for _ in range(100):
-            async with guided.runtime.database.session() as db:
-                states = (await db.scalars(select(PendingAction.status))).all()
-            if states and all(state not in {"confirmed", "executing"} for state in states):
-                break
-            await asyncio.sleep(.01)
-        else:
+        done, _ = await asyncio.wait({executor, waiter}, timeout=3, return_when=asyncio.FIRST_COMPLETED)
+        if executor in done:
+            await executor
+        if not terminal.is_set() or not expected <= finished:
             pytest.fail("Action did not finish")
     finally:
         guided.runtime.stopping.set()
-        await asyncio.wait_for(task, 3)
+        executor.cancel()
+        waiter.cancel()
+        try:
+            results = await asyncio.gather(executor, waiter, return_exceptions=True)
+        finally:
+            database.session = original_session
+            event.remove(sync_class, "after_commit", committed)
+        if isinstance(results[0], Exception):
+            raise results[0]
+
+
+async def test_execute_waits_for_delayed_durable_terminal(guided, monkeypatch):
+    action = await create(guided)
+    async with guided.runtime.database.session() as db:
+        await actions(guided).confirm(db, action.action_id, 123)
+    async with guided.runtime.database.session() as db:
+        row = await db.get(PendingAction, action.action_id)
+        row.payload = {**row.payload, "first_source_preview": "forged"}
+    before = await effects(guided)
+    original = guided.runtime._action_fence
+    async def delayed(*args):
+        await asyncio.sleep(1.1)
+        await original(*args)
+    monkeypatch.setattr(guided.runtime, "_action_fence", delayed)
+    await execute(guided)
+    async with guided.runtime.database.session() as db:
+        rejected = await db.get(PendingAction, action.action_id)
+        assert rejected.status == "cancelled" and rejected.error == "first_source_preview_stale"
+        audits = (await db.scalars(select(AuditLog).where(AuditLog.correlation_id == action.action_id))).all()
+        assert len(audits) == 1 and audits[0].outcome == "failed"
+    assert await effects(guided) == before
+
+
+@pytest.mark.parametrize("failure", ["return", "error", "nonterminal", "terminal_open", "terminal_error"])
+async def test_execute_rejects_nonterminal_producer_and_drains(guided, monkeypatch, failure):
+    action = await create(guided)
+    async with guided.runtime.database.session() as db:
+        await actions(guided).confirm(db, action.action_id, 123)
+    before = await effects(guided)
+    tasks_before = asyncio.all_tasks()
+    original_session = guided.runtime.database.session
+    producer = []
+    drained = asyncio.Event()
+    async def unfinished():
+        producer.append(asyncio.current_task())
+        try:
+            if failure.startswith("terminal_"):
+                async with guided.runtime.database.session() as db:
+                    row = await db.get(PendingAction, action.action_id)
+                    row.status = "cancelled"
+                    await db.commit()
+                    if failure == "terminal_error":
+                        raise RuntimeError("synthetic executor failure")
+                    await asyncio.Event().wait()
+            if failure == "error":
+                raise RuntimeError("synthetic executor failure")
+            if failure == "nonterminal":
+                await asyncio.Event().wait()
+        finally:
+            drained.set()
+    monkeypatch.setattr(guided.runtime, "_execute_actions", unfinished)
+    listeners = []
+    sync_class = guided.runtime.database.sessions.class_.sync_session_class
+    original_listen = event.listen
+    def record(target, name, callback, *args, **kwargs):
+        if target is sync_class and name == "after_commit":
+            listeners.append(callback)
+        return original_listen(target, name, callback, *args, **kwargs)
+    monkeypatch.setattr(event, "listen", record)
+    expected_error = RuntimeError if failure.endswith("error") else pytest.fail.Exception
+    message = "synthetic executor failure" if failure.endswith("error") else "Action did not finish"
+    with pytest.raises(expected_error, match=message):
+        await execute(guided)
+    assert drained.is_set() and producer and all(task.done() for task in producer)
+    assert asyncio.all_tasks() <= tasks_before
+    assert guided.runtime.database.session == original_session
+    assert listeners and not any(event.contains(sync_class, "after_commit", callback) for callback in listeners)
+    async with guided.runtime.database.session() as db:
+        expected_status = "cancelled" if failure.startswith("terminal_") else "confirmed"
+        assert (await db.get(PendingAction, action.action_id)).status == expected_status
+        assert (await db.scalars(select(AuditLog).where(AuditLog.correlation_id == action.action_id))).all() == []
+    assert await effects(guided) == before
 
 
 async def test_preview_only_and_truthful_permissions(guided):
@@ -116,6 +225,8 @@ async def test_preview_only_and_truthful_permissions(guided):
     assert action.action_type == "enable_group_learning"
     assert action.action_id.startswith("fv1-")
     assert await effects(guided) == before
+
+    assert guided.owner.history().header.learning is None
     assert set(action.payload) == {"limit", "first_source_preview", "authorization_epochs"}
     assert "1000" in action.preview and str(A) in action.preview
     assert "send_messages" in action.preview and "group_ai_ask" in action.preview
@@ -187,6 +298,11 @@ async def test_changed_capture_cannot_grant_or_queue(guided, change, boundary):
         async with guided.runtime.database.session() as db:
             with pytest.raises((PermissionError, ValueError)):
                 await actions(guided).confirm(db, action.action_id, 123)
+    elif change == "block_regrant":
+        async with guided.runtime.database.session() as db:
+            cancelled = await db.get(PendingAction, action.action_id)
+            assert cancelled.status == "cancelled"
+            assert cancelled.error == "source_authorization_revoked"
     else:
         await execute(guided)
     assert await effects(guided) == before
@@ -210,6 +326,7 @@ async def test_owner_one_use_expiry_and_default_deny(guided, change):
     finally:
         guided.state.current[0] = True
     assert await effects(guided) == before
+    assert guided.owner.history().header.learning is None
 
 
 @pytest.mark.parametrize("chat", [B, 999])
@@ -343,6 +460,7 @@ async def test_model_change_at_final_commit_rolls_back_effects(guided, statement
     finally:
         event.remove(guided.runtime.database.engine.sync_engine, "after_cursor_execute", change)
     assert await effects(guided) == before
+    assert guided.owner.history().header.learning is None
 
 
 async def test_restart_requires_new_preview_and_monotonic_expiry(guided, monkeypatch):
