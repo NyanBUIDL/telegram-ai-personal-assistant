@@ -3,14 +3,14 @@ from __future__ import annotations
 import asyncio
 import re
 from collections.abc import Awaitable, Callable
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from functools import wraps
 from pathlib import Path
 from time import monotonic
 from typing import Any, NamedTuple
 
 import structlog
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text, update
 from sqlalchemy.dialects.mysql import insert as mysql_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.exc import IntegrityError
@@ -24,7 +24,9 @@ from ..db.models import (
     ModerationRule,
     PermissionName,
     SyncState,
+    TelegramAttachment,
     TelegramChat,
+    TelegramChatPolicy,
     TelegramMessage,
     TelegramMessageVersion,
 )
@@ -50,6 +52,40 @@ EXTERNAL_LINK_RE = re.compile(
     """
 )
 GroupAskHandler = Callable[[int, int, int, str], Awaitable[None]]
+
+_HISTORY_CURSOR = (
+    "last_message_id",
+    "last_message_date",
+    "baseline_message_id",
+    "catchup_upper_id",
+    "catchup_after_id",
+    "authorization_epoch",
+    "state",
+    "error",
+)
+
+
+class HistorySyncPage(NamedTuple):
+    read: int
+    saved: int
+    skipped: int
+    completed: bool
+    upper_id: int | None
+    after_id: int | None
+    stop_reason: str | None = None
+
+
+class StagedHistoryPage(NamedTuple):
+    chat_id: int
+    actor_id: int
+    owner_id: int
+    epoch: int
+    expected: tuple | None
+    baseline: int | None
+    upper: int
+    after: int
+    messages: tuple
+    exhausted: bool
 
 
 class HistoryBackfillPage(NamedTuple):
@@ -786,6 +822,302 @@ class UserClientAdapter:
                 "media_kind": message_media_kind(message),
             }
 
+    async def _history_read_stage(self, session):
+        # SQLAlchemy autobegin after SELECT is not a SQLite writer transaction.
+        with session.no_autoflush:
+            connection = await session.connection()
+            raw = await connection.get_raw_connection()
+            if (
+                session.new
+                or session.dirty
+                or session.deleted
+                or raw.driver_connection.in_transaction
+            ):
+                raise RuntimeError("history_sync_requires_read_stage")
+
+    async def stage_history_page(
+        self,
+        session: AsyncSession,
+        *,
+        chat_id: int,
+        actor_id: int,
+        owner_id: int,
+        limit: int = 1000,
+        check_exhaustion: bool = False,
+        continuation_cursor: tuple[int, int, int] | None = None,
+    ) -> StagedHistoryPage:
+        if type(limit) is not int or not 1 <= limit <= 100000:
+            raise ValueError("invalid_history_limit")
+        self._check_management()
+        if actor_id != owner_id or getattr(self, "owner_id", owner_id) not in (None, owner_id):
+            raise PermissionError("not_owner")
+        with session.no_autoflush:
+            epoch = await self._authorization_fence(session, chat_id, PermissionName.SYNC_HISTORY)
+            await self._history_read_stage(session)
+            row = (
+                await session.execute(
+                    select(*(getattr(SyncState, key) for key in _HISTORY_CURSOR)).where(
+                        SyncState.chat_id == chat_id
+                    )
+                )
+            ).first()
+            expected = tuple(row) if row else None
+            previous = dict(zip(_HISTORY_CURSOR, expected, strict=True)) if expected else {}
+            baseline = previous.get("baseline_message_id")
+            upper = previous.get("catchup_upper_id")
+            after = previous.get("catchup_after_id")
+            if upper is not None and previous.get("authorization_epoch") != epoch:
+                raise AuthorizationRevoked("source_authorization_revoked")
+            if continuation_cursor is not None:
+                # An internal committed cursor is continuity evidence, never authorization.
+                if upper is None or continuation_cursor != (epoch, upper, after):
+                    raise RuntimeError("history_sync_conflict")
+            else:
+                decision = await self.policy.evaluate(
+                    session, PolicyContext(actor_id, owner_id, chat_id, PermissionName.SYNC_HISTORY)
+                )
+                if not decision.allowed:
+                    raise PermissionError(decision.reason.value)
+            page_size = min(limit, 1000)
+
+            async def fetch(**kwargs):
+                messages = []
+                async for message in self.client.iter_messages(chat_id, **kwargs):
+                    messages.append(message)
+                await self._authorization_fence(
+                    session, chat_id, PermissionName.SYNC_HISTORY, epoch
+                )
+                return messages
+
+            try:
+                if upper is None and previous.get("last_message_id") is None and baseline is None:
+                    if limit <= 1000:
+                        messages = await fetch(reverse=False, limit=limit)
+                        messages.sort(key=lambda message: int(message.id))
+                        baseline = int(messages[0].id) if messages else 0
+                        upper = int(messages[-1].id) if messages else 0
+                        after = max(0, baseline - 1)
+                        exhausted = len(messages) < page_size
+                    else:
+                        # Count actual yielded messages: server offsets include MessageEmpty entries.
+                        upper, baseline, count = 0, 0, 0
+                        async for message in self.client.iter_messages(
+                            chat_id, reverse=False, limit=limit
+                        ):
+                            count += 1
+                            if count == 1:
+                                upper = int(message.id)
+                            baseline = int(message.id)
+                            if count % 100 == 0:
+                                await self._authorization_fence(
+                                    session, chat_id, PermissionName.SYNC_HISTORY, epoch
+                                )
+                        await self._authorization_fence(
+                            session, chat_id, PermissionName.SYNC_HISTORY, epoch
+                        )
+                        after = max(0, baseline - 1)
+                        messages = await fetch(
+                            min_id=after, max_id=upper + 1, reverse=True, limit=page_size
+                        )
+                        exhausted = len(messages) < page_size
+                else:
+                    if upper is None:
+                        after = previous.get("last_message_id")
+                        if after is None:
+                            after = max(0, (baseline or 0) - 1)
+                        newest = await fetch(min_id=after, reverse=False, limit=1)
+                        upper = int(newest[0].id) if newest else after
+                    messages = await fetch(
+                        min_id=after, max_id=upper + 1, reverse=True, limit=page_size
+                    )
+                    exhausted = len(messages) < page_size
+                if check_exhaustion and not exhausted:
+                    lookahead = await fetch(
+                        min_id=int(messages[-1].id), max_id=upper + 1, reverse=True, limit=1
+                    )
+                    exhausted = not lookahead
+            except FloodWaitError as exc:
+                await asyncio.sleep(min(exc.seconds, 60))
+                raise RuntimeError(f"Telegram FloodWait {exc.seconds}s") from exc
+            await self._authorization_fence(session, chat_id, PermissionName.SYNC_HISTORY, epoch)
+            return StagedHistoryPage(
+                chat_id,
+                actor_id,
+                owner_id,
+                epoch,
+                expected,
+                baseline,
+                upper,
+                after,
+                tuple(messages),
+                exhausted,
+            )
+
+    async def apply_history_page(
+        self, session: AsyncSession, page: StagedHistoryPage
+    ) -> HistorySyncPage:
+        connection = await session.connection()
+        raw = await connection.get_raw_connection()
+        if not raw.driver_connection.in_transaction:
+            await session.execute(text("BEGIN IMMEDIATE"))
+        self._check_management()
+        if page.actor_id != page.owner_id or getattr(self, "owner_id", page.owner_id) not in (
+            None,
+            page.owner_id,
+        ):
+            raise PermissionError("not_owner")
+        await require_authorization(session, page.chat_id, PermissionName.SYNC_HISTORY, page.epoch)
+        values = dict(
+            baseline_message_id=page.baseline,
+            catchup_upper_id=page.upper,
+            catchup_after_id=page.after,
+            authorization_epoch=page.epoch,
+            state="syncing",
+            error=None,
+        )
+        if page.expected is None:
+            statement = sqlite_insert(SyncState).values(chat_id=page.chat_id, **values)
+            result = await session.execute(
+                statement.on_conflict_do_nothing(index_elements=["chat_id"])
+            )
+        else:
+            statement = update(SyncState).where(SyncState.chat_id == page.chat_id)
+            for key, value in zip(_HISTORY_CURSOR, page.expected, strict=True):
+                statement = statement.where(getattr(SyncState, key) == value)
+            result = await session.execute(
+                statement.values(**values).execution_options(synchronize_session=False)
+            )
+        if result.rowcount != 1:
+            raise RuntimeError("history_sync_conflict")
+        policy = await session.scalar(
+            select(TelegramChatPolicy)
+            .where(TelegramChatPolicy.chat_id == page.chat_id)
+            .execution_options(populate_existing=True)
+        )
+        if any(
+            value is not None and value < 0
+            for value in (policy.max_messages, policy.max_storage_mb)
+        ):
+            raise ValueError("invalid_history_quota")
+        count, size = (
+            await session.execute(
+                select(
+                    func.count(TelegramMessage.id),
+                    func.coalesce(func.sum(func.length(TelegramMessage.text)), 0),
+                ).where(
+                    TelegramMessage.chat_id == page.chat_id, TelegramMessage.is_deleted.is_(False)
+                )
+            )
+        ).one()
+        size += (
+            await session.scalar(
+                select(func.sum(TelegramAttachment.size_bytes))
+                .join(TelegramMessage, TelegramMessage.id == TelegramAttachment.telegram_message_id)
+                .where(TelegramMessage.chat_id == page.chat_id)
+            )
+        ) or 0
+        cutoff = (
+            datetime.now(UTC) - timedelta(days=policy.retention_days)
+            if policy.retention_days and policy.retention_days > 0
+            else None
+        )
+        saved, skipped, after, quota = 0, 0, page.after, False
+        for message in page.messages:
+            date = message.date
+            if date is not None and date.tzinfo is None:
+                date = date.replace(tzinfo=UTC)
+            if cutoff and date and date < cutoff:
+                skipped += 1
+                after = int(message.id)
+                continue
+            old = (
+                await session.execute(
+                    select(TelegramMessage.is_deleted, func.length(TelegramMessage.text)).where(
+                        TelegramMessage.chat_id == page.chat_id,
+                        TelegramMessage.message_id == int(message.id),
+                    )
+                )
+            ).first()
+            count_delta = int(old is None or old[0])
+            text_size = (await session.scalar(select(func.length(message.message)))) or 0
+            size_delta = text_size - ((old[1] or 0) if old and not old[0] else 0)
+            if (
+                policy.max_messages is not None
+                and count_delta > 0
+                and count + count_delta > policy.max_messages
+            ) or (
+                policy.max_storage_mb is not None
+                and size_delta > 0
+                and size + size_delta > policy.max_storage_mb * 1024 * 1024
+            ):
+                quota = True
+                break
+            await self._upsert_message(session, message)
+            count += count_delta
+            size += size_delta
+            saved += 1
+            after = int(message.id)
+        completed = page.exhausted and not quota
+        values.update(catchup_after_id=after, state="paused" if quota else "syncing")
+        if completed:
+            await session.flush()
+            latest_date = await session.scalar(
+                select(func.max(TelegramMessage.sent_at)).where(
+                    TelegramMessage.chat_id == page.chat_id,
+                    TelegramMessage.is_deleted.is_(False),
+                    TelegramMessage.message_id <= page.upper,
+                    TelegramMessage.message_id
+                    > (
+                        (page.expected[0] if page.expected else None)
+                        or max(0, (page.baseline or 0) - 1)
+                    ),
+                )
+            )
+            previous_date = page.expected[1] if page.expected else None
+            dates = [
+                date.replace(tzinfo=UTC) if date.tzinfo is None else date
+                for date in (latest_date, previous_date)
+                if date
+            ]
+            values.update(
+                last_message_id=page.upper,
+                last_message_date=max(dates) if dates else None,
+                catchup_upper_id=None,
+                catchup_after_id=None,
+                state="idle",
+            )
+        await session.execute(
+            update(SyncState)
+            .where(SyncState.chat_id == page.chat_id)
+            .values(**values)
+            .execution_options(synchronize_session=False)
+        )
+        await require_authorization(session, page.chat_id, PermissionName.SYNC_HISTORY, page.epoch)
+        self._check_management()
+        return HistorySyncPage(
+            len(page.messages),
+            saved,
+            skipped,
+            completed,
+            page.upper,
+            after,
+            "quota" if quota else (None if completed else "page_limit"),
+        )
+
+    async def sync_history_page(
+        self,
+        session: AsyncSession,
+        *,
+        chat_id: int,
+        actor_id: int,
+        owner_id: int,
+        limit: int = 1000,
+    ) -> HistorySyncPage:
+        page = await self.stage_history_page(
+            session, chat_id=chat_id, actor_id=actor_id, owner_id=owner_id, limit=limit
+        )
+        return await self.apply_history_page(session, page)
+
     async def sync_history(
         self,
         session: AsyncSession,
@@ -795,56 +1127,11 @@ class UserClientAdapter:
         owner_id: int,
         limit: int = 1000,
     ) -> int:
-        decision = await self.policy.evaluate(
-            session, PolicyContext(actor_id, owner_id, chat_id, PermissionName.SYNC_HISTORY)
-        )
-        if not decision.allowed:
-            raise PermissionError(decision.reason.value)
-        epoch = await self._authorization_fence(session, chat_id, PermissionName.SYNC_HISTORY)
-        state = await session.scalar(select(SyncState).where(SyncState.chat_id == chat_id))
-        min_id = state.last_message_id or 0 if state else 0
-        count, highest = 0, min_id
-        latest_date = state.last_message_date if state else None
-        if latest_date is not None and latest_date.tzinfo is None:
-            latest_date = latest_date.replace(tzinfo=UTC)
-        try:
-            messages = []
-            self._check_management()
-            async for message in self.client.iter_messages(
-                chat_id,
-                min_id=min_id,
-                reverse=False,
-                limit=limit,
-            ):
-                await self._authorization_fence(
-                    session, chat_id, PermissionName.SYNC_HISTORY, epoch
-                )
-                messages.append(message)
-            for message in messages:
-                await self._authorization_fence(
-                    session, chat_id, PermissionName.SYNC_HISTORY, epoch
-                )
-                await self._upsert_message(session, message)
-                highest = max(highest, int(message.id))
-                message_date = message.date
-                if message_date is not None and message_date.tzinfo is None:
-                    message_date = message_date.replace(tzinfo=UTC)
-                if message_date and (latest_date is None or message_date > latest_date):
-                    latest_date = message_date
-                count += 1
-        except FloodWaitError as exc:
-            await asyncio.sleep(min(exc.seconds, 60))
-            raise RuntimeError(f"Telegram FloodWait {exc.seconds}s") from exc
-        await self._authorization_fence(session, chat_id, PermissionName.SYNC_HISTORY, epoch)
-        if not state:
-            state = SyncState(chat_id=chat_id)
-            session.add(state)
-        state.last_message_id, state.last_message_date, state.state = (
-            highest,
-            latest_date,
-            "idle",
-        )
-        return count
+        return (
+            await self.sync_history_page(
+                session, chat_id=chat_id, actor_id=actor_id, owner_id=owner_id, limit=limit
+            )
+        ).saved
 
     async def backfill_history_page(
         self,

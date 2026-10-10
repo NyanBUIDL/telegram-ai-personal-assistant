@@ -19,6 +19,7 @@ from ..db.models import (
     KnowledgeSource,
     PendingAction,
     PermissionName,
+    SyncState,
     TelegramChatPermission,
     TelegramChatPolicy,
 )
@@ -138,6 +139,10 @@ async def validate_action_epoch(session, action: PendingAction) -> None:
 
 
 async def fence_source_work(session, chat_id: int) -> int:
+    state = await session.scalar(select(SyncState).where(SyncState.chat_id == chat_id))
+    if state and state.catchup_upper_id is not None:
+        state.catchup_upper_id = state.catchup_after_id = None
+        state.state, state.error = "revoked", "source_authorization_revoked"
     jobs = list(
         (
             await session.scalars(

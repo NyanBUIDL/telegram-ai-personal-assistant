@@ -11,7 +11,7 @@ from pathlib import Path
 
 import httpx
 import typer
-from sqlalchemy import select
+from sqlalchemy import select, text
 
 from .admin_api import dashboard_login_code, ensure_dashboard_secret
 from .admin_api.auth import login_code_expires_at
@@ -621,20 +621,33 @@ def sync(limit: int = typer.Option(1000, min=1, max=100000)) -> None:
                         select(TelegramChatPolicy).where(TelegramChatPolicy.allowed.is_(True))
                     )
                 ).all()
-            total = 0
+            total, unfinished = 0, 0
             for row in policies:
                 try:
-                    async with db.session() as session:
-                        total += await user.sync_history(
-                            session,
-                            chat_id=row.chat_id,
-                            actor_id=int(me.id),
-                            owner_id=int(me.id),
-                            limit=limit,
-                        )
+                    accounted = 0
+                    continuation_cursor = None
+                    while accounted < limit:
+                        remaining = limit - accounted
+                        async with db.session() as session:
+                            staged = await user.stage_history_page(
+                                session, chat_id=row.chat_id, actor_id=int(me.id), owner_id=int(me.id),
+                                limit=remaining, check_exhaustion=remaining <= 1000,
+                                continuation_cursor=continuation_cursor)
+                        async with db.session() as session:
+                            await session.execute(text("BEGIN IMMEDIATE"))
+                            page = await user.apply_history_page(session, staged)
+                        total += page.saved
+                        accounted += page.saved + page.skipped
+                        if page.completed:
+                            break
+                        continuation_cursor = (staged.epoch, page.upper_id, page.after_id)
+                        if page.stop_reason == "quota" or accounted >= limit:
+                            unfinished += 1
+                            break
                 except PermissionError:
-                    pass
-            typer.echo(f"Đã đồng bộ {total} tin mới, không đọc chat bị block.")
+                    unfinished += 1
+            typer.echo(f"Đã đồng bộ {total} tin mới, không đọc chat bị block. "
+                       f"{unfinished} chat chưa hoàn tất; số tin còn lại chưa xác định.")
         finally:
             await user.close()
             await db.close()

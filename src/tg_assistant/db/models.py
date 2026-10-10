@@ -182,6 +182,10 @@ class SyncState(Base, TimestampMixin):
     chat_id: Mapped[int] = mapped_column(BigInteger, unique=True, nullable=False)
     last_message_id: Mapped[int | None] = mapped_column(BigInteger)
     last_message_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    baseline_message_id: Mapped[int | None] = mapped_column(BigInteger)
+    catchup_upper_id: Mapped[int | None] = mapped_column(BigInteger)
+    catchup_after_id: Mapped[int | None] = mapped_column(BigInteger)
+    authorization_epoch: Mapped[int | None] = mapped_column(Integer)
     state: Mapped[str] = mapped_column(String(32), default="idle", nullable=False)
     error: Mapped[str | None] = mapped_column(Text)
 

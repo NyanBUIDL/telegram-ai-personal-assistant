@@ -153,7 +153,7 @@ async def test_queued_job_cannot_reallow_blocked_chat(session, mode):
         calls.append(kwargs["chat_id"])
         return 0
 
-    app.user.sync_history = sync
+    app.user.stage_history_page = sync
     await app._process_learning_jobs()
     policy = await session.scalar(
         select(TelegramChatPolicy).where(TelegramChatPolicy.chat_id == 100)

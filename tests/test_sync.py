@@ -150,15 +150,16 @@ class FakeClient:
     def iter_messages(
         self,
         *_args,
-        min_id: int,
-        reverse: bool,
-        limit: int,
+        min_id: int = 0,
+        max_id: int = 0,
+        reverse: bool = False,
+        limit: int = 1000,
         **_kwargs,
     ):
         self.last_reverse = reverse
 
         async def iterate():
-            eligible = [message for message in self.messages if message.id > min_id]
+            eligible = [message for message in self.messages if message.id > min_id and (not max_id or message.id < max_id)]
             eligible.sort(key=lambda message: message.id, reverse=not reverse)
             for message in eligible[:limit]:
                 yield message
@@ -370,7 +371,7 @@ async def test_checkpoint_resume_does_not_duplicate(session) -> None:
     session.add(TelegramChat(chat_id=100, title="Test", chat_type="group"))
     policy = PolicyEngine()
     await policy.apply_template(session, 100, "knowledge")
-    await session.flush()
+    await session.commit()
     now = datetime.now(UTC)
     adapter = object.__new__(UserClientAdapter)
     adapter.policy = policy
@@ -378,13 +379,13 @@ async def test_checkpoint_resume_does_not_duplicate(session) -> None:
         [fake_message(1, "one", now), fake_message(2, "two", now + timedelta(seconds=1))]
     )
     assert await adapter.sync_history(session, chat_id=100, actor_id=1, owner_id=1, limit=100) == 2
-    await session.flush()
+    await session.commit()
     assert await adapter.sync_history(session, chat_id=100, actor_id=1, owner_id=1, limit=100) == 0
     checkpoint = await session.scalar(select(SyncState).where(SyncState.chat_id == 100))
     count = await session.scalar(select(func.count(TelegramMessage.id)))
     assert checkpoint is not None and checkpoint.last_message_id == 2
     assert count == 2
-    assert adapter.client.last_reverse is False
+    assert adapter.client.last_reverse is True
 
 
 @pytest.mark.asyncio
@@ -401,7 +402,7 @@ async def test_checkpoint_accepts_mysql_naive_datetime(session) -> None:
             state="idle",
         )
     )
-    await session.flush()
+    await session.commit()
     adapter = object.__new__(UserClientAdapter)
     adapter.policy = policy
     adapter.client = FakeClient([fake_message(2, "two", now + timedelta(seconds=1))])
@@ -413,7 +414,7 @@ async def test_checkpoint_accepts_mysql_naive_datetime(session) -> None:
         owner_id=1,
         limit=100,
     )
-    await session.flush()
+    await session.commit()
 
     checkpoint = await session.scalar(select(SyncState).where(SyncState.chat_id == 100))
     assert synced == 1
@@ -425,7 +426,7 @@ async def test_initial_sync_fetches_newest_messages_not_oldest(session) -> None:
     session.add(TelegramChat(chat_id=100, title="Test", chat_type="group"))
     policy = PolicyEngine()
     await policy.apply_template(session, 100, "knowledge")
-    await session.flush()
+    await session.commit()
     now = datetime.now(UTC)
     adapter = object.__new__(UserClientAdapter)
     adapter.policy = policy
@@ -443,7 +444,7 @@ async def test_initial_sync_fetches_newest_messages_not_oldest(session) -> None:
         owner_id=1,
         limit=3,
     )
-    await session.flush()
+    await session.commit()
 
     message_ids = set(
         (
@@ -455,6 +456,7 @@ async def test_initial_sync_fetches_newest_messages_not_oldest(session) -> None:
     checkpoint = await session.scalar(select(SyncState).where(SyncState.chat_id == 100))
     assert synced == 3
     assert message_ids == {4, 5, 6}
-    assert checkpoint is not None and checkpoint.last_message_id == 6
+    assert checkpoint is not None and checkpoint.last_message_id is None
+    assert checkpoint.catchup_after_id == 6
     assert adapter.client.last_reverse is False
 
