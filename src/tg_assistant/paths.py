@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import stat
 import sys
 import tempfile
 from contextlib import contextmanager
@@ -135,6 +136,28 @@ def _ownership_lock(root: Path):
         kernel.CloseHandle(mutex)
 
 
+def _native_control_only_root(root: Path) -> bool:
+    from .desktop.instance import _assert_owned_path, native_control_directory
+
+    try:
+        control = native_control_directory()
+        lock = control / "runtime.lock"
+        if root != control.parent:
+            return False
+        for path in (root, *root.parents, control, lock):
+            info = path.lstat()
+            if stat.S_ISLNK(info.st_mode) or getattr(info, "st_file_attributes", 0) & 0x400:
+                return False
+        if set(root.iterdir()) != {control} or set(control.iterdir()) != {lock}:
+            return False
+        for path in (root, control, lock):
+            _assert_owned_path(path)
+        info = lock.stat()
+        return stat.S_ISREG(info.st_mode) and info.st_nlink == 1 and info.st_size == 0
+    except (OSError, RuntimeError):
+        return False
+
+
 def ensure_runtime_dirs(
     root: Path | None = None, *, profile_id: str | None = None
 ) -> dict[str, Path]:
@@ -166,7 +189,7 @@ def ensure_runtime_dirs(
                 claim = not content
             except (OSError, json.JSONDecodeError):
                 raise ValueError("App data ownership marker is invalid") from None
-        elif root.exists() and any(root.iterdir()):
+        elif root.exists() and any(root.iterdir()) and not _native_control_only_root(root):
             raise ValueError("Cannot establish ownership of a nonempty app data directory")
         root.mkdir(parents=True, exist_ok=True)
         if claim:

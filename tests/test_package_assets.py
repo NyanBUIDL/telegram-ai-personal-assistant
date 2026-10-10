@@ -105,6 +105,7 @@ def test_wheel_resources_work_outside_checkout(tmp_path):
         assert "tg_assistant/_resources/USER_GUIDE.md" in names
         assert "tg_assistant/_resources/dashboard-prototype/dist/client/index.html" in names
         assert "tg_assistant/desktop/design_tokens.json" in names
+        assert "tg_assistant/desktop/installer_check.py" in names
         assert "tg_assistant/db/legacy_0005.json" in names
         assert not any(part in name.split("/") for name in names for part in ("node_modules", ".venv", ".env", "tests", ".superpowers"))
         archive.extractall(installed)
