@@ -235,7 +235,7 @@ flowchart TD
     route -->|"Hỏi hội thoại group hiện tại"| local_group["Đọc tối đa 100 tin đã đồng bộ<br/>trong 7 ngày của đúng group"]
     local_group --> answer_rows
 
-    route -->|"Hỏi kiến thức hoặc dự án"| learned{"Liệt kê nguồn ALLOW<br/>đã bật auto_knowledge"}
+    route -->|"Hỏi kiến thức hoặc dự án"| learned{"Chính group gọi lệnh ALLOW<br/>đã bật auto_knowledge và có dữ liệu"}
     learned -->|"Không có nguồn"| no_source["Thông báo chưa có nguồn đã học"]
     learned -->|"Có"| rag_auth["Policy lọc tiếp quyền search_messages<br/>một lần cho toàn request"]
     rag_auth --> keyword["Keyword retrieval từ MySQL<br/>cửa sổ trượt 7 ngày"]
@@ -284,7 +284,9 @@ flowchart TD
     requeue_stale --> lock["Chuyển một job queued sang running<br/>tăng attempts và đặt locked_at"]
 
     lock --> phase1["Pha 1: MySQL là nguồn chuẩn"]
-    phase1 --> policy["Bật ALLOW + template knowledge"]
+    phase1 --> revocation{"Ủy quyền job còn mới hơn<br/>lần BLOCK gần nhất?"}
+    revocation -->|"Không"| cancelled["Hủy job cũ, giữ BLOCK"]
+    revocation -->|"Có"| policy["Áp dụng ủy quyền học đã xác nhận"]
     policy --> sync["Telethon sync tối đa 1.000 tin<br/>chỉ ID mới hơn SyncState checkpoint"]
     sync --> upsert["Upsert theo chat_id + message_id<br/>lưu version nếu nội dung đã sửa"]
     upsert --> counts["Đếm message và message có text"]

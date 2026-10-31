@@ -32,6 +32,7 @@ import {
   ErrorState,
   LoadingState,
   PanelHeader,
+  ResourceNotice,
   Toggle,
 } from "../ui.jsx";
 import { useDialogA11y } from "../useDialogA11y.js";
@@ -109,6 +110,42 @@ function learningLabel(value) {
   return labels[value] || humanize(value);
 }
 
+function recommendationPage(result, filters) {
+  const { query, chatType, policyStatus, learningStatus, sortBy, sortDir, page, pageSize } = filters;
+  const needle = query.trim().toLocaleLowerCase("vi");
+  const usernameNeedle = needle.replace(/^@/, "");
+  const items = result.items.filter((item) =>
+    (!needle || [item.title, item.chat_id].some((value) =>
+      String(value || "").toLocaleLowerCase("vi").includes(needle)) ||
+      String(item.username || "").replace(/^@/, "").toLocaleLowerCase("vi").includes(usernameNeedle)) &&
+    (!chatType || item.chat_type === chatType) &&
+    (!policyStatus || Boolean(item.policy.allowed) === (policyStatus === "allow")) &&
+    (!learningStatus || item.knowledge.status === learningStatus),
+  );
+  const sorters = {
+    last_seen: (item) => item.last_seen_at,
+    activity: (item) => item.activity?.last_message_at,
+    title: (item) => (item.title || "").toLocaleLowerCase("vi"),
+    type: (item) => item.chat_type,
+    policy: (item) => Boolean(item.policy.allowed),
+    learning: (item) => item.knowledge.status,
+    messages: (item) => item.knowledge.mysql_message_count,
+    vectors: (item) => item.knowledge.vector_count,
+  };
+  const sortValue = sorters[sortBy];
+  items.sort((left, right) => {
+    const a = sortValue(left);
+    const b = sortValue(right);
+    const order = a == null ? (b == null ? 0 : -1)
+      : b == null ? 1 : a < b ? -1 : a > b ? 1 : 0;
+    return (order || Number(left.chat_id) - Number(right.chat_id)) * (sortDir === "asc" ? 1 : -1);
+  });
+  const pages = Math.ceil(items.length / pageSize);
+  const currentPage = Math.min(page, Math.max(1, pages));
+  return { ...result, items: items.slice((currentPage - 1) * pageSize, currentPage * pageSize),
+    total: items.length, page: currentPage, pages, page_size: pageSize };
+}
+
 export function GroupsView({ refreshKey, onOpenGroup }) {
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("all");
@@ -131,11 +168,9 @@ export function GroupsView({ refreshKey, onOpenGroup }) {
   const resource = useResource(
     () =>
       category === "inactive"
-        ? api.groupRecommendations(inactiveDays).then((result) => ({
-            ...result,
-            page: 1,
-            pages: 1,
-            page_size: result.total,
+        ? api.groupRecommendations(inactiveDays).then((result) => recommendationPage(result, {
+            query: debouncedQuery, chatType, policyStatus, learningStatus,
+            sortBy, sortDir, page, pageSize,
           }))
         : api.groups({
         category: category === "inactive" ? "all" : category,
@@ -171,6 +206,10 @@ export function GroupsView({ refreshKey, onOpenGroup }) {
     ["inactive", "Đề xuất ngưng hoạt động"],
     ["all", "Tất cả nhóm"],
   ];
+
+  useEffect(() => {
+    if (category === "inactive" && resource.data) setPage(resource.data.page);
+  }, [resource.data]);
 
   useEffect(() => {
     if (!preferences.data) return;
@@ -418,6 +457,8 @@ export function GroupsView({ refreshKey, onOpenGroup }) {
         </details>
       </div>
 
+      <ResourceNotice resource={resource} label="Danh sách nhóm" />
+      <ResourceNotice resource={preferences} label="Tùy chọn hiển thị" />
       {resource.loading && !resource.data ? <LoadingState label="Đang tải danh sách nhóm…" /> : null}
       {resource.error && !resource.data ? (
         <ErrorState error={resource.error} onRetry={resource.reload} />
@@ -909,6 +950,14 @@ function HistoryLinkDeletePreviewModal({
   );
 }
 
+function mergeDraft(current, previous, incoming) {
+  if (!current || !previous) return incoming;
+  return Object.fromEntries(Object.entries(incoming).map(([key, value]) => [
+    key,
+    String(current[key] ?? "") === String(previous[key] ?? "") ? value : current[key],
+  ]));
+}
+
 export function GroupDetailView({
   chatId,
   refreshKey,
@@ -927,10 +976,11 @@ export function GroupDetailView({
     [chatId],
     refreshKey,
   );
-  const group = resource.data;
+  const group = String(resource.data?.chat_id) === String(chatId) ? resource.data : null;
   const [aiRoute, setAiRoute] = useState(null);
   const [aiEfficiency, setAiEfficiency] = useState(null);
   const [limits, setLimits] = useState(null);
+  const draftBaseline = useRef(null);
   const [saving, setSaving] = useState("");
   const [deleteScope, setDeleteScope] = useState("vectors_only");
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
@@ -962,23 +1012,28 @@ export function GroupDetailView({
 
   useEffect(() => {
     if (!group) return;
-    setAiRoute({
+    const route = {
       mode: group.policy.ai_mode,
       preferred_cloud_provider: group.policy.preferred_cloud_provider || "openai",
       cloud_fallback: Boolean(group.policy.cloud_fallback),
-    });
-    setAiEfficiency({
+    };
+    const efficiency = {
       preset: group.policy.ai_efficiency_preset || "",
       filtering_level: group.policy.filtering_level || "standard",
       rag_top_k: group.policy.rag_top_k ?? "",
       rag_max_context_tokens: group.policy.rag_max_context_tokens ?? "",
-    });
-    setLimits({
+    };
+    const nextLimits = {
       retention_days: group.policy.retention_days ?? "",
       max_messages: group.policy.max_messages ?? "",
       max_storage_mb: group.policy.max_storage_mb ?? "",
       max_vectors: group.policy.max_vectors ?? "",
-    });
+    };
+    const previous = draftBaseline.current?.chatId === group.chat_id ? draftBaseline.current : null;
+    setAiRoute((current) => mergeDraft(current, previous?.route, route));
+    setAiEfficiency((current) => mergeDraft(current, previous?.efficiency, efficiency));
+    setLimits((current) => mergeDraft(current, previous?.limits, nextLimits));
+    draftBaseline.current = { chatId: group.chat_id, route, efficiency, limits: nextLimits };
   }, [group]);
 
   const perform = async (label, work, success) => {
@@ -1023,7 +1078,11 @@ export function GroupDetailView({
   const saveRoute = () =>
     perform(
       "ai-route",
-      () => api.setAiRoute(chatId, aiRoute),
+      async () => {
+        const result = await api.setAiRoute(chatId, aiRoute);
+        draftBaseline.current.route = aiRoute;
+        return result;
+      },
       "Đã cập nhật AI mode cho nguồn.",
     );
 
@@ -1036,7 +1095,11 @@ export function GroupDetailView({
     );
     return perform(
       "limits",
-      () => api.setLimits(chatId, body),
+      async () => {
+        const result = await api.setLimits(chatId, body);
+        draftBaseline.current.limits = limits;
+        return result;
+      },
       "Đã cập nhật retention và quota.",
     );
   };
@@ -1054,7 +1117,11 @@ export function GroupDetailView({
     };
     return perform(
       "ai-efficiency",
-      () => api.setAiEfficiency(chatId, body),
+      async () => {
+        const result = await api.setAiEfficiency(chatId, body);
+        draftBaseline.current.efficiency = aiEfficiency;
+        return result;
+      },
       "Đã cập nhật mức lọc và RAG budget của nguồn.",
     );
   };
@@ -1217,10 +1284,9 @@ export function GroupDetailView({
     }
   };
 
-  if (resource.loading && !group) return <LoadingState label="Đang tải policy nguồn…" />;
   if (resource.error && !group)
     return <ErrorState error={resource.error} onRetry={resource.reload} />;
-  if (!group) return null;
+  if (!group) return <LoadingState label="Đang tải policy nguồn…" />;
 
   const permissions = group.permissions || {};
   const policy = group.policy;
@@ -1231,6 +1297,9 @@ export function GroupDetailView({
 
   return (
     <section className="ops-stack group-detail">
+      <ResourceNotice resource={resource} label="Thông tin nhóm" />
+      <ResourceNotice resource={backfillResource} label="Đồng bộ lịch sử" />
+      <ResourceNotice resource={deletionResource} label="Xóa lịch sử" />
       <div className="ops-page-intro">
         <button className="button button--outline" onClick={onBack}>
           <ArrowLeft size={19} weight="bold" />

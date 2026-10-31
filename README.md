@@ -4,6 +4,28 @@ Trợ lý Telegram cá nhân chạy trên Windows 10/11. Ứng dụng dùng Tele
 tài khoản Telegram của bạn và một bot riêng làm bảng điều khiển. Mọi chat mặc định bị
 chặn; chỉ chat được allow và bật đúng quyền con mới được đọc hoặc tương tác.
 
+## Bắt đầu với một nguồn
+
+1. Cài Python 3.12/3.13 và MySQL local, rồi mở PowerShell trong thư mục dự án và chạy
+   `.\start.bat` (không cần quyền Administrator). Nhập secret trong terminal theo wizard.
+2. Nhắn riêng mã `/pair ...` cho control bot trong vòng 5 phút và giữ terminal mở đến khi ghép đôi xong.
+3. Trong chat riêng với bot, mở `/start` → `Chọn nguồn để học`. Chọn **một** nguồn
+   để thử, xem quyền được yêu cầu rồi xác nhận; theo dõi tại `Tiến độ học`.
+4. Thử `Tìm trong Telegram` với từ khóa có trong nguồn vừa đồng bộ. Tìm kiếm local
+   không cần AI; hỏi AI cần cấu hình provider/model tương ứng. Embedding semantic dùng
+   Ollama local; khi chưa sẵn sàng, vẫn có thể dùng dữ liệu tìm theo từ khóa.
+5. Dùng `/cancel` để thoát ô nhập đang chờ; `/help` và `/groups` luôn mở được menu.
+   `/cancel <id>` chỉ hủy pending action có ID đó. Chỉ `/confirm <id>` mới xác nhận hành động.
+
+Control bot chỉ nhận lệnh và nút bấm của owner trong chat riêng; gửi lệnh quản trị
+trong group sẽ được bỏ qua để tránh lộ dữ liệu hoặc dùng sai flow. Thành viên hỏi AI
+trong group vẫn dùng Telegram Client theo quyền `group_ai_ask` riêng.
+
+Nếu bước nào lỗi, xem [Xử lý lỗi](TROUBLESHOOTING.md). Dashboard là màn hình quản trị
+phụ tại `http://127.0.0.1:8765`; lấy mã đăng nhập bằng
+`.\.venv\Scripts\tg-assistant.exe dashboard-code`. Nếu dashboard thiếu bản build,
+xem mục dành cho người phát triển bên dưới.
+
 ## Nguyên tắc an toàn
 
 - Không gửi API key, OTP, mật khẩu hoặc session cho Codex hay qua bot.
@@ -177,8 +199,9 @@ pending action để owner xác nhận. Sau khi bật, thành viên trong group 
 ```
 
 Telegram Client `@your_assistant_username` trả lời ngay dưới tin nhắn gọi. RAG chỉ truy xuất
-group/channel đã bật `auto_knowledge` trong kho dự án hợp nhất và còn quyền tìm kiếm;
-mặc định tập trung vào 7×24 giờ gần nhất. Group dùng tính năng phải có quyền
+dữ liệu được cấp quyền tìm kiếm của chính group gửi câu hỏi, mặc định trong 7×24 giờ
+gần nhất. Truy vấn kho hợp nhất từ nhiều group/channel chỉ dành cho owner trong bot riêng.
+Group dùng tính năng phải có quyền
 `group_ai_ask`; group `BLOCK` hoặc chưa bật quyền được bỏ qua im lặng. Câu hỏi chứa
 secret không được gửi tới AI, độ dài tối đa là 1.500 ký tự và mỗi thành viên được
 giới hạn 3 câu/phút. Trong group, câu hỏi mang tính tin tức, cập nhật mới, diễn biến,
@@ -188,8 +211,9 @@ thức thông thường sẽ ẩn nguồn. Khi hỏi trực tiếp bot, dẫn ch
 Các câu hỏi chỉ ngữ cảnh hiện tại như `chủ đề đang thảo luận là gì?`, `nhóm này đang
 nói gì?`, `mọi người đang bàn gì?` hoặc `tóm tắt hội thoại` được định tuyến riêng:
 AI chỉ đọc tối đa 100 tin gần nhất đã đồng bộ trong 7 ngày của chính group gọi lệnh,
-loại tin gọi `/ask`, và không truy xuất group/channel khác. Câu hỏi tổng hợp như
-`cập nhật mới nhất từ tất cả dự án` vẫn dùng toàn bộ kho đã học.
+loại tin gọi `/ask`, và không truy xuất group/channel khác. Muốn hỏi tổng hợp như
+`cập nhật mới nhất từ tất cả dự án`, owner cần hỏi trong bot riêng; hỏi trong group
+vẫn chỉ dùng dữ liệu của group đó.
 
 Truy vấn có mention tài khoản và ý định lịch sử, ví dụ
 `@your_assistant_username /ask @a_member đã nói về chủ đề gì`, được xử lý theo sender:
@@ -198,8 +222,8 @@ gần nhất của sender đó trong đúng group, đồng bộ các tin lấy �
 đưa những tin có cùng `sender_id` cho AI. Tin của thành viên khác và nguồn ngoài
 group không được đưa vào ngữ cảnh.
 
-Màn hình xác nhận cảnh báo rằng nội dung tổng hợp từ các nguồn dự án đã học có thể
-xuất hiện trong group được cấp quyền; câu trả lời tin tức sẽ kèm phần dẫn chứng. Nút
+Màn hình xác nhận nêu phạm vi dữ liệu của chính group; câu trả lời tin tức sẽ kèm
+phần dẫn chứng. Nội dung của group/channel khác không được đưa vào câu trả lời trong group. Nút
 `Tắt thành viên hỏi AI` thu hồi standing authorization này mà không xóa kho kiến thức.
 
 ```text
@@ -210,7 +234,7 @@ xuất hiện trong group được cấp quyền; câu trả lời tin tức s�
 /permission_template <chat_id> moderation
 /permission_set <chat_id> <permission> <on|off>
 /permissions <chat_id>
-/group_block <chat_id>
+/group_block <chat_id> <keep|archive|delete>
 ```
 
 `/group_allow` không tự bật quyền con. Mẫu moderation không bật `delete_any_messages`.
@@ -274,16 +298,18 @@ Khi block, các quyền con bị tắt ngay và request mới bị Policy Engine
   `gpt-5.6-sol`; tất cả đổi được bằng cấu hình.
 - Provider mặc định là OpenAI trực tiếp. Chạy `tg-assistant ai-provider openrouter`
   để chọn OpenRouter và nhập key ẩn; OpenRouter dùng
-  `openai/gpt-5.6-terra` và `openai/text-embedding-3-small`. Provider được lưu
+  model chat cấu hình trong `.env`. Embedding kho dùng chung luôn chạy bằng Ollama local. Provider được lưu
   trong `.env`, còn cả hai API key chỉ nằm trong Windows Credential Manager.
   Nếu provider đang chọn bị mất key sau khi reset, `start` sẽ hỏi lại giống flow
   credential Telegram.
 - Chạy `tg-assistant ai-provider ollama` để chọn model chat và embedding local.
   Mặc định dùng `qwen3:8b` và `nomic-embed-text:latest` qua API
   `http://127.0.0.1:11434/v1`; Ollama không cần API key và chi phí API là 0 USD.
-  Kho vector Ollama nằm riêng ở `qdrant_ollama`, không ghi đè kho 1.536 chiều của
-  OpenAI/OpenRouter. Khi chuyển giữa cloud và Ollama, chạy lần lượt
-  `tg-assistant stop`, `tg-assistant reindex`, `tg-assistant start`.
+  Kho semantic hiện tại dùng model/phiên bản embedding local, độc lập với provider trả lời.
+  Đổi provider chat không yêu cầu tạo lại vector. Đổi bằng CLI thì chạy
+  `tg-assistant restart` để nạp cấu hình; đổi qua menu Telegram/dashboard được áp dụng ngay.
+  `reindex` là thao tác sửa hoặc xây lại chỉ mục có chủ đích; dừng worker trước khi dùng
+  để tránh hai tiến trình cùng mở kho Qdrant local.
 - Có thể quản lý hoàn toàn trong Telegram tại `Mở trợ lý AI` →
   `Nhà cung cấp AI` → `Quản lý Ollama local`: xem model trên máy, chọn model
   chat, kiểm tra/chọn embedding, tải model mới, xóa model qua bước xác nhận và
@@ -323,13 +349,28 @@ và yêu cầu xác nhận, sau đó tự tạo backup hiện trạng trước k
 
 ## Kiểm thử
 
+Cài môi trường phát triển (từ thư mục gốc dự án, Python đã chạy được):
+
 ```powershell
-python -m pytest
-python -m ruff check .
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -e ".[dev]"
+```
+
+Nếu bản tải về có `.venv` trỏ sang máy khác, đổi tên thư mục đó trước theo
+[hướng dẫn khôi phục](TROUBLESHOOTING.md); không sao chép virtual environment giữa máy.
+
+```powershell
+.\.venv\Scripts\python.exe -m pytest
+.\.venv\Scripts\python.exe -m ruff check .
 ```
 
 Unit test dùng SQLite/mock, không đăng nhập Telegram thật và không gửi/xóa tin thật.
 Integration test MySQL chỉ chạy khi cung cấp database thử nghiệm riêng.
+
+Dashboard dùng Node.js 22 trở lên. Từ `dashboard-prototype`, chạy `npm ci`,
+`npm run lint`, `npm run build` và `npm run test:sites`. Bộ kiểm thử giao diện mới
+dùng API giả, không cần đăng nhập Telegram; xem [báo cáo cải tiến](docs/review/RELEASE_REVIEW.md)
+để biết lệnh và phạm vi xác minh.
 
 ## Dữ liệu và giới hạn
 

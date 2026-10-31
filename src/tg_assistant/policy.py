@@ -10,11 +10,28 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from .ai.router import AI_MODES, CLOUD_PROVIDERS, AiRoute
 from .db.models import (
+    BackgroundJob,
+    KnowledgeSource,
     ModerationRule,
     PermissionName,
     TelegramChatPermission,
     TelegramChatPolicy,
 )
+
+
+async def cancel_learning_job(session: AsyncSession, job: BackgroundJob) -> None:
+    reason = "Đã hủy học vì quyền nguồn đã bị thu hồi. Hãy xác nhận yêu cầu học mới."
+    job.status = "cancelled"
+    job.locked_at = None
+    job.locked_by = None
+    job.run_after = None
+    job.last_error = reason
+    job.payload = {**(job.payload or {}), "phase": "cancelled", "cancel_reason": "source_revoked"}
+    source = await session.get(KnowledgeSource, int(job.payload["chat_id"]))
+    if source and source.last_job_id in {None, job.id}:
+        source.status = "cancelled"
+        source.requested_for_learning = False
+        source.last_error = reason
 
 
 class DecisionReason(str, Enum):
@@ -189,15 +206,19 @@ class PolicyEngine:
         self, session: AsyncSession, chat_id: int, allowed: bool
     ) -> TelegramChatPolicy:
         policy = await session.scalar(
-            select(TelegramChatPolicy).where(TelegramChatPolicy.chat_id == chat_id)
+            select(TelegramChatPolicy)
+            .where(TelegramChatPolicy.chat_id == chat_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
         )
         if not policy:
             policy = TelegramChatPolicy(chat_id=chat_id, allowed=allowed)
             session.add(policy)
         else:
             policy.allowed = allowed
-            policy.revoked_at = None if allowed else datetime.now(UTC)
         if not allowed:
+            # Keep the last revocation even after ALLOW so stale jobs cannot regrant permissions.
+            policy.revoked_at = datetime.now(UTC)
             permissions = (
                 await session.scalars(
                     select(TelegramChatPermission).where(TelegramChatPermission.chat_id == chat_id)
@@ -205,6 +226,20 @@ class PolicyEngine:
             ).all()
             for permission in permissions:
                 permission.enabled = False
+            jobs = (
+                await session.scalars(
+                    select(BackgroundJob)
+                    .where(
+                        BackgroundJob.job_type == "learn_group",
+                        BackgroundJob.status.in_(("queued", "running", "paused", "pause_requested")),
+                    )
+                    .with_for_update()
+                    .execution_options(populate_existing=True)
+                )
+            ).all()
+            for job in jobs:
+                if str((job.payload or {}).get("chat_id")) == str(chat_id):
+                    await cancel_learning_job(session, job)
         return policy
 
     async def ai_route(

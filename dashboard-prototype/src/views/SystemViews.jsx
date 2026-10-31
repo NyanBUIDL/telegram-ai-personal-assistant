@@ -19,14 +19,15 @@ import {
 } from "@phosphor-icons/react";
 
 import { api } from "../api.js";
-import { formatBytes, formatDate, formatNumber } from "../format.js";
-import { useResource } from "../hooks.js";
+import { formatBytes, formatDate, formatNumber, measuredHealth } from "../format.js";
+import { useHealthTime, useResource } from "../hooks.js";
 import { useDialogA11y } from "../useDialogA11y.js";
 import {
   Badge,
   ErrorState,
   LoadingState,
   PanelHeader,
+  ResourceNotice,
 } from "../ui.jsx";
 
 export function ConnectionsView({
@@ -38,14 +39,13 @@ export function ConnectionsView({
 }) {
   const overview = useResource(api.overview, [], refreshKey);
   const ai = useResource(api.aiConfig, [], refreshKey);
-  const workers = useResource(api.workers, [], refreshKey);
+  const now = useHealthTime();
 
   if (overview.loading && !overview.data && realtimeState === "live")
     return <LoadingState label="Đang kiểm tra kết nối…" />;
   if (overview.error && !overview.data && realtimeState === "live")
     return <ErrorState error={overview.error} onRetry={overview.reload} />;
 
-  const metric = workers.data?.latest_metric;
   const isLive = realtimeState === "live";
   const isOffline = realtimeState === "offline";
   const realtimeLabel = {
@@ -56,23 +56,23 @@ export function ConnectionsView({
     session_expired: "SESSION EXPIRED",
   }[realtimeState] || "UNKNOWN";
   const realtimeTone = isLive ? "success" : isOffline ? "magenta" : "yellow";
+  const health = overview.data?.health || [];
+  const serviceRow = (name, description) => {
+    const check = health.find((item) => item.component.toLowerCase() === name.toLowerCase());
+    const measured = measuredHealth(check, overview.stale, now);
+    return [name, description, measured.label, measured.tone, measured.detail];
+  };
   const rows = [
     [
       "Admin API",
       "Loopback owner console",
-      overview.error ? "UNAVAILABLE" : "ONLINE",
-      overview.error ? "magenta" : "success",
-      "127.0.0.1:8765",
+      overview.error ? "UNAVAILABLE" : overview.stale ? "CHECKING" : overview.data ? "REACHABLE" : "UNKNOWN",
+      overview.error ? "magenta" : overview.stale || !overview.data ? "yellow" : "success",
+      overview.lastSuccessAt ? `Lần tải thành công: ${formatDate(overview.lastSuccessAt)}` : "Chưa có snapshot",
     ],
-    [
-      "MySQL",
-      "Source of truth",
-      overview.error ? "UNKNOWN" : "ONLINE",
-      overview.error ? "yellow" : "success",
-      overview.data ? `${formatNumber(overview.data.joined_sources)} nguồn` : "Snapshot chưa có",
-    ],
-    ["Qdrant", "Derived vector index", metric ? "ONLINE" : "WAITING", metric ? "success" : "yellow", formatBytes(metric?.vector_bytes)],
-    ["AI provider", ai.data?.model || "AI đang tắt", String(ai.data?.provider || "off").toUpperCase(), ai.data?.provider === "off" ? "yellow" : "success", ai.data?.embedding_model || "—"],
+    serviceRow("MySQL", "Source of truth"),
+    serviceRow("Qdrant", "Derived vector index"),
+    ["AI provider", "Cấu hình, chưa kiểm tra khả dụng", `${String(ai.data?.provider || "unknown").toUpperCase()}${ai.stale ? " · STALE" : ""}`, "yellow", ai.data ? `${ai.data.model || "-"} · ${ai.data.embedding_model || "-"}` : "Chưa tải cấu hình"],
     [
       "SSE realtime",
       "Dashboard snapshot stream",
@@ -84,6 +84,10 @@ export function ConnectionsView({
 
   return (
     <section className="ops-stack">
+      <ResourceNotice resource={overview} label="Kết nối API" />
+      <ResourceNotice resource={ai} label="Cấu hình AI" />
+      {overview.error && !overview.data ? <ErrorState error={overview.error} onRetry={overview.reload} /> : null}
+      {ai.error && !ai.data ? <ErrorState error={ai.error} onRetry={ai.reload} /> : null}
       <section className={`connection-health connection-health--${realtimeState}`}>
         <div>
           {isLive ? (
@@ -94,7 +98,7 @@ export function ConnectionsView({
           <div>
             <b>
               {isLive
-                ? "Admin API và SSE đang hoạt động"
+                ? "Luồng SSE đã kết nối"
                 : isOffline
                   ? "Dashboard đang offline"
                   : realtimeState === "connecting"
@@ -128,12 +132,13 @@ export function ConnectionsView({
               <Badge tone={tone}>{state}</Badge>
             </div>
             <div className="connection-fields">
-              <label><span>Trạng thái runtime</span><input value={detail} readOnly /></label>
+              <label><span>Kiểm tra / cấu hình gần nhất</span><input value={detail} readOnly /></label>
               <label><span>Bảo mật</span><input value="Secret không hiển thị" readOnly /></label>
             </div>
           </article>
         ))}
       </section>
+      <small className="health-age-note">Phép đo quá 5 phút hoặc snapshot chưa cập nhật được đánh dấu STALE. Cấu hình AI không xác nhận model đang khả dụng.</small>
     </section>
   );
 }

@@ -5,7 +5,8 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import and_, func, or_, select
+from sqlalchemy import and_, case, func, or_, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..db.models import (
@@ -135,7 +136,6 @@ def referenced_evidence_indexes(
     answer: str,
     *,
     item_count: int,
-    fallback: int = 3,
 ) -> list[int]:
     """Return zero-based evidence indexes explicitly used by the answer."""
     indexes: list[int] = []
@@ -143,9 +143,7 @@ def referenced_evidence_indexes(
         index = int(raw_index) - 1
         if 0 <= index < item_count and index not in indexes:
             indexes.append(index)
-    if indexes:
-        return indexes
-    return list(range(min(item_count, fallback)))
+    return indexes
 
 
 def renumber_source_references(answer: str, indexes: list[int]) -> str:
@@ -234,6 +232,12 @@ class RagService:
             top_k,
             min(configured_top_k) if configured_top_k else preset.top_k,
         )
+        policy_context_limits = [
+            policy.rag_max_context_tokens
+            for policy in policies
+            if policy.rag_max_context_tokens
+        ]
+        max_context_tokens = min([preset.max_context_tokens, *policy_context_limits])
         query_route = classify_query(question, in_group=len(allowed) == 1)
         feature = route_feature(query_route)
         ai_route = await self.policy.ai_route(session, allowed)
@@ -244,14 +248,32 @@ class RagService:
             if self.router
             else self.ai
         ) or self.ai
-        knowledge_updated_at = await session.scalar(
-            select(func.max(TelegramMessage.updated_at)).where(
-                TelegramMessage.chat_id.in_(allowed),
-                TelegramMessage.is_deleted.is_(False),
-            )
+        recent_since, asked_at = rag_time_window()
+        effective_after = (
+            parsed.after
+            if parsed.after is not None or parsed.before is not None
+            else recent_since
         )
+        effective_before = parsed.before or asked_at
+        active_filters = [
+            TelegramMessage.is_deleted.is_(False),
+            TelegramMessage.sent_at <= effective_before,
+        ]
+        if effective_after is not None:
+            active_filters.append(TelegramMessage.sent_at >= effective_after)
+        active_count, knowledge_updated_at, max_message_id = (
+            await session.execute(
+                select(
+                    func.count(case((and_(*active_filters), 1))),
+                    func.max(TelegramMessage.updated_at),
+                    func.max(TelegramMessage.id),
+                ).where(TelegramMessage.chat_id.in_(allowed))
+            )
+        ).one()
+        # Version deletions, replacements and evidence aging out of the request window.
         knowledge_version = (
-            knowledge_updated_at.isoformat() if knowledge_updated_at else "empty"
+            f"{active_count}:{max_message_id or 0}:"
+            f"{knowledge_updated_at.isoformat() if knowledge_updated_at else 'empty'}"
         )
         cache_key, normalized_query_hash = query_cache_key(
             question,
@@ -263,17 +285,17 @@ class RagService:
             knowledge_version=knowledge_version,
             rag_config_version=(
                 f"{preset.name}:{effective_top_k}:{preset.max_chunks_per_source}:"
-                f"{preset.max_sources}:{preset.max_context_tokens}:{preset.max_chunk_tokens}"
+                f"{preset.max_sources}:{max_context_tokens}:{preset.max_chunk_tokens}:"
+                f"citations={include_citations}:grounding=2"
             ),
         )
         now = datetime.now(UTC)
         cached = await session.scalar(
             select(AiQueryCache).where(
                 AiQueryCache.cache_key == cache_key,
-                AiQueryCache.expires_at > now,
             )
         )
-        if cached:
+        if cached and cached.expires_at.replace(tzinfo=UTC) > now:
             cached.hit_count += 1
             cached.last_hit_at = now
             session.add(
@@ -297,13 +319,6 @@ class RagService:
                 )
             )
             return cached.response
-        recent_since, asked_at = rag_time_window()
-        effective_after = (
-            parsed.after
-            if parsed.after is not None or parsed.before is not None
-            else recent_since
-        )
-        effective_before = parsed.before or asked_at
         effective_question = parsed.text or question
         keywords = await self.keyword.keyword(
             session,
@@ -438,14 +453,6 @@ class RagService:
         contexts: list[str] = []
         bounded_evidence: list[SourceEvidence] = []
         context_tokens = 0
-        policy_context_limits = [
-            policy.rag_max_context_tokens
-            for policy in policies
-            if policy.rag_max_context_tokens
-        ]
-        max_context_tokens = min(
-            [preset.max_context_tokens, *policy_context_limits]
-        )
         for evidence in evidence_rows:
             context = source_context(len(contexts) + 1, evidence)
             tokens = estimate_tokens(context)
@@ -475,8 +482,17 @@ class RagService:
                 contexts,
                 include_source_refs=False,
             )
+        if not isinstance(answer, str) or not any(
+            char.isalnum() for char in without_source_references(answer)
+        ):
+            raise RuntimeError("AI chưa trả về nội dung trả lời; hãy thử lại.")
+        valid_references = {str(index) for index in range(1, len(evidence_rows) + 1)}
+        if any(reference not in valid_references for reference in SOURCE_REFERENCE_CAPTURE_RE.findall(answer)):
+            raise RuntimeError("AI trích dẫn nguồn không có trong dữ liệu; hãy thử lại.")
         if include_citations:
             indexes = referenced_evidence_indexes(answer, item_count=len(evidence_rows))
+            if not indexes:
+                raise RuntimeError("AI chưa cung cấp dẫn chứng cho câu trả lời; hãy thử lại.")
             cited_rows = [evidence_rows[index] for index in indexes]
             answer = renumber_source_references(answer, indexes)
             answer = (
@@ -485,30 +501,44 @@ class RagService:
             )
         else:
             answer = without_source_references(answer)
-        session.add(
-            AiQueryCache(
-                cache_key=cache_key,
-                normalized_query_hash=normalized_query_hash,
-                scope_chat_id=allowed[0] if len(allowed) == 1 else None,
-                knowledge_version=knowledge_version,
-                route=query_route.value,
-                feature=feature,
-                provider=planned_provider,
-                model=planned_engine.model,
-                response=answer,
-                citations=[
-                    {
-                        "chat_id": evidence.chat_id,
-                        "message_id": evidence.message_id,
-                        "url": evidence.url,
-                        "title": evidence.title,
-                        "sent_at": (
-                            evidence.sent_at.isoformat() if evidence.sent_at else None
-                        ),
-                    }
-                    for evidence in evidence_rows
-                ],
-                expires_at=now + query_cache_ttl(query_route),
-            )
+        cache_values = dict(
+            normalized_query_hash=normalized_query_hash,
+            scope_chat_id=allowed[0] if len(allowed) == 1 else None,
+            knowledge_version=knowledge_version,
+            route=query_route.value,
+            feature=feature,
+            provider=planned_provider,
+            model=planned_engine.model,
+            response=answer,
+            citations=[
+                {
+                    "chat_id": evidence.chat_id,
+                    "message_id": evidence.message_id,
+                    "url": evidence.url,
+                    "title": evidence.title,
+                    "sent_at": (evidence.sent_at.isoformat() if evidence.sent_at else None),
+                }
+                for evidence in evidence_rows
+            ],
+            expires_at=now + query_cache_ttl(query_route),
         )
+        if cached:
+            for name, value in cache_values.items():
+                setattr(cached, name, value)
+        else:
+            try:
+                # Keep a competing cache insert from rolling back usage/caller writes.
+                async with session.begin_nested():
+                    session.add(AiQueryCache(cache_key=cache_key, **cache_values))
+                    await session.flush()
+            except IntegrityError:
+                # A locking read also sees the winner under MySQL REPEATABLE READ.
+                winner = await session.scalar(
+                    select(AiQueryCache)
+                    .where(AiQueryCache.cache_key == cache_key)
+                    .with_for_update()
+                )
+                if winner is None:
+                    raise
+                return winner.response
         return answer

@@ -11,14 +11,15 @@ import {
 } from "@phosphor-icons/react";
 
 import { api } from "../api.js";
-import { formatBytes, formatDate, formatNumber, humanize, statusTone } from "../format.js";
-import { useResource } from "../hooks.js";
+import { formatBytes, formatDate, formatNumber, humanize, measuredHealth, statusTone } from "../format.js";
+import { useHealthTime, useResource } from "../hooks.js";
 import {
   Badge,
   EmptyState,
   ErrorState,
   LoadingState,
   PanelHeader,
+  ResourceNotice,
 } from "../ui.jsx";
 
 function StatBlock({ label, value, note, tone, icon: Icon }) {
@@ -101,48 +102,51 @@ function RuntimeChart({ history = [] }) {
   );
 }
 
-function HealthPanel({ overview, onNavigate }) {
+function HealthPanel({ overview, stale, onNavigate }) {
+  const now = useHealthTime();
   const health = overview.health || [];
+  const checks = health.map((service) => ({ ...service, ...measuredHealth(service, stale, now) }));
   return (
     <section className="panel pulse-panel">
       <PanelHeader
-        eyebrow="SERVICE HEALTH · LIVE"
+        eyebrow="SERVICE HEALTH · CHECKED"
         title="Nhịp hệ thống"
         action={
-          <Badge tone={health.some((item) => item.status !== "ok") ? "yellow" : "success"}>
-            {health.length || "RUNTIME"} SERVICE
+          <Badge tone={checks.length && checks.every((item) => item.tone === "success") ? "success" : "yellow"}>
+            {health.length} SERVICE
           </Badge>
         }
       />
       <div className="service-list">
         {health.length ? (
-          health.map((service) => (
+          checks.map((service) => (
             <div className="service-row" key={service.component}>
               <span
                 className={`service-light service-light--${
-                  service.status === "ok" ? "online" : "warning"
+                  service.tone === "success" ? "online" : "warning"
                 }`}
               />
               <div>
                 <b>{humanize(service.component)}</b>
-                <small>Cập nhật {formatDate(service.checked_at)}</small>
+                <small>{service.detail}</small>
               </div>
               <strong>
-                {service.latency_ms == null ? humanize(service.status) : `${service.latency_ms} ms`}
+                {service.label}
               </strong>
             </div>
           ))
         ) : (
           <div className="service-row">
-            <span className="service-light service-light--online" />
+            <span className="service-light service-light--warning" />
             <div>
-              <b>Admin API</b>
-              <small>Phiên dashboard đang hoạt động</small>
+              <b>Chưa có phép đo dịch vụ</b>
+              <small>Kết nối dashboard không thay thế kiểm tra từng dịch vụ.</small>
             </div>
-            <strong>ONLINE</strong>
+            <strong>UNKNOWN</strong>
           </div>
         )}
       </div>
+      <small className="health-age-note">Phép đo quá 5 phút hoặc snapshot chưa cập nhật được đánh dấu STALE.</small>
       <div className="pulse-actions">
         <button className="text-action" onClick={() => onNavigate("workers")}>
           Mở telemetry
@@ -271,11 +275,15 @@ export function OverviewView({ refreshKey, onReview, onNavigate }) {
   const runtime = data.runtime;
   return (
     <>
+      <ResourceNotice resource={overview} label="Tổng quan" />
+      <ResourceNotice resource={workers} label="Telemetry" />
+      <ResourceNotice resource={pending} label="Hành động chờ" />
+      <ResourceNotice resource={audit} label="Audit" />
       <section className="overview-context-strip" aria-label="Trạng thái hệ thống">
         <div>
           <span>Admin API</span>
-          <b>CONNECTED</b>
-          <small>Owner auth · CSRF · SSE realtime</small>
+          <b>{overview.stale ? "STALE" : "CONNECTED"}</b>
+          <small>Trạng thái lần tải tổng quan gần nhất</small>
         </div>
         <div>
           <span>Global AI provider</span>
@@ -356,15 +364,15 @@ export function OverviewView({ refreshKey, onReview, onNavigate }) {
         ) : (
           <RuntimeChart history={workers.data?.history || []} />
         )}
-        <HealthPanel overview={data} onNavigate={onNavigate} />
+        <HealthPanel overview={data} stale={overview.stale} onNavigate={onNavigate} />
       </section>
       <section className="dashboard-grid dashboard-grid--bottom">
-        <PendingTable
+        {pending.error && !pending.data ? <section className="panel"><ErrorState error={pending.error} onRetry={pending.reload} /></section> : <PendingTable
           actions={pending.data?.items || []}
           onReview={onReview}
           onNavigate={onNavigate}
-        />
-        <AuditFeed items={audit.data?.items || []} onNavigate={onNavigate} />
+        />}
+        {audit.error && !audit.data ? <section className="panel"><ErrorState error={audit.error} onRetry={audit.reload} /></section> : <AuditFeed items={audit.data?.items || []} onNavigate={onNavigate} />}
       </section>
     </>
   );

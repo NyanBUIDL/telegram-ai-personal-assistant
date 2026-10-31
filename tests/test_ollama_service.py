@@ -5,6 +5,7 @@ import pytest
 
 from tg_assistant.services.ollama import (
     OllamaError,
+    OllamaPullCancelled,
     OllamaService,
     format_model_size,
     validate_model_name,
@@ -78,3 +79,66 @@ async def test_ollama_model_management_and_embedding_probe() -> None:
         ("POST", "/api/pull"),
         ("DELETE", "/api/delete"),
     ]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "body",
+    [
+        b'{"error":"download failed"}\n',
+        b'{"status":"pulling","total":100,"completed":10}\n',
+        b'',
+        b'not-json\n{"status":"success"}\n',
+        b'[]\n{"status":"success"}\n',
+        b'{"status":"pulling","total":"invalid"}\n',
+        b'{"status":"success"}\n{"error":"late error"}\n',
+    ],
+)
+async def test_ollama_pull_rejects_failed_or_unconfirmed_streams(body) -> None:
+    service = OllamaService(
+        "http://127.0.0.1:11434/v1",
+        transport=httpx.MockTransport(lambda _request: httpx.Response(200, content=body)),
+    )
+    try:
+        with pytest.raises(OllamaError):
+            await service.pull_model("qwen3:8b")
+    finally:
+        await service.close()
+
+
+@pytest.mark.asyncio
+async def test_ollama_pull_error_is_redacted_and_bounded() -> None:
+    secret = "sk-" + "x" * 40
+    service = OllamaService(
+        "http://127.0.0.1:11434/v1",
+        transport=httpx.MockTransport(
+            lambda _request: httpx.Response(200, json={"error": secret + " " + "x" * 500})
+        ),
+    )
+    try:
+        with pytest.raises(OllamaError) as failure:
+            await service.pull_model("qwen3:8b")
+        assert secret not in str(failure.value)
+        assert "[REDACTED]" in str(failure.value)
+        assert len(str(failure.value)) < 400
+    finally:
+        await service.close()
+
+
+@pytest.mark.asyncio
+async def test_ollama_pull_cancellation_still_wins_before_completion() -> None:
+    service = OllamaService(
+        "http://127.0.0.1:11434/v1",
+        transport=httpx.MockTransport(
+            lambda _request: httpx.Response(200, json={"status": "success"})
+        ),
+    )
+
+    async def cancelled():
+        return True
+
+    try:
+        with pytest.raises(OllamaPullCancelled):
+            await service.pull_model("qwen3:8b", should_cancel=cancelled)
+    finally:
+        await service.close()

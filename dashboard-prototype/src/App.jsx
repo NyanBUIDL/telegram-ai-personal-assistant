@@ -285,6 +285,17 @@ export function App() {
   const [eventConnectionKey, setEventConnectionKey] = useState(0);
   const snapshotSignature = useRef("");
   const toastTimer = useRef(null);
+  const navTriggerRef = useRef(null);
+  const navDialogRef = useDialogA11y(mobileNav, () => setMobileNav(false), navTriggerRef);
+
+  useEffect(() => {
+    const desktop = window.matchMedia("(min-width: 1101px)");
+    const closeOnDesktop = () => {
+      if (desktop.matches) setMobileNav(false);
+    };
+    desktop.addEventListener("change", closeOnDesktop);
+    return () => desktop.removeEventListener("change", closeOnDesktop);
+  }, []);
 
   const showToast = (message, tone = "success") => {
     window.clearTimeout(toastTimer.current);
@@ -296,6 +307,7 @@ export function App() {
     setCsrfToken("");
     setSession(null);
     setAuthState("anonymous");
+    setMobileNav(false);
     setReviewAction(null);
     setNotifications(false);
   };
@@ -444,7 +456,15 @@ export function App() {
 
   return (
     <div className="app-shell">
-      <aside className={`sidebar ${mobileNav ? "is-open" : ""}`}>
+      <aside
+        ref={navDialogRef}
+        id="navigation-drawer"
+        className={`sidebar ${mobileNav ? "is-open" : ""}`}
+        role={mobileNav ? "dialog" : undefined}
+        aria-modal={mobileNav || undefined}
+        aria-label={mobileNav ? "Menu" : undefined}
+        tabIndex={mobileNav ? -1 : undefined}
+      >
         <div className="brand">
           <div className="brand-mark"><Robot size={29} weight="fill" /></div>
           <div><strong>TELEGRAM//AI</strong><span>ADMIN CONSOLE</span></div>
@@ -464,7 +484,7 @@ export function App() {
             return (
               <div className="nav-entry" key={item.id}>
                 {item.section ? <p className="nav-label">{item.section}</p> : null}
-                <button className={active ? "is-active" : ""} onClick={() => switchPage(item.id)}>
+                <button className={active ? "is-active" : ""} aria-current={active ? "page" : undefined} onClick={() => switchPage(item.id)}>
                   <Icon size={20} weight={active ? "fill" : "bold"} />
                   <span>{item.label}</span>
                   {count ? <b>{count}</b> : null}
@@ -502,10 +522,13 @@ export function App() {
         <button className="nav-scrim" aria-label="Đóng menu" onClick={() => setMobileNav(false)} />
       ) : null}
 
-      <main className="main">
+      <main className="main" inert={mobileNav}>
         <header className="topbar">
           <div className="topbar-title">
             <IconButton
+              ref={navTriggerRef}
+              aria-expanded={mobileNav}
+              aria-controls="navigation-drawer"
               label="Mở menu"
               className="menu-button"
               onClick={() => setMobileNav(true)}

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import getpass
+import inspect
 import re
 import signal
 from dataclasses import dataclass
@@ -54,7 +55,7 @@ from .db.models import (
 )
 from .logging import configure_logging
 from .paths import ensure_runtime_dirs
-from .policy import PolicyEngine, SlidingWindowLimiter
+from .policy import PolicyEngine, SlidingWindowLimiter, cancel_learning_job
 from .security import SecretStore, contains_secret, redact
 from .services.actions import PendingActionService
 from .services.coingecko import (
@@ -303,6 +304,40 @@ async def resume_learning_jobs(session) -> int:
     return len(jobs)
 
 
+async def honor_learning_revocation(session: AsyncSession, job: BackgroundJob) -> bool:
+    payload = job.payload or {}
+    policy = await session.scalar(
+        select(TelegramChatPolicy)
+        .where(TelegramChatPolicy.chat_id == int(payload["chat_id"]))
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
+    if not policy:
+        return False
+    revoked_at = policy.revoked_at or (policy.updated_at if not policy.allowed else None)
+    if revoked_at is None:
+        return False
+    requested_at = job.created_at
+    action_id = payload.get("action_id") or payload.get("batch_action_id")
+    if action_id:
+        action = await session.get(PendingAction, str(action_id))
+        if action and action.confirmed_at:
+            requested_at = action.confirmed_at
+    requested_at = (
+        requested_at.replace(tzinfo=UTC)
+        if requested_at.tzinfo is None
+        else requested_at.astimezone(UTC)
+    )
+    revoked_at = (
+        revoked_at.replace(tzinfo=UTC) if revoked_at.tzinfo is None else revoked_at.astimezone(UTC)
+    )
+    # MySQL timestamps have second precision; ambiguous same-second requests require reconfirmation.
+    if requested_at.replace(microsecond=0) > revoked_at.replace(microsecond=0):
+        return False
+    await cancel_learning_job(session, job)
+    return True
+
+
 async def honor_learning_pause(session, job: BackgroundJob) -> bool:
     if job.status != "pause_requested":
         return False
@@ -324,13 +359,20 @@ async def recover_interrupted_learning_jobs(session) -> int:
             await session.scalars(
                 select(BackgroundJob).where(
                     BackgroundJob.job_type == "learn_group",
-                    BackgroundJob.status == "running",
+                    BackgroundJob.status.in_(["running", "pause_requested"]),
                 )
             )
         ).all()
     )
     for job in jobs:
+        if await honor_learning_pause(session, job):
+            continue
         requeue_interrupted_learning_job(job)
+        payload = job.payload or {}
+        if payload.get("chat_id") is not None:
+            source = await session.get(KnowledgeSource, int(payload["chat_id"]))
+            if source:
+                source.status = "queued"
     return len(jobs)
 
 
@@ -665,6 +707,8 @@ class Application:
             EVENT_JOB_EXECUTED | EVENT_JOB_ERROR | EVENT_JOB_MISSED,
         )
         self.stopping = asyncio.Event()
+        self._scheduled_tasks: set[asyncio.Task] = set()
+        self._closed = False
         self._knowledge_lock = asyncio.Lock()
         self._group_ai_limiter = SlidingWindowLimiter(limit=3, seconds=60)
 
@@ -1668,6 +1712,27 @@ class Application:
         posts: list[dict[str, object]],
     ) -> list[dict[str, object]]:
         """Use direct OpenAI only to suggest, never execute, historical deletions."""
+        if contains_secret(instruction):
+            raise ValueError("Tiêu chí có vẻ chứa secret; hãy bỏ thông tin nhạy cảm trước khi dùng AI.")
+        ai_setting = await session.get(AppSetting, "ai_enabled")
+        if self.settings.ai_provider == "off" or (ai_setting and ai_setting.value is False):
+            raise PermissionError("AI đang tắt. Hãy bật AI trước khi dùng bộ lọc.")
+        allowed = await self.policy.filter_allowed_chat_ids(
+            session,
+            actor_id=int(self.user.owner_id),
+            owner_id=int(self.user.owner_id),
+            chat_ids=[chat_id],
+            permission=PermissionName.READ_MESSAGES,
+        )
+        if not allowed:
+            raise PermissionError(
+                "Nguồn chưa được phép đọc hoặc đã chạm giới hạn yêu cầu. Kiểm tra ALLOW và quyền Đọc tin nhắn rồi thử lại."
+            )
+        route = await self.policy.ai_route(session, [chat_id])
+        if "openai" not in self.ai_router.plan(route):
+            raise PermissionError(
+                "AI mode của nguồn không cho phép OpenAI trực tiếp. Muốn dùng bộ lọc này, hãy chủ động chọn route cloud OpenAI phù hợp."
+            )
         engine = self.ai_router.engines.get("openai")
         if not engine or not engine.available:
             raise RuntimeError(
@@ -1923,6 +1988,8 @@ class Application:
                         return
                     if job.status != "running":
                         return
+                    if await honor_learning_revocation(session, job):
+                        return
                     payload = dict(job.payload or {})
                     chat_id = int(payload["chat_id"])
                     owner_id = int(payload["owner_id"])
@@ -2033,6 +2100,8 @@ class Application:
                         log.info("learning_job_paused", job_id=job.id, phase="before_embedding")
                         return
                     if job.status != "running":
+                        return
+                    if await honor_learning_revocation(session, job):
                         return
                     payload = dict(job.payload or {})
                     chat_id = int(payload["chat_id"])
@@ -2183,14 +2252,16 @@ class Application:
         except asyncio.CancelledError:
             async with self.database.session() as session:
                 job = await session.get(BackgroundJob, job_id)
-                if job and job.status == "running":
+                if job and await honor_learning_pause(session, job):
+                    log.info("learning_job_interrupted_paused", job_id=job_id)
+                elif job and job.status == "running":
                     requeue_interrupted_learning_job(job)
                     payload = job.payload or {}
                     if payload.get("chat_id") is not None:
                         source = await session.get(KnowledgeSource, int(payload["chat_id"]))
                         if source:
                             source.status = "queued"
-            log.info("learning_job_interrupted_requeued", job_id=job_id)
+                    log.info("learning_job_interrupted_requeued", job_id=job_id)
             raise
         except Exception as exc:
             async with self.database.session() as session:
@@ -2972,157 +3043,241 @@ class Application:
                         log.warning("action_failed", action_id=action.action_id, error=str(exc))
             await asyncio.sleep(2)
 
-    async def run(self) -> None:
-        me = await self.user.authenticate(self.store.get("telegram_phone") or "")
-        async with self.database.session() as session:
-            await ensure_vector_store_registry(session, self.settings)
-            account = await session.scalar(
-                select(TelegramAccount).where(TelegramAccount.telegram_user_id == int(me.id))
-            )
-            if not account or not account.is_owner_paired:
-                raise RuntimeError("Chưa pair owner; chạy tg-assistant start ở terminal")
-            await self.user.discover_dialogs(session)
-            recovered_jobs = await recover_interrupted_learning_jobs(session)
-            if recovered_jobs:
-                log.info(
-                    "learning_jobs_recovered_on_startup",
-                    recovered_jobs=recovered_jobs,
-                )
-        self.user.register_handlers(
-            self.database,
-            group_ask_handler=self._handle_group_ai_ask,
-        )
-        self.bot = ControlBot(
-            self.store.get("telegram_bot_token") or "",
-            owner_id=int(me.id),
-            database=self.database,
-            policy=self.policy,
-            ai=self.ai,
-            rag=self.rag,
-            budget=self.budget,
-            coingecko=self.coingecko,
-            ollama=self.ollama,
-            ollama_activate_handler=self._activate_ollama,
-            ai_provider_switch_handler=self._switch_ai_provider,
-        )
-        self.scheduler.start()
-        self.scheduler.add_job(
-            self._dispatch_reminders,
-            "interval",
-            seconds=30,
-            id="dispatch_reminders",
-            max_instances=1,
-            coalesce=True,
-        )
-        self.scheduler.add_job(
-            self._refresh_group_knowledge,
-            "interval",
-            minutes=5,
-            id="refresh_group_knowledge",
-            max_instances=1,
-            coalesce=True,
-        )
-        self.scheduler.add_job(
-            self._process_learning_jobs,
-            "interval",
-            seconds=self.settings.learning_job_interval_seconds,
-            id="process_learning_jobs",
-            max_instances=1,
-            coalesce=True,
-        )
-        self.scheduler.add_job(
-            self._collect_operations_metric,
-            "interval",
-            seconds=60,
-            id="collect_operations_metric",
-            max_instances=1,
-            coalesce=True,
-        )
-        self.scheduler.add_job(
-            self._run_storage_cleanup,
-            "interval",
-            hours=1,
-            id="storage_cleanup",
-            max_instances=1,
-            coalesce=True,
-        )
-        self.scheduler.add_job(
-            self._process_admin_jobs,
-            "interval",
-            seconds=3,
-            id="process_admin_jobs",
-            max_instances=1,
-            coalesce=True,
-        )
-        log.info("application_started", owner_id=int(me.id))
-        tasks = [
-            asyncio.create_task(self.bot.run()),
-            asyncio.create_task(self.user.client.run_until_disconnected()),
-            asyncio.create_task(self._execute_actions()),
-        ]
-        if self.settings.admin_api_enabled:
-            admin_app = create_admin_app(
-                AdminContext(
-                    database=self.database,
-                    policy=self.policy,
-                    owner_id=int(me.id),
-                    settings_getter=lambda: self.settings,
-                    vectors_getter=lambda: self.rag.vectors,
-                    ollama=self.ollama,
-                    ai_switch_handler=self._switch_ai_provider,
-                    ollama_activate_handler=self._activate_ollama,
-                    pause_all_handler=pause_learning_jobs,
-                    resume_all_handler=resume_learning_jobs,
-                    paths=self.paths,
-                    admin_secret=ensure_dashboard_secret(self.store),
-                    scheduler_getter=lambda: self.scheduler,
-                    history_ai_filter_handler=self._classify_history_delete_with_openai,
-                    history_sender_lookup_handler=self._resolve_history_sender_identity,
-                )
-            )
-            self.admin_server = uvicorn.Server(
-                uvicorn.Config(
-                    admin_app,
-                    host=self.settings.admin_api_host,
-                    port=self.settings.admin_api_port,
-                    access_log=False,
-                    log_config=None,
-                    server_header=False,
-                )
-            )
-            self.admin_server.install_signal_handlers = lambda: None  # type: ignore[method-assign]
-            tasks.append(asyncio.create_task(self.admin_server.serve()))
-            log.info(
-                "admin_api_started",
-                url=(
-                    f"http://{self.settings.admin_api_host}:"
-                    f"{self.settings.admin_api_port}"
-                ),
-            )
+    async def _run_scheduled_job(self, callback) -> None:
+        if self.stopping.is_set():
+            return
+        task = asyncio.current_task()
+        self._scheduled_tasks.add(task)
         try:
-            await self.stopping.wait()
+            await callback()
         finally:
+            self._scheduled_tasks.discard(task)
+
+    async def run(self) -> None:
+        tasks: list[asyncio.Task] = []
+        failure: BaseException | None = None
+        try:
+            me = await self.user.authenticate(self.store.get("telegram_phone") or "")
+            async with self.database.session() as session:
+                await ensure_vector_store_registry(session, self.settings)
+                account = await session.scalar(
+                    select(TelegramAccount).where(TelegramAccount.telegram_user_id == int(me.id))
+                )
+                if not account or not account.is_owner_paired:
+                    raise RuntimeError("Chưa pair owner; chạy tg-assistant start ở terminal")
+                await self.user.discover_dialogs(session)
+                recovered_jobs = await recover_interrupted_learning_jobs(session)
+                if recovered_jobs:
+                    log.info(
+                        "learning_jobs_recovered_on_startup",
+                        recovered_jobs=recovered_jobs,
+                    )
+            self.user.register_handlers(
+                self.database,
+                group_ask_handler=self._handle_group_ai_ask,
+            )
+            self.bot = ControlBot(
+                self.store.get("telegram_bot_token") or "",
+                owner_id=int(me.id),
+                database=self.database,
+                policy=self.policy,
+                ai=self.ai,
+                rag=self.rag,
+                budget=self.budget,
+                coingecko=self.coingecko,
+                ollama=self.ollama,
+                ollama_activate_handler=self._activate_ollama,
+                ai_provider_switch_handler=self._switch_ai_provider,
+            )
+            self.scheduler.start()
+            self.scheduler.add_job(
+                self._run_scheduled_job,
+                "interval",
+                args=[self._dispatch_reminders],
+                seconds=30,
+                id="dispatch_reminders",
+                max_instances=1,
+                coalesce=True,
+            )
+            self.scheduler.add_job(
+                self._run_scheduled_job,
+                "interval",
+                args=[self._refresh_group_knowledge],
+                minutes=5,
+                id="refresh_group_knowledge",
+                max_instances=1,
+                coalesce=True,
+            )
+            self.scheduler.add_job(
+                self._run_scheduled_job,
+                "interval",
+                args=[self._process_learning_jobs],
+                seconds=self.settings.learning_job_interval_seconds,
+                id="process_learning_jobs",
+                max_instances=1,
+                coalesce=True,
+            )
+            self.scheduler.add_job(
+                self._run_scheduled_job,
+                "interval",
+                args=[self._collect_operations_metric],
+                seconds=60,
+                id="collect_operations_metric",
+                max_instances=1,
+                coalesce=True,
+            )
+            self.scheduler.add_job(
+                self._run_scheduled_job,
+                "interval",
+                args=[self._run_storage_cleanup],
+                hours=1,
+                id="storage_cleanup",
+                max_instances=1,
+                coalesce=True,
+            )
+            self.scheduler.add_job(
+                self._run_scheduled_job,
+                "interval",
+                args=[self._process_admin_jobs],
+                seconds=3,
+                id="process_admin_jobs",
+                max_instances=1,
+                coalesce=True,
+            )
+            log.info("application_started", owner_id=int(me.id))
+            tasks.extend([
+                asyncio.create_task(self.bot.run(), name="bot"),
+                asyncio.create_task(self.user.client.run_until_disconnected(), name="telegram"),
+                asyncio.create_task(self._execute_actions(), name="actions"),
+            ])
+            if self.settings.admin_api_enabled:
+                admin_app = create_admin_app(
+                    AdminContext(
+                        database=self.database,
+                        policy=self.policy,
+                        owner_id=int(me.id),
+                        settings_getter=lambda: self.settings,
+                        vectors_getter=lambda: self.rag.vectors,
+                        ollama=self.ollama,
+                        ai_switch_handler=self._switch_ai_provider,
+                        ollama_activate_handler=self._activate_ollama,
+                        pause_all_handler=pause_learning_jobs,
+                        resume_all_handler=resume_learning_jobs,
+                        paths=self.paths,
+                        admin_secret=ensure_dashboard_secret(self.store),
+                        scheduler_getter=lambda: self.scheduler,
+                        history_ai_filter_handler=self._classify_history_delete_with_openai,
+                        history_sender_lookup_handler=self._resolve_history_sender_identity,
+                    )
+                )
+                self.admin_server = uvicorn.Server(
+                    uvicorn.Config(
+                        admin_app,
+                        host=self.settings.admin_api_host,
+                        port=self.settings.admin_api_port,
+                        access_log=False,
+                        log_config=None,
+                        server_header=False,
+                    )
+                )
+                self.admin_server.install_signal_handlers = lambda: None  # type: ignore[method-assign]
+                tasks.append(asyncio.create_task(self.admin_server.serve(), name="dashboard"))
+                log.info(
+                    "admin_api_started",
+                    url=(
+                        f"http://{self.settings.admin_api_host}:"
+                        f"{self.settings.admin_api_port}"
+                    ),
+                )
+            stop_task = asyncio.create_task(self.stopping.wait(), name="stop")
+            tasks.append(stop_task)
+            done, _ = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
             for task in tasks:
-                task.cancel()
-            await asyncio.gather(*tasks, return_exceptions=True)
-            await self.close()
+                if task in done and not task.cancelled():
+                    error = task.exception()
+                    if error is not None:
+                        log.error("runtime_task_failed", task=task.get_name(), error=str(redact(str(error))))
+                        raise error
+            if not self.stopping.is_set():
+                for task in tasks:
+                    if task in done:
+                        raise RuntimeError(f"Runtime task {task.get_name()} stopped unexpectedly")
+        except BaseException as exc:
+            failure = exc
+            raise
+        finally:
+            self.stopping.set()
+            for task in tasks:
+                if not task.done() and not task.cancelling():
+                    task.cancel()
+            cleanup_failure: BaseException | None = None
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+            for task, result in zip(tasks, results, strict=True):
+                if isinstance(result, BaseException) and not isinstance(result, asyncio.CancelledError):
+                    log.error("runtime_task_cleanup_failed", task=task.get_name(), error=str(redact(str(result))))
+                    if cleanup_failure is None:
+                        cleanup_failure = result
+            try:
+                await self.close()
+            except BaseException as exc:
+                log.error("application_cleanup_failed", error=str(redact(str(exc))))
+                if cleanup_failure is None:
+                    cleanup_failure = exc
+            if cleanup_failure is not None and (
+                failure is None or isinstance(failure, asyncio.CancelledError)
+            ):
+                raise cleanup_failure
 
     async def close(self) -> None:
+        if self._closed:
+            return
+        self._closed = True
         self.stopping.set()
         if self.admin_server:
             self.admin_server.should_exit = True
+        errors: list[BaseException] = []
         if self.scheduler.running:
-            self.scheduler.shutdown(wait=False)
+            try:
+                self.scheduler.pause()
+            except Exception as exc:
+                errors.append(exc)
+        # Drain cancellation finalizers while their database and clients remain open.
+        scheduled = list(self._scheduled_tasks)
+        for task in scheduled:
+            if not task.done() and not task.cancelling():
+                task.cancel()
+        await asyncio.gather(*scheduled, return_exceptions=True)
+        if self.scheduler.running:
+            try:
+                self.scheduler.shutdown(wait=False)
+                # APScheduler queues its shutdown callback on this event loop.
+                await asyncio.sleep(0)
+            except Exception as exc:
+                errors.append(exc)
+        closers = []
         if self.bot:
-            await self.bot.close()
+            closers.append(("bot", self.bot.close))
         if self.rag.vectors:
-            self.rag.vectors.close()
-        await self.ai_router.close()
-        await self.ollama.close()
-        await self.coingecko.close()
-        await self.user.close()
-        await self.database.close()
-        log.info("application_stopped")
+            closers.append(("vectors", self.rag.vectors.close))
+        closers.extend([
+            ("ai", self.ai_router.close),
+            ("embedding", self.embedding_ai.close),
+            ("ollama", self.ollama.close),
+            ("coingecko", self.coingecko.close),
+            ("user", self.user.close),
+            ("database", self.database.close),
+        ])
+        for name, close in closers:
+            try:
+                result = close()
+                if inspect.isawaitable(result):
+                    await result
+            except BaseException as exc:
+                errors.append(exc)
+                log.error("resource_close_failed", resource=name, error=str(redact(str(exc))))
+        log.info("application_stopped", cleanup_errors=len(errors))
+        if errors:
+            raise errors[0]
 
 
 async def run_application() -> None:

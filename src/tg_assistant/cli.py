@@ -19,6 +19,7 @@ from sqlalchemy import select
 from . import __version__
 from .admin_api import dashboard_login_code, ensure_dashboard_secret
 from .admin_api.auth import login_code_expires_at
+from .ai.budget import BudgetService
 from .config import get_settings
 from .db.models import (
     PermissionName,
@@ -233,8 +234,16 @@ def worker() -> None:
                 if stop_file.exists():
                     # run_application receives cancellation and performs its finalizers.
                     task.cancel()
-                await asyncio.gather(task, return_exceptions=True)
+                    try:
+                        await task
+                    except asyncio.CancelledError:
+                        pass
+                else:
+                    await task
             finally:
+                if not task.done():
+                    task.cancel()
+                    await asyncio.gather(task, return_exceptions=True)
                 stop_file.unlink(missing_ok=True)
 
         try:
@@ -463,8 +472,8 @@ def ai_provider(
     typer.echo(
         f"Đã chọn {settings.ai_provider}; "
         f"credential: {'không cần (local)' if settings.ai_provider == 'ollama' else ('đã có' if ready else 'chưa có/tắt')}. "
-        "Chạy tg-assistant stop, tg-assistant reindex, rồi tg-assistant start để áp dụng "
-        "khi đổi giữa cloud và Ollama."
+        "Chạy tg-assistant restart để áp dụng cấu hình nhà cung cấp AI. "
+        "Kho embedding local dùng chung được giữ nguyên; chỉ reindex khi chủ động sửa chỉ mục."
     )
 
 
@@ -515,7 +524,17 @@ def reindex() -> None:
 
         settings, store = get_settings(), SecretStore()
         db = make_database(settings, store)
-        ai = make_local_embedding_engine(settings, store)
+        budget = BudgetService(
+            settings.daily_ai_budget_usd,
+            settings.monthly_ai_budget_usd,
+            daily_token_limit=settings.daily_token_limit,
+            monthly_token_limit=settings.monthly_token_limit,
+            group_daily_token_limit=settings.group_daily_token_limit,
+            feature_daily_token_limit=settings.feature_daily_token_limit,
+            provider_daily_token_limit=settings.provider_daily_token_limit,
+            max_cloud_fallbacks_per_day=settings.max_cloud_fallbacks_per_day,
+        )
+        ai = make_local_embedding_engine(settings, store, budget)
         if not ai.available or not settings.enable_embeddings:
             typer.echo(f"Embedding đang tắt hoặc chưa có key cho provider {settings.ai_provider}.")
             await db.close()

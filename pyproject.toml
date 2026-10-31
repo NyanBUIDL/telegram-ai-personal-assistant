@@ -49,6 +49,7 @@ packages = ["src/tg_assistant"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
 addopts = "-q --disable-warnings"
 markers = [
   "integration: kiểm thử cần dịch vụ hoặc tài nguyên tích hợp",

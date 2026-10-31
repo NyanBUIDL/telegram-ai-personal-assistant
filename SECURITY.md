@@ -16,6 +16,24 @@ tính an toàn và xác nhận. GPT không phải lớp phân quyền. Hành đ�
 thực thi từ output AI; nó phải thành pending action, được chủ sở hữu xác nhận và được
 kiểm tra lại ngay trước lúc thực thi.
 
+Control bot chỉ cho owner điều khiển qua chat riêng có đúng Telegram ID; callback
+từ group hoặc không gắn với tin nhắn riêng không được dùng để mở flow quản trị.
+Đây là ranh giới riêng với tính năng hỏi AI trong group qua Telegram Client.
+
+Bộ lọc lịch sử bằng AI cũng cần nguồn ALLOW và quyền đọc; runtime kiểm tra lại
+global AI và route của nguồn trước khi gửi tới OpenAI. LOCAL ONLY, tắt AI hoặc
+route không cho OpenAI không được vượt qua bằng nút lọc lịch sử.
+
+Input AI tách câu hỏi khỏi nguồn không tin cậy bằng JSON và chỉ dẫn; mọi nguồn
+vẫn phải qua kiểm tra quyền. Redaction dùng các mẫu secret đã biết, không bảo đảm
+phát hiện mọi dữ liệu nhạy cảm. Tiêu chí lọc chứa secret đã nhận diện bị từ chối;
+nội dung nguồn được redact trước khi cắt độ dài. Chỉ dẫn prompt không phải cơ chế
+phân quyền và không bảo đảm miễn nhiễm prompt injection.
+
+Kiểm tra citation chỉ xác nhận mã nguồn nằm trong context đã cấp quyền; không chứng minh
+mọi nhận định của model là đúng. Câu trả lời trống, lỗi hoặc citation không hợp lệ không
+được xem là câu trả lời thành công trong cache; chế độ có dẫn chứng không tự gán nguồn.
+
 ## Báo cáo sự cố
 
 Nếu nghi lộ secret: dừng ứng dụng, thu hồi bot token/API key, chạy

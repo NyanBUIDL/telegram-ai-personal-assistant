@@ -4,6 +4,7 @@ import {
   Warning,
   X,
 } from "@phosphor-icons/react";
+import { formatDate } from "./format.js";
 
 export function Badge({ children, tone = "ink", icon: Icon }) {
   return (
@@ -78,6 +79,21 @@ export function ErrorState({ error, onRetry }) {
           Thử lại
         </button>
       ) : null}
+    </div>
+  );
+}
+
+export function ResourceNotice({ resource, label = "Dữ liệu" }) {
+  if (!resource.stale) return null;
+  return (
+    <div className="ops-local-warning resource-notice" role={resource.error ? "alert" : "status"}>
+      <Warning size={24} aria-hidden="true" />
+      <div>
+        <b>{label}: Dữ liệu cũ — {resource.error ? "cập nhật thất bại" : "đang cập nhật"}.</b>
+        <p>Lần tải thành công: {formatDate(resource.lastSuccessAt)}. Kết quả đang hiển thị thuộc lần tải trước.</p>
+        {resource.error ? <p>{resource.error.message}</p> : null}
+      </div>
+      {resource.error ? <button className="button button--outline" onClick={resource.reload}>Thử lại</button> : null}
     </div>
   );
 }

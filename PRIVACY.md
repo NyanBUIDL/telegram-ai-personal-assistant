@@ -7,8 +7,10 @@ MySQL lưu nội dung và nguồn; Qdrant chỉ lưu embedding, ID tham chiếu 
 OpenAI là tùy chọn. Khi bật, ứng dụng chỉ gửi top-k đoạn liên quan đã kiểm tra lại quyền,
 redact secret, dùng Responses API với `store=False`, và không gửi toàn bộ lịch sử.
 
-Khi chủ sở hữu bật `group_ai_ask` cho một group, nội dung AI tổng hợp từ kho dự án
-đã học có thể được đăng vào group đó. Câu hỏi tin tức/cập nhật sẽ kèm mã nguồn, link
+Khi chủ sở hữu bật `group_ai_ask` cho một group, AI chỉ dùng dữ liệu được cấp quyền
+của chính group đó để trả lời trong group. Nội dung từ group/channel khác không
+được đưa vào câu trả lời này; owner có thể hỏi kho hợp nhất trong bot riêng.
+Câu hỏi tin tức/cập nhật sẽ kèm mã nguồn, link
 nguồn và phần dẫn chứng; câu hỏi kiến thức thông thường sẽ ẩn chúng. Quyền này mặc
 định tắt, áp dụng riêng từng group, cần chủ sở hữu xác nhận và có thể thu hồi trong
 flow quản lý group.
