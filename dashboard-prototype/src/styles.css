@@ -1136,6 +1136,9 @@ tbody tr:hover td { background: #f7eec5; }
 .ops-routing-table > div > span { color: var(--muted); }
 .ops-local-warning { margin: 12px 17px 17px; padding: 13px; display: grid; grid-template-columns: 24px auto 1fr; align-items: center; gap: 8px; background: var(--yellow); border: 2px solid var(--ink); }
 .ops-local-warning span { color: #5b4b00; }
+.resource-notice { grid-template-columns: 24px minmax(0, 1fr) auto; }
+.resource-notice p, .knowledge-bulk-toolbar p { margin: 4px 0 0; overflow-wrap: anywhere; }
+.health-age-note { display: block; padding: 10px 17px; }
 .ops-local-warning--yellow { margin-top: -7px; background: #fff1a6; }
 .ops-test-center { padding: 18px; display: grid; grid-template-columns: 1.5fr auto 1fr; align-items: end; gap: 16px; }
 .ops-answer { min-height: 106px; padding: 12px; display: flex; flex-direction: column; justify-content: center; background: var(--ink); color: var(--green); border: 2px solid var(--ink); }
@@ -2405,4 +2408,5 @@ tbody tr:hover td { background: #f7eec5; }
   .ops-local-warning > span {
     grid-column: 1 / -1;
   }
+  .resource-notice > button { grid-column: 2; }
 }

@@ -1279,15 +1279,37 @@ def create_admin_app(context: AdminContext) -> FastAPI:
         payload: HistoryAiFilterRequest,
         _session: AdminSession = Depends(require_write_session),
     ) -> dict:
-        if not context.history_ai_filter_handler:
+        if contains_secret(payload.instruction):
             raise HTTPException(
-                status_code=503,
-                detail="Bộ lọc AI OpenAI chưa sẵn sàng trong runtime.",
+                status_code=422, detail="Tiêu chí có vẻ chứa secret; hãy bỏ thông tin nhạy cảm trước khi dùng AI."
             )
         async with context.database.session() as db:
             chat = await db.scalar(select(TelegramChat).where(TelegramChat.chat_id == chat_id))
             if not chat:
                 raise HTTPException(status_code=404, detail="Không tìm thấy group/channel.")
+            allowed = await context.policy.filter_allowed_chat_ids(
+                db,
+                actor_id=context.owner_id,
+                owner_id=context.owner_id,
+                chat_ids=[chat_id],
+                permission=PermissionName.READ_MESSAGES,
+                consume_rate_limit=False,
+            )
+            if not allowed:
+                raise HTTPException(
+                    status_code=403,
+                    detail="Hãy ALLOW nguồn và bật quyền Đọc tin nhắn trước khi dùng bộ lọc AI.",
+                )
+            settings = context.settings_getter()
+            ai_setting = await db.get(AppSetting, "ai_enabled")
+            if settings.ai_provider == "off" or (ai_setting and ai_setting.value is False):
+                raise HTTPException(
+                    status_code=403, detail="AI đang tắt. Hãy bật AI trước khi dùng bộ lọc."
+                )
+            if not context.history_ai_filter_handler:
+                raise HTTPException(
+                    status_code=503, detail="Bộ lọc AI OpenAI chưa sẵn sàng trong runtime."
+                )
             rows = list(
                 (
                     await db.scalars(
@@ -1327,15 +1349,19 @@ def create_admin_app(context: AdminContext) -> FastAPI:
                     status_code=422,
                     detail="Không còn post hợp lệ để AI phân tích trong lựa chọn này.",
                 )
-            results = await context.history_ai_filter_handler(
-                db,
-                chat_id,
-                payload.instruction.strip(),
-                [
-                    {"message_id": row.message_id, "text": row.text or ""}
-                    for row in candidates
-                ],
-            )
+            try:
+                results = await context.history_ai_filter_handler(
+                    db,
+                    chat_id,
+                    payload.instruction.strip(),
+                    [{"message_id": row.message_id, "text": row.text or ""} for row in candidates],
+                )
+            except PermissionError as exc:
+                raise HTTPException(status_code=403, detail=str(exc)) from exc
+            except ValueError as exc:
+                raise HTTPException(status_code=422, detail=str(exc)) from exc
+            except RuntimeError as exc:
+                raise HTTPException(status_code=503, detail=str(redact(str(exc)))) from exc
             db.add(
                 _audit(
                     owner_id=context.owner_id,

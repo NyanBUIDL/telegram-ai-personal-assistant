@@ -37,6 +37,139 @@ async function mockApi(page, handler = () => undefined) {
   });
 }
 
+function source(index) {
+  return { ...group(index), status: "not_learned", permissions: {},
+    mysql_message_count: 0, vector_count: 0, storage_bytes: 0 };
+}
+
+test("failed filter refresh keeps the previous list visibly stale until Retry succeeds", async ({ page }) => {
+  await mockApi(page);
+  let fail = true;
+  await page.route("**/knowledge/sources?**", async (route) => {
+    const query = new URL(route.request().url()).searchParams.get("query");
+    if (query && fail) return route.fulfill({ status: 503, json: { detail: "Refresh fixture unavailable" } });
+    return route.fulfill({ json: { items: [source(query ? 2 : 1)], total: 1, pages: 1,
+      page: 1, summary: { total_sources: 1 } } });
+  });
+  await page.goto(fixtureUrl("knowledge"));
+  await expect(page.locator(".knowledge-source-table")).toContainText("Fixture 01");
+  await page.locator(".search-field input").fill("new-filter");
+  const warning = page.locator(".resource-notice").filter({ hasText: "Refresh fixture unavailable" });
+  await expect(warning).toContainText("Dữ liệu cũ");
+  await expect(warning).toContainText("Lần tải thành công");
+  await expect(page.locator(".knowledge-source-table")).toContainText("Fixture 01");
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(warning.getByRole("button", { name: "Thử lại" })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.screenshot({ path: test.info().outputPath("knowledge-stale-mobile.png"), fullPage: true });
+  fail = false;
+  await warning.getByRole("button", { name: "Thử lại" }).click();
+  await expect(page.locator(".knowledge-source-card")).toContainText("Fixture 02");
+  await expect(page.locator(".resource-notice")).toHaveCount(0);
+});
+
+test("an older manual reload cannot replace data from a newer scope", async ({ page }) => {
+  await mockApi(page);
+  let calls = 0;
+  let oldRoute;
+  await page.route("**/groups/-100*", async (route) => {
+    if (route.request().url().endsWith("-1001") && ++calls > 1) {
+      oldRoute = route;
+      return;
+    }
+    return route.fulfill({ json: { title: route.request().url().endsWith("-1002") ? "New scope" : "Initial scope" } });
+  });
+  await page.goto(fixtureUrl("resource"));
+  await expect(page.getByTestId("resource-value")).toHaveText("Initial scope");
+  await page.getByRole("button", { name: "Reload resource" }).click();
+  await expect.poll(() => Boolean(oldRoute)).toBe(true);
+  await page.getByRole("button", { name: "Other fixture group" }).click();
+  await expect(page.getByTestId("resource-value")).toHaveText("New scope");
+  await oldRoute.fulfill({ json: { title: "Obsolete reload" } });
+  await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+  await expect(page.getByTestId("resource-value")).not.toHaveText("Obsolete reload");
+  await expect(page.getByTestId("resource-value")).toHaveText("New scope");
+});
+
+test("filtered learning selection reports its 500-source batch and prevents manual overflow", async ({ page }) => {
+  const items = Array.from({ length: 501 }, (_, index) => source(index + 1));
+  const submissions = [];
+  await mockApi(page, (url, request) => {
+    if (url.pathname.endsWith("/knowledge/sources")) {
+      const size = Number(url.searchParams.get("page_size"));
+      const currentPage = Number(url.searchParams.get("page"));
+      return { items: items.slice((currentPage - 1) * size, currentPage * size),
+        total: items.length, pages: Math.ceil(items.length / size), page: currentPage,
+        summary: { total_sources: items.length } };
+    }
+    if (url.pathname.endsWith("/enable-selection-action")) {
+      submissions.push(request.postDataJSON().chat_ids);
+      return { action_id: "selection-preview" };
+    }
+  });
+  await page.goto(fixtureUrl("knowledge"));
+  await page.getByRole("checkbox", { name: "Chọn tất cả nguồn trên trang" }).check();
+  await page.getByRole("button", { name: /Chọn.*500/ }).click();
+  await expect(page.locator(".knowledge-bulk-toolbar")).toContainText("500/501");
+  await expect(page.locator(".knowledge-bulk-toolbar")).toContainText("1 nguồn chưa chọn");
+  await page.getByRole("button", { name: "Học nguồn đã chọn", exact: true }).click();
+  await expect.poll(() => submissions.length).toBe(1);
+  expect(submissions[0]).toHaveLength(500);
+  expect(new Set(submissions[0]).size).toBe(500);
+  // Go to the eleventh 50-row page, whose only row is outside the selected batch.
+  for (let index = 0; index < 10; index++) {
+    await page.locator(".pagination button").last().click();
+    await expect(page.locator(".knowledge-source-table tbody tr").first()).toContainText(`Fixture ${String((index + 1) * 50 + 1).padStart(2, "0")}`);
+  }
+  await page.getByRole("checkbox", { name: "Chọn tất cả nguồn trên trang" }).click();
+  await expect(page.getByRole("checkbox", { name: "Chọn tất cả nguồn trên trang" })).not.toBeChecked();
+  await expect(page.getByTestId("fixture-toast")).toContainText("Tối đa 500");
+  await expect(page.locator(".knowledge-bulk-toolbar")).toContainText("500 nguồn đã chọn");
+  await page.getByRole("button", { name: "Học nguồn đã chọn", exact: true }).click();
+  await expect.poll(() => submissions.length).toBe(2);
+  expect(submissions[1]).toHaveLength(500);
+});
+
+for (const screen of ["overview", "connections"]) {
+  test(`${screen} shows failed measured health alongside latency, and missing checks stay unknown`, async ({ page }) => {
+    let health = [{ component: "mysql", status: "failed", latency_ms: 7,
+      checked_at: new Date().toISOString() }];
+    await mockApi(page, (url) => {
+      if (url.pathname.endsWith("/overview")) return { health, joined_sources: 1 };
+      if (url.pathname.endsWith("/workers")) return { latest_metric: { vector_bytes: 12 }, history: [] };
+    });
+    await page.goto(fixtureUrl(screen));
+    const measured = screen === "overview" ? page.locator(".service-row").filter({ hasText: /mysql/i })
+      : page.locator(".connection-card").filter({ has: page.getByRole("heading", { name: "MySQL", exact: true }) });
+    await expect(measured).toContainText("FAILED");
+    if (screen === "overview") await expect(measured).toContainText("7 ms");
+    else await expect(measured.locator("input").first()).toHaveValue(/7 ms/);
+    await expect(measured).toContainText("Kiểm tra");
+    if (screen === "connections") {
+      await expect(page.locator(".connection-card").filter({ hasText: "Qdrant" })).toContainText("UNKNOWN");
+    }
+    health = [{ component: "mysql", status: "ok", latency_ms: 7, checked_at: "2020-01-01T00:00:00Z" }];
+    await page.getByRole("button", { name: "Refresh fixture" }).click();
+    await expect(measured).toContainText("STALE");
+    health = [];
+    await page.getByRole("button", { name: "Refresh fixture" }).click();
+    await expect(screen === "overview" ? page.locator(".service-list") : measured).toContainText("UNKNOWN");
+  });
+}
+
+test("a measured OK check ages to STALE without another network response", async ({ page }) => {
+  const checkedAt = new Date();
+  await page.clock.install({ time: checkedAt });
+  await mockApi(page, (url) => url.pathname.endsWith("/overview")
+    ? { health: [{ component: "mysql", status: "ok", checked_at: checkedAt.toISOString() }] } : undefined);
+  await page.goto(fixtureUrl("connections"));
+  const card = page.locator(".connection-card").filter({ hasText: "MySQL" });
+  await expect(card.locator(".badge")).toHaveText("OK");
+  await page.clock.fastForward(6 * 60 * 1000);
+  await expect(card.locator(".badge")).toHaveText("OK · STALE");
+  await page.screenshot({ path: test.info().outputPath("connections-stale-desktop.png"), fullPage: true });
+});
+
 test("inactive recommendations honor filters, sorting, and ten-row pagination", async ({ page }) => {
   const items = Array.from({ length: 25 }, (_, index) => group(index + 1));
   items[0] = group(1, { chat_type: "supergroup", policy: { ...group().policy, allowed: false },
@@ -91,6 +224,44 @@ test("removing the last recommendation on a page returns to the preceding page",
   await page.locator(".group-directory-table tbody tr .row-actions button").first().click();
   await expect(page.locator(".group-directory-table tbody tr")).toHaveCount(10);
   await expect(page.locator(".pagination button").first()).toBeDisabled();
+});
+
+test("switching groups hides the previous group's controls until the requested group loads", async ({ page }) => {
+  const writes = [];
+  let pendingGroup;
+  let fail = true;
+  await mockApi(page, (url, request) => {
+    if (url.pathname.endsWith("/groups/-1001")) return group(1);
+    if (url.pathname.endsWith("/ai-route") && request.method() === "PUT") {
+      writes.push({ path: url.pathname, body: request.postDataJSON() });
+      return {};
+    }
+  });
+  await page.route("**/groups/-1002", async (route) => {
+    if (fail) { pendingGroup = route; return; }
+    return route.fulfill({ json: group(2) });
+  });
+  await page.goto(fixtureUrl("detail"));
+  const mode = page.getByRole("combobox", { name: /^AI mode / });
+  await expect(mode).toHaveValue("inherit");
+  await mode.selectOption("local_only");
+  await page.getByRole("button", { name: "Other fixture group" }).click();
+  await expect.poll(() => Boolean(pendingGroup)).toBe(true);
+  // Exercise the dangerous save if obsolete controls survive the group switch.
+  if (await mode.isVisible()) {
+    await page.locator(".ops-form-body").filter({ has: mode }).getByRole("button").last().click();
+  }
+  expect(writes).toEqual([]);
+  await expect(mode).toHaveCount(0);
+  await expect(page.locator(".group-detail")).toHaveCount(0);
+  await pendingGroup.fulfill({ status: 503, json: { detail: "Requested group unavailable" } });
+  await expect(page.getByRole("alert")).toContainText("Requested group unavailable");
+  await expect(mode).toHaveCount(0);
+  fail = false;
+  await page.getByRole("button", { name: "Thử lại", exact: true }).click();
+  await expect(page.locator(".group-detail .ops-page-intro h2")).toHaveText("Fixture 02");
+  await expect(mode).toHaveValue("inherit");
+  expect(writes).toEqual([]);
 });
 
 test("group drafts survive refresh while authoritative permissions and untouched settings update", async ({ page }) => {

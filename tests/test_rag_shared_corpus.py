@@ -29,7 +29,7 @@ class FakeAi:
         assert any("nguồn cuối cùng" in source for source in context)
         assert any("[S1]" in source for source in context)
         assert any("Thời gian đăng:" in source for source in context)
-        return "Đã trả lời từ kho hợp nhất."
+        return "Đã trả lời từ kho hợp nhất. [S1]"
 
 
 def test_visible_citations_are_renumbered_after_filtering() -> None:
@@ -147,7 +147,7 @@ def test_telegram_message_url_for_public_and_private_sources() -> None:
 
 def test_rag_citations_only_include_sources_used_by_answer() -> None:
     assert referenced_evidence_indexes("Kết luận [S2] và [S1].", item_count=4) == [1, 0]
-    assert referenced_evidence_indexes("Không có mã nguồn.", item_count=5) == [0, 1, 2]
+    assert referenced_evidence_indexes("Không có mã nguồn.", item_count=5) == []
 
 
 class ScopedAi:

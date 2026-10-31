@@ -234,8 +234,16 @@ def worker() -> None:
                 if stop_file.exists():
                     # run_application receives cancellation and performs its finalizers.
                     task.cancel()
-                await asyncio.gather(task, return_exceptions=True)
+                    try:
+                        await task
+                    except asyncio.CancelledError:
+                        pass
+                else:
+                    await task
             finally:
+                if not task.done():
+                    task.cancel()
+                    await asyncio.gather(task, return_exceptions=True)
                 stop_file.unlink(missing_ok=True)
 
         try:

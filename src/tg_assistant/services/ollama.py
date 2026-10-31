@@ -8,6 +8,8 @@ from datetime import datetime
 
 import httpx
 
+from ..security import redact
+
 MODEL_NAME_RE = re.compile(
     r"^[A-Za-z0-9][A-Za-z0-9._/-]{0,159}(?::[A-Za-z0-9][A-Za-z0-9._-]{0,63})?$"
 )
@@ -152,9 +154,10 @@ class OllamaService:
                         detail = str(json.loads(body).get("error", "")).strip()
                     except (ValueError, AttributeError):
                         detail = ""
-                    message = detail[:300] or f"HTTP {response.status_code}"
+                    message = " ".join(str(redact(detail)).split())[:300] or f"HTTP {response.status_code}"
                     raise OllamaError(f"Ollama từ chối yêu cầu: {message}")
 
+                succeeded = False
                 async for line in response.aiter_lines():
                     if should_cancel and await should_cancel():
                         raise OllamaPullCancelled("Owner đã hủy tải model.")
@@ -162,18 +165,26 @@ class OllamaService:
                         continue
                     try:
                         event = json.loads(line)
-                    except ValueError:
-                        continue
-                    if not isinstance(event, dict):
-                        continue
-                    total = int(event.get("total") or 0)
-                    completed = int(event.get("completed") or 0)
+                    except ValueError as exc:
+                        raise OllamaError("Ollama trả về tiến độ tải không hợp lệ.") from exc
+                    if not isinstance(event, dict) or not event:
+                        raise OllamaError("Ollama trả về tiến độ tải không hợp lệ.")
+                    if "error" in event:
+                        detail = " ".join(str(redact(str(event["error"]))).split())[:300]
+                        raise OllamaError(f"Ollama không tải được model: {detail}")
+                    if succeeded or not isinstance(event.get("status"), str) or not event["status"].strip():
+                        raise OllamaError("Ollama trả về tiến độ tải không hợp lệ.")
+                    total = event.get("total", 0)
+                    completed = event.get("completed", 0)
+                    if any(type(value) is not int or value < 0 for value in (total, completed)):
+                        raise OllamaError("Ollama trả về tiến độ tải không hợp lệ.")
                     progress = (
                         min(99, max(0, round((completed / total) * 100)))
                         if total > 0
                         else None
                     )
                     if event.get("status") == "success":
+                        succeeded = True
                         progress = 100
                     if on_progress:
                         await on_progress(
@@ -187,6 +198,8 @@ class OllamaService:
                         )
                 if should_cancel and await should_cancel():
                     raise OllamaPullCancelled("Owner đã hủy tải model.")
+                if not succeeded:
+                    raise OllamaError("Ollama chưa xác nhận tải xong model; hãy thử lại.")
         except OllamaPullCancelled:
             raise
         except httpx.TimeoutException as exc:

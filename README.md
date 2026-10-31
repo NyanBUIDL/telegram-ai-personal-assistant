@@ -8,14 +8,18 @@ chặn; chỉ chat được allow và bật đúng quyền con mới được đ
 
 1. Cài Python 3.12/3.13 và MySQL local, rồi mở PowerShell trong thư mục dự án và chạy
    `.\start.bat` (không cần quyền Administrator). Nhập secret trong terminal theo wizard.
-2. Gửi mã `/pair ...` cho control bot trong vòng 5 phút và giữ terminal mở đến khi ghép đôi xong.
-3. Trong bot, mở `/help` → `Mở trợ lý AI` → `Học từ group/channel`. Chọn **một** nguồn
+2. Nhắn riêng mã `/pair ...` cho control bot trong vòng 5 phút và giữ terminal mở đến khi ghép đôi xong.
+3. Trong chat riêng với bot, mở `/start` → `Chọn nguồn để học`. Chọn **một** nguồn
    để thử, xem quyền được yêu cầu rồi xác nhận; theo dõi tại `Tiến độ học`.
 4. Thử `Tìm trong Telegram` với từ khóa có trong nguồn vừa đồng bộ. Tìm kiếm local
    không cần AI; hỏi AI cần cấu hình provider/model tương ứng. Embedding semantic dùng
    Ollama local; khi chưa sẵn sàng, vẫn có thể dùng dữ liệu tìm theo từ khóa.
 5. Dùng `/cancel` để thoát ô nhập đang chờ; `/help` và `/groups` luôn mở được menu.
    `/cancel <id>` chỉ hủy pending action có ID đó. Chỉ `/confirm <id>` mới xác nhận hành động.
+
+Control bot chỉ nhận lệnh và nút bấm của owner trong chat riêng; gửi lệnh quản trị
+trong group sẽ được bỏ qua để tránh lộ dữ liệu hoặc dùng sai flow. Thành viên hỏi AI
+trong group vẫn dùng Telegram Client theo quyền `group_ai_ask` riêng.
 
 Nếu bước nào lỗi, xem [Xử lý lỗi](TROUBLESHOOTING.md). Dashboard là màn hình quản trị
 phụ tại `http://127.0.0.1:8765`; lấy mã đăng nhập bằng

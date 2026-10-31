@@ -136,7 +136,6 @@ def referenced_evidence_indexes(
     answer: str,
     *,
     item_count: int,
-    fallback: int = 3,
 ) -> list[int]:
     """Return zero-based evidence indexes explicitly used by the answer."""
     indexes: list[int] = []
@@ -144,9 +143,7 @@ def referenced_evidence_indexes(
         index = int(raw_index) - 1
         if 0 <= index < item_count and index not in indexes:
             indexes.append(index)
-    if indexes:
-        return indexes
-    return list(range(min(item_count, fallback)))
+    return indexes
 
 
 def renumber_source_references(answer: str, indexes: list[int]) -> str:
@@ -289,7 +286,7 @@ class RagService:
             rag_config_version=(
                 f"{preset.name}:{effective_top_k}:{preset.max_chunks_per_source}:"
                 f"{preset.max_sources}:{max_context_tokens}:{preset.max_chunk_tokens}:"
-                f"citations={include_citations}"
+                f"citations={include_citations}:grounding=2"
             ),
         )
         now = datetime.now(UTC)
@@ -485,8 +482,17 @@ class RagService:
                 contexts,
                 include_source_refs=False,
             )
+        if not isinstance(answer, str) or not any(
+            char.isalnum() for char in without_source_references(answer)
+        ):
+            raise RuntimeError("AI chưa trả về nội dung trả lời; hãy thử lại.")
+        valid_references = {str(index) for index in range(1, len(evidence_rows) + 1)}
+        if any(reference not in valid_references for reference in SOURCE_REFERENCE_CAPTURE_RE.findall(answer)):
+            raise RuntimeError("AI trích dẫn nguồn không có trong dữ liệu; hãy thử lại.")
         if include_citations:
             indexes = referenced_evidence_indexes(answer, item_count=len(evidence_rows))
+            if not indexes:
+                raise RuntimeError("AI chưa cung cấp dẫn chứng cho câu trả lời; hãy thử lại.")
             cited_rows = [evidence_rows[index] for index in indexes]
             answer = renumber_source_references(answer, indexes)
             answer = (

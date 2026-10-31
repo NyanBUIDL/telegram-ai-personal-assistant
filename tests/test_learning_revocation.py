@@ -217,3 +217,24 @@ async def test_delayed_queue_uses_confirmation_time_and_denies_same_second(
     assert learning_flow.syncs == []
     async with learning_flow.database.session() as session:
         assert (await session.get(BackgroundJob, job_id)).status == "cancelled"
+
+
+async def test_cancellation_honors_pause_requested_during_sync(learning_flow):
+    job_id = await learning_flow.confirm_learning()
+
+    async def interrupted_sync(_session, **_kwargs):
+        async with learning_flow.database.session() as session:
+            job = await session.get(BackgroundJob, job_id)
+            job.status = "pause_requested"
+            job.paused_at = datetime.now(UTC)
+        raise asyncio.CancelledError
+
+    learning_flow.app.user.sync_history = interrupted_sync
+    with pytest.raises(asyncio.CancelledError):
+        await learning_flow.app._process_learning_jobs()
+    async with learning_flow.database.session() as session:
+        job = await session.get(BackgroundJob, job_id)
+        source = await session.get(KnowledgeSource, -1001)
+        assert job.status == source.status == "paused"
+        assert job.locked_by is None and job.locked_at is None
+    assert learning_flow.embeddings == []

@@ -1,3 +1,5 @@
+> Historical cycle-1 checkpoint. Current publication and cycle-2 results: [CYCLE2_REVIEW.md](CYCLE2_REVIEW.md) and [CYCLE2_VALIDATION.md](CYCLE2_VALIDATION.md).
+
 # Product and Telegram usability review
 
 Date: 2026-10-31. Scope: local source and documentation, with offline dispatcher and SQLite tests. No live Telegram messages, AI requests, credentials, production database, deployment or publishing were used.

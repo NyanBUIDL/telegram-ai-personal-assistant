@@ -66,3 +66,16 @@ export function humanize(value) {
     .replaceAll("_", " ")
     .replace(/\b\w/g, (character) => character.toUpperCase());
 }
+
+export function measuredHealth(check, snapshotStale = false, now = Date.now()) {
+  const checkedAt = Date.parse(check?.checked_at);
+  const hasTime = Number.isFinite(checkedAt);
+  const status = String(check?.status || "unknown").toUpperCase();
+  // A health result older than five minutes is historical, even after a fresh HTTP response.
+  const stale = Boolean(check) && (snapshotStale || !hasTime || now - checkedAt > 300_000 || checkedAt > now + 60_000);
+  return {
+    label: `${status}${stale ? " · STALE" : ""}`,
+    tone: status === "OK" && !stale ? "success" : status === "UNKNOWN" || status === "OK" ? "yellow" : "magenta",
+    detail: `${hasTime ? `Kiểm tra ${formatDate(check.checked_at)}` : "Chưa có thời điểm kiểm tra"}${check?.latency_ms == null ? "" : ` · ${check.latency_ms} ms`}`,
+  };
+}

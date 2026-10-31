@@ -1,18 +1,24 @@
-# Proposed draft pull request
+# Draft pull request
 
-Title: Improve first-run setup and everyday Telegram/dashboard reliability
+URL: https://github.com/NyanBUIDL/telegram-ai-personal-assistant/pull/3
 Base: master
 Head: codex/ease-of-use-2026-10-31
-Status: local proposal only; not published
+State: draft; publication authorized; merge/deployment not authorized
 
-Windows setup could stop on a missing dependency, fresh migrations collided with current metadata, commands were trapped in Telegram input flows, expired/concurrent AI cache writes failed, and background learning could restore an owner-blocked source. Dashboard refreshes also discarded edits and inactive-source controls did not affect the list.
+## Title
 
-This release repairs those paths while retaining default-deny permissions, confirmation gates, the current stack and existing visual design. It also supplies offline regression coverage, short onboarding/recovery guidance and a CI workflow. BLOCK cancels obsolete learning jobs and workers recheck authorization before sync/embedding; later explicit confirmation can create a fresh job.
+Harden assistant privacy, AI failures and everyday recovery
 
-Validation:198 Python tests,6 mocked Chrome regressions,4 Sites tests, Python/frontend lint, production build, packaging and pip check pass. Independent review found no remaining Important/Critical issues in the authored diff. See docs/review/VALIDATION.md and RELEASE_REVIEW.md for coverage and prioritized remaining issues.
+## Body
 
-Before using the updated dashboard, run npm ci and npm run build in dashboard-prototype. Generated dependencies/build output, .env and personal captures are excluded from this commit. Existing tracked-artifact hygiene remains a separate follow-up.
+First-run setup, migrations, Telegram navigation and cache refreshes had reliability gaps. This release also repairs a cloud classifier that bypassed source permissions, rejects known secrets at AI boundaries, validates AI output before caching, and makes runtime/shutdown failures visible.
 
-Limits: no real Telegram/model calls, MySQL concurrency run, clean-account installation or GitHub CI run. Same-second authorization ambiguity requires reconfirmation. No deployment is included.
+Owner controls now operate only in the owner's private bot chat. Classification respects source READ/ALLOW, global AI and the existing route planner. Untrusted sources are separated from the question and redacted; blank/incomplete or unsupported citations are rejected. Ollama downloads require explicit success. Core tasks, scheduler jobs and aiogram updates are drained before resources close; interrupted pauses remain paused.
 
-Approval still required: push this branch and open a draft PR. Merge/deployment are separate decisions. No external GitHub mutation has occurred.
+Dashboard changes make stale/unknown data visible, enforce the existing500-source selection contract, and prevent old group forms writing to a newly selected group. `/start` is concise, and reminder times have explicit supported grammar/defaults and Vietnam-time acknowledgements.
+
+Validation:313 Python tests,13 automated Chrome regressions with mocked API,4 Sites tests,lint,production build,dependency and whitespace checks pass locally. Independent review findings were reproduced and fixed with regressions. Latest GitHub Actions results must match the PR head SHA; see Checks and final delivery evidence. See docs/review/CYCLE2_REVIEW.md and CYCLE2_VALIDATION.md for scope and residual risks.
+
+No live Telegram,model or MySQL integration was exercised. The formal security-scan service is unavailable; this is scoped source/test hardening, not a completed formal repository audit. Redaction and citation membership checks do not guarantee complete secret detection or factual accuracy.
+
+Build dashboard-prototype with npm ci and npm run build before use. No merge or deployment is included. Readiness handshake and remaining usability/AI/accounting work are documented backlog.

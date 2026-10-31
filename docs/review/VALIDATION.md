@@ -1,3 +1,5 @@
+> Historical cycle-1 checkpoint. Current publication and cycle-2 results: [CYCLE2_REVIEW.md](CYCLE2_REVIEW.md) and [CYCLE2_VALIDATION.md](CYCLE2_VALIDATION.md).
+
 # Validation — 2026-10-31
 
 ## Final integrated result

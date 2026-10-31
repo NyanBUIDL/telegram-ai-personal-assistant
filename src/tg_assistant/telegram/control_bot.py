@@ -1174,6 +1174,12 @@ class ControlBot:
         self.ollama_activate_handler = ollama_activate_handler
         self.ai_provider_switch_handler = ai_provider_switch_handler
         self._background_tasks: set[asyncio.Task] = set()
+        self._update_tasks: set[asyncio.Task] = set()
+        self._polling_task: asyncio.Task | None = None
+        self._polling_started = asyncio.Event()
+        self._closed = False
+        self.dp.startup.register(self._on_polling_start)
+        self.dp.update.outer_middleware(self._track_update)
         self.actions, self.tasks, self.search = (
             PendingActionService(),
             TaskService(),
@@ -1184,10 +1190,18 @@ class ControlBot:
         self.dp.include_router(self.router)
 
     def _owner(self, message: Message) -> bool:
-        return bool(message.from_user and message.from_user.id == self.owner_id)
+        return bool(
+            message.from_user and message.from_user.id == self.owner_id
+            and message.chat.type == "private" and message.chat.id == self.owner_id
+        )
 
     def _owner_callback(self, callback: CallbackQuery) -> bool:
-        return callback.from_user.id == self.owner_id
+        return bool(
+            callback.from_user.id == self.owner_id
+            and isinstance(callback.message, Message)
+            and callback.message.chat.type == "private"
+            and callback.message.chat.id == self.owner_id
+        )
 
     async def _deny(self, message: Message) -> None:
         # Không tiết lộ trạng thái hệ thống cho người lạ.
@@ -1716,7 +1730,27 @@ class ControlBot:
                 return
             await message.answer("Đã ghép nối chủ sở hữu. Hệ thống chỉ phản hồi tài khoản này.")
 
-        @self.router.message(Command("start", "help"))
+        @self.router.message(Command("start"))
+        async def start_command(message: Message, state: FSMContext) -> None:
+            if not self._owner(message):
+                return await self._deny(message)
+            await state.clear()
+            await message.answer(
+                "Trợ lý Telegram cá nhân đã sẵn sàng nhận yêu cầu của bạn.\n\n"
+                "Bắt đầu: chọn một nguồn → xem quyền và xác nhận học → "
+                "theo dõi tiến độ trong menu AI → thử tìm từ khóa đã đồng bộ. "
+                "Nguồn chưa cấp quyền sẽ không được đọc; hỏi AI cần provider khả dụng.\n\n"
+                "Dùng /cancel để thoát bước nhập, /help để xem đầy đủ hướng dẫn.",
+                reply_markup=InlineKeyboardMarkup(
+                    inline_keyboard=[
+                        [InlineKeyboardButton(text="Chọn nguồn để học", callback_data="ai:learn")],
+                        [InlineKeyboardButton(text="Mở quản lý nhóm", callback_data="groups:show")],
+                        [InlineKeyboardButton(text="Mở trợ lý AI", callback_data="ai:menu")],
+                    ]
+                ),
+            )
+
+        @self.router.message(Command("help"))
         async def help_command(message: Message, state: FSMContext) -> None:
             if not self._owner(message):
                 return await self._deny(message)
@@ -1761,7 +1795,7 @@ class ControlBot:
             await self.bot.send_message(
                 callback.from_user.id,
                 "Hãy gửi câu hỏi tự nhiên. AI sẽ trả lời dựa trên dữ liệu Telegram "
-                "đã được cấp quyền; nếu nguồn không đủ, bot sẽ nói rõ.",
+                "đã được cấp quyền; nếu nguồn không đủ, bot sẽ nói rõ. Dùng /cancel để thoát.",
                 reply_markup=InlineKeyboardMarkup(
                     inline_keyboard=[
                         [InlineKeyboardButton(text="Về menu AI", callback_data="ai:menu")]
@@ -1805,7 +1839,7 @@ class ControlBot:
             await callback.answer()
             await self.bot.send_message(
                 callback.from_user.id,
-                "Gửi mã hoặc tên coin cần kiểm tra, ví dụ: BTC, ETH, SOL hoặc bitcoin.",
+                "Gửi mã hoặc tên coin cần kiểm tra, ví dụ: BTC, ETH, SOL hoặc bitcoin. Dùng /cancel để thoát.",
                 reply_markup=InlineKeyboardMarkup(
                     inline_keyboard=[
                         [InlineKeyboardButton(text="Về menu AI", callback_data="ai:menu")]
@@ -1841,7 +1875,7 @@ class ControlBot:
                 callback.from_user.id,
                 "Gửi từ khóa bạn muốn tìm. Có thể dùng bộ lọc như "
                 "in:<chat_id>, after:2026-07-01 hoặc has:link. "
-                "Tìm kiếm này chạy local và không tốn AI.",
+                "Tìm kiếm này chạy local và không tốn AI. Dùng /cancel để thoát.",
                 reply_markup=InlineKeyboardMarkup(
                     inline_keyboard=[
                         [InlineKeyboardButton(text="Về menu AI", callback_data="ai:menu")]
@@ -4978,7 +5012,11 @@ class ControlBot:
                 reminder = Reminder(remind_at=remind_at, message=text.strip())
                 session.add(reminder)
                 await session.flush()
-            await message.answer(f"Đã lên lịch {reminder.id} lúc {remind_at}.")
+            local_time = remind_at.astimezone(ZoneInfo("Asia/Ho_Chi_Minh"))
+            await message.answer(
+                f"Đã lên lịch {reminder.id} lúc {local_time:%d/%m/%Y %H:%M} "
+                "(Asia/Ho_Chi_Minh)."
+            )
 
         @self.router.message(Command("projects"))
         async def projects(message: Message) -> None:
@@ -5124,12 +5162,80 @@ class ControlBot:
                     ),
                 )
 
+    async def _on_polling_start(self, **_kwargs) -> None:
+        self._polling_started.set()
+
+    async def _track_update(self, handler, event, data):
+        if self._closed:
+            return None
+        task = asyncio.current_task()
+        self._update_tasks.add(task)
+        try:
+            return await handler(event, data)
+        finally:
+            self._update_tasks.discard(task)
+
+    async def _stop_polling(self) -> None:
+        polling = self._polling_task
+        if polling is None or polling is asyncio.current_task():
+            return
+        ready = asyncio.create_task(self._polling_started.wait())
+        try:
+            await asyncio.wait([polling, ready], return_when=asyncio.FIRST_COMPLETED)
+        finally:
+            ready.cancel()
+            await asyncio.gather(ready, return_exceptions=True)
+        if polling.done():
+            await polling
+            return
+        stopping = asyncio.create_task(self.dp.stop_polling())
+        try:
+            done, _ = await asyncio.wait([polling, stopping], return_when=asyncio.FIRST_COMPLETED)
+            if polling not in done:
+                await stopping
+            await polling
+        finally:
+            stopping.cancel()
+            await asyncio.gather(stopping, return_exceptions=True)
+
     async def run(self) -> None:
-        await self.dp.start_polling(self.bot, allowed_updates=self.dp.resolve_used_update_types())
+        if self._closed:
+            return
+        self._polling_task = asyncio.create_task(self.dp.start_polling(
+            self.bot, allowed_updates=self.dp.resolve_used_update_types(),
+            handle_signals=False, close_bot_session=False,
+        ), name="control-bot-polling")
+        try:
+            # Cancelling start_polling directly bypasses aiogram's child-task drain.
+            await asyncio.shield(self._polling_task)
+        except asyncio.CancelledError:
+            await self._stop_polling()
+            raise
 
     async def close(self) -> None:
-        for task in self._background_tasks:
-            task.cancel()
-        if self._background_tasks:
-            await asyncio.gather(*self._background_tasks, return_exceptions=True)
-        await self.bot.session.close()
+        if self._closed:
+            return
+        self._closed = True
+        errors: list[BaseException] = []
+        try:
+            await self._stop_polling()
+        except BaseException as exc:
+            errors.append(exc)
+        current = asyncio.current_task()
+        # Update finalizers may create background work, so drain updates first.
+        for active in (self._update_tasks, self._background_tasks):
+            tasks = [task for task in active if task is not current]
+            for task in tasks:
+                if not task.done() and not task.cancelling():
+                    task.cancel()
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+            errors.extend(
+                result for result in results
+                if isinstance(result, BaseException) and not isinstance(result, asyncio.CancelledError)
+            )
+        try:
+            await self.bot.session.close()
+        except BaseException as exc:
+            errors.append(exc)
+        if errors:
+            raise errors[0]

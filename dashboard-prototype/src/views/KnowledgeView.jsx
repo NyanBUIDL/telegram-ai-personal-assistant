@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowsClockwise,
   Brain,
@@ -30,6 +30,7 @@ import {
   ErrorState,
   LoadingState,
   PanelHeader,
+  ResourceNotice,
 } from "../ui.jsx";
 
 function downloadSources(blob) {
@@ -90,6 +91,8 @@ function jobLabel(value) {
   return JOB_LABELS[value] || humanize(value);
 }
 
+const SELECTION_LIMIT = 500;
+
 export function KnowledgeView({ refreshKey, onCreatedAction, onToast }) {
   const [status, setStatus] = useState("");
   const [query, setQuery] = useState("");
@@ -101,6 +104,7 @@ export function KnowledgeView({ refreshKey, onCreatedAction, onToast }) {
   const [pageSize, setPageSize] = useState(50);
   const [busy, setBusy] = useState("");
   const [selected, setSelected] = useState(() => new Set());
+  const [batchSelection, setBatchSelection] = useState(null);
   const [viewMode, setViewMode] = useState(() =>
     window.matchMedia("(max-width: 720px)").matches ? "card" : "table",
   );
@@ -112,6 +116,9 @@ export function KnowledgeView({ refreshKey, onCreatedAction, onToast }) {
     return () => media.removeEventListener("change", syncMode);
   }, []);
   const debouncedQuery = useDebouncedValue(query);
+  const selectionScope = JSON.stringify([status, query, chatType, autoKnowledge, sortBy, sortDir]);
+  const selectionScopeRef = useRef(selectionScope);
+  selectionScopeRef.current = selectionScope;
   const sources = useResource(
     () =>
       api.knowledgeSources({
@@ -187,6 +194,10 @@ export function KnowledgeView({ refreshKey, onCreatedAction, onToast }) {
   };
 
   const createSelectionAction = async () => {
+    if (!selected.size || selected.size > SELECTION_LIMIT) {
+      onToast(`Chọn từ 1 đến ${SELECTION_LIMIT} nguồn cho mỗi đợt học.`, "error");
+      return;
+    }
     setBusy("selection");
     try {
       const action = await api.createEnableSelectionAction([...selected]);
@@ -200,6 +211,7 @@ export function KnowledgeView({ refreshKey, onCreatedAction, onToast }) {
   };
 
   const selectAllFiltered = async () => {
+    const scope = selectionScope;
     setBusy("select-filtered");
     try {
       const result = await api.knowledgeSources({
@@ -210,10 +222,16 @@ export function KnowledgeView({ refreshKey, onCreatedAction, onToast }) {
         sortBy,
         sortDir,
         page: 1,
-        pageSize: 500,
+        pageSize: SELECTION_LIMIT,
       });
-      setSelected(new Set(result.items.map((item) => item.chat_id)));
-      onToast(`Đã chọn ${result.items.length}/${result.total} nguồn theo bộ lọc.`);
+      if (selectionScopeRef.current !== scope) {
+        onToast("Bộ lọc đã đổi; hãy chọn lại đợt học theo bộ lọc mới.", "error");
+        return;
+      }
+      const ids = new Set(result.items.slice(0, SELECTION_LIMIT).map((item) => item.chat_id));
+      setSelected(ids);
+      setBatchSelection({ count: ids.size, total: result.total, scope });
+      onToast(`Đã chọn ${ids.size}/${result.total} nguồn theo bộ lọc; ${Math.max(0, result.total - ids.size)} nguồn chưa chọn. Mỗi đợt tối đa ${SELECTION_LIMIT} nguồn.`);
     } catch (error) {
       onToast(error.message, "error");
     } finally {
@@ -247,12 +265,21 @@ export function KnowledgeView({ refreshKey, onCreatedAction, onToast }) {
     }
   };
 
-  const toggleSourceSelection = (chatId, checked) => {
+  const updateSelection = (chatIds, checked) => {
     const next = new Set(selected);
-    if (checked) next.add(chatId);
-    else next.delete(chatId);
+    for (const chatId of chatIds) {
+      if (checked) next.add(chatId);
+      else next.delete(chatId);
+    }
+    if (next.size > SELECTION_LIMIT) {
+      onToast(`Tối đa ${SELECTION_LIMIT} nguồn mỗi đợt; hãy bỏ chọn nguồn trước khi thêm.`, "error");
+      return;
+    }
+    setBatchSelection(null);
     setSelected(next);
   };
+
+  const toggleSourceSelection = (chatId, checked) => updateSelection([chatId], checked);
 
   const toggleSourceExpanded = (chatId) => {
     const next = new Set(expandedSources);
@@ -266,6 +293,8 @@ export function KnowledgeView({ refreshKey, onCreatedAction, onToast }) {
 
   return (
     <section className="ops-stack">
+      <ResourceNotice resource={sources} label="Kho tri thức" />
+      <ResourceNotice resource={jobs} label="Tiến trình học" />
       <section className="ops-resource-strip knowledge-kpis">
         <div>
           <Brain size={30} />
@@ -470,16 +499,20 @@ export function KnowledgeView({ refreshKey, onCreatedAction, onToast }) {
             </button>
           </div>
         </div>
-        {selected.size ? (
+        {sources.data ? (
           <div className="selection-toolbar knowledge-bulk-toolbar">
-            <b>{selected.size} nguồn đã chọn trên danh sách hiện tại</b>
-            <button className="button button--outline" disabled={Boolean(busy)} onClick={selectAllFiltered}>
-              Chọn toàn bộ kết quả lọc
+            <div>
+              <b>{selected.size} nguồn đã chọn · tối đa {SELECTION_LIMIT}/đợt</b>
+              <p>Nguồn đã chọn được giữ khi đổi bộ lọc hoặc trang.</p>
+              {batchSelection?.scope === selectionScope ? <p>{batchSelection.count}/{batchSelection.total} theo bộ lọc; {Math.max(0, batchSelection.total - batchSelection.count)} nguồn chưa chọn.</p> : null}
+            </div>
+            <button className="button button--outline" disabled={Boolean(busy) || sources.loading || Boolean(sources.error) || query !== debouncedQuery} onClick={selectAllFiltered}>
+              Chọn tối đa {SELECTION_LIMIT} kết quả lọc đầu tiên
             </button>
-            <button className="button button--outline" disabled={Boolean(busy)} onClick={() => setSelected(new Set())}>
+            <button className="button button--outline" disabled={Boolean(busy) || !selected.size} onClick={() => { setSelected(new Set()); setBatchSelection(null); }}>
               Bỏ chọn
             </button>
-            <button className="button button--primary" disabled={Boolean(busy)} onClick={createSelectionAction}>
+            <button className="button button--primary" disabled={Boolean(busy) || !selected.size || selected.size > SELECTION_LIMIT} onClick={createSelectionAction}>
               <Brain size={18} />
               Học nguồn đã chọn
             </button>
@@ -503,13 +536,9 @@ export function KnowledgeView({ refreshKey, onCreatedAction, onToast }) {
                         Boolean(sources.data.items.length) &&
                         sources.data.items.every((item) => selected.has(item.chat_id))
                       }
+                      disabled={Boolean(busy) || sources.stale}
                       onChange={(event) => {
-                        const next = new Set(selected);
-                        for (const item of sources.data.items) {
-                          if (event.target.checked) next.add(item.chat_id);
-                          else next.delete(item.chat_id);
-                        }
-                        setSelected(next);
+                        updateSelection(sources.data.items.map((item) => item.chat_id), event.target.checked);
                       }}
                     />
                   </th>
@@ -531,6 +560,7 @@ export function KnowledgeView({ refreshKey, onCreatedAction, onToast }) {
                         type="checkbox"
                         aria-label={`Chọn ${source.title || source.chat_id}`}
                         checked={selected.has(source.chat_id)}
+                        disabled={Boolean(busy) || sources.stale}
                         onChange={(event) =>
                           toggleSourceSelection(source.chat_id, event.target.checked)
                         }
@@ -593,6 +623,7 @@ export function KnowledgeView({ refreshKey, onCreatedAction, onToast }) {
                       type="checkbox"
                       aria-label={`Chọn ${source.title || source.chat_id}`}
                       checked={selected.has(source.chat_id)}
+                      disabled={Boolean(busy) || sources.stale}
                       onChange={(event) =>
                         toggleSourceSelection(source.chat_id, event.target.checked)
                       }

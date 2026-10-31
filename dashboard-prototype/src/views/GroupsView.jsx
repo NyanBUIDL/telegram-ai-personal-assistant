@@ -32,6 +32,7 @@ import {
   ErrorState,
   LoadingState,
   PanelHeader,
+  ResourceNotice,
   Toggle,
 } from "../ui.jsx";
 import { useDialogA11y } from "../useDialogA11y.js";
@@ -456,6 +457,8 @@ export function GroupsView({ refreshKey, onOpenGroup }) {
         </details>
       </div>
 
+      <ResourceNotice resource={resource} label="Danh sách nhóm" />
+      <ResourceNotice resource={preferences} label="Tùy chọn hiển thị" />
       {resource.loading && !resource.data ? <LoadingState label="Đang tải danh sách nhóm…" /> : null}
       {resource.error && !resource.data ? (
         <ErrorState error={resource.error} onRetry={resource.reload} />
@@ -973,7 +976,7 @@ export function GroupDetailView({
     [chatId],
     refreshKey,
   );
-  const group = resource.data;
+  const group = String(resource.data?.chat_id) === String(chatId) ? resource.data : null;
   const [aiRoute, setAiRoute] = useState(null);
   const [aiEfficiency, setAiEfficiency] = useState(null);
   const [limits, setLimits] = useState(null);
@@ -1281,10 +1284,9 @@ export function GroupDetailView({
     }
   };
 
-  if (resource.loading && !group) return <LoadingState label="Đang tải policy nguồn…" />;
   if (resource.error && !group)
     return <ErrorState error={resource.error} onRetry={resource.reload} />;
-  if (!group) return null;
+  if (!group) return <LoadingState label="Đang tải policy nguồn…" />;
 
   const permissions = group.permissions || {};
   const policy = group.policy;
@@ -1295,6 +1297,9 @@ export function GroupDetailView({
 
   return (
     <section className="ops-stack group-detail">
+      <ResourceNotice resource={resource} label="Thông tin nhóm" />
+      <ResourceNotice resource={backfillResource} label="Đồng bộ lịch sử" />
+      <ResourceNotice resource={deletionResource} label="Xóa lịch sử" />
       <div className="ops-page-intro">
         <button className="button button--outline" onClick={onBack}>
           <ArrowLeft size={19} weight="bold" />

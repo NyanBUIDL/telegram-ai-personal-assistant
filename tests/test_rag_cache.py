@@ -4,7 +4,7 @@ import asyncio
 from datetime import UTC, datetime, timedelta
 
 import pytest
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from tg_assistant.ai import rag as rag_module
@@ -139,8 +139,12 @@ async def test_answer_cache_invalidates_when_older_evidence_is_removed(session, 
     await session.commit()
 
     if deletion == "soft":
-        older.is_deleted = True
-        older.updated_at = older_update
+        # Explicit SQL keeps the historical timestamp; ORM no-op assignment triggers onupdate.
+        await session.execute(
+            update(TelegramMessage)
+            .where(TelegramMessage.id == older.id)
+            .values(is_deleted=True, updated_at=older_update)
+        )
     else:
         await session.delete(older)
     if deletion == "replace":
@@ -223,3 +227,65 @@ async def test_concurrent_cache_misses_preserve_both_caller_transactions(tmp_pat
                 assert (await session.get(AppSetting, f"caller-write:{number}")).value is True
     finally:
         await engine.dispose()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("include_citations", [True, False])
+@pytest.mark.parametrize("answer", ["", " \n", "[S1]", "[S1].", "Unknown [S99].", "Mixed [S1] [S99]."])
+async def test_unusable_rag_answers_are_not_cached(session, answer, include_citations):
+    policy = await prepare_corpus(session)
+    ai = AnswerAi()
+
+    async def invalid_answer(*_args, **_kwargs):
+        ai.contexts.append([])
+        return answer
+
+    ai.answer = invalid_answer
+    rag = RagService(policy, ai)
+    for _ in range(2):
+        with pytest.raises(RuntimeError):
+            await ask(rag, session, include_citations=include_citations)
+        await session.commit()
+    assert len(ai.contexts) == 2
+    assert await session.scalar(select(func.count()).select_from(AiQueryCache)) == 0
+
+
+@pytest.mark.asyncio
+async def test_uncited_rag_answer_requires_grounding_only_in_citation_mode(session):
+    policy = await prepare_corpus(session)
+    ai = AnswerAi()
+
+    async def uncited_answer(*_args, **_kwargs):
+        return "An answer without source references."
+
+    ai.answer = uncited_answer
+    rag = RagService(policy, ai)
+    with pytest.raises(RuntimeError):
+        await ask(rag, session)
+    assert await session.scalar(select(func.count()).select_from(AiQueryCache)) == 0
+    assert await ask(rag, session, include_citations=False) == "An answer without source references."
+
+
+@pytest.mark.asyncio
+async def test_answer_cache_ignores_entries_from_old_grounding_version(session, monkeypatch):
+    policy = await prepare_corpus(session)
+    ai = AnswerAi()
+    rag = RagService(policy, ai)
+    cache_key = rag_module.query_cache_key
+
+    def old_cache_key(question, **kwargs):
+        kwargs["rag_config_version"] = kwargs["rag_config_version"].replace(":grounding=2", "")
+        return cache_key(question, **kwargs)
+
+    monkeypatch.setattr(rag_module, "query_cache_key", old_cache_key)
+    await ask(rag, session)
+    await session.commit()
+    cached = await session.scalar(select(AiQueryCache))
+    cached.response = "Unsafe old cached answer [S99]."
+    await session.commit()
+    monkeypatch.setattr(rag_module, "query_cache_key", cache_key)
+
+    answer = await ask(rag, session)
+
+    assert "Unsafe old cached answer" not in answer
+    assert len(ai.contexts) == 2

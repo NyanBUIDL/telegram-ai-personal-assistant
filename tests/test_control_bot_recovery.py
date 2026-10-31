@@ -8,7 +8,7 @@ from aiogram.methods import SendMessage
 from aiogram.types import CallbackQuery, Chat, Message, Update, User
 from sqlalchemy import select
 
-from tg_assistant.db.models import PendingAction, Task, TelegramChat, TelegramMessage
+from tg_assistant.db.models import PendingAction, Reminder, Task, TelegramChat, TelegramMessage
 from tg_assistant.policy import PolicyEngine
 from tg_assistant.telegram import control_bot
 from tg_assistant.telegram.control_bot import (
@@ -126,6 +126,90 @@ async def test_ask_menu_exits_unrelated_model_prompt(bot_flow):
 
     assert await bot_flow.state.get_state() is None
     assert bot_flow.sent[-1].reply_markup is not None
+
+
+async def test_start_is_one_actionable_welcome_and_help_keeps_reference(bot_flow):
+    await bot_flow.state.set_state(OllamaFlowState.waiting_pull_model)
+    await bot_flow.state.update_data(stale="old-prompt")
+    await bot_flow.send("/start")
+
+    assert len(bot_flow.sent) == 1
+    assert await bot_flow.state.get_state() is None
+    assert await bot_flow.state.get_data() == {}
+    welcome = bot_flow.sent[0]
+    assert "/cancel" in welcome.text
+    assert "một nguồn" in welcome.text
+    callbacks = {button.callback_data for row in welcome.reply_markup.inline_keyboard for button in row}
+    assert {"groups:show", "ai:menu"} <= callbacks
+    bot_flow.sent.clear()
+    await bot_flow.send("/help")
+    assert len(bot_flow.sent) == len(control_bot.HELP_PAGES)
+
+
+async def test_reminder_rejects_unrecognized_phrase_without_creating_data(bot_flow, session):
+    await bot_flow.send("/remind xyz mai | Test reminder")
+
+    assert "Ví dụ" in bot_flow.sent[-1].text
+    assert await session.scalar(select(Reminder)) is None
+
+
+async def test_reminder_acknowledges_interpreted_vietnam_time(bot_flow, session, monkeypatch):
+    scheduled = datetime(2099, 1, 2, 14, tzinfo=UTC)
+    monkeypatch.setattr(control_bot, "parse_vietnamese_datetime", lambda _phrase: scheduled)
+    await bot_flow.send("/remind 9 giờ tối mai | Test reminder")
+
+    assert "02/01/2099 21:00" in bot_flow.sent[-1].text
+    assert "Asia/Ho_Chi_Minh" in bot_flow.sent[-1].text
+    reminder = await session.scalar(select(Reminder))
+    assert reminder.remind_at.replace(tzinfo=UTC) == scheduled
+
+
+@pytest.mark.parametrize("command", ["/start", "/task_list"])
+async def test_owner_control_commands_do_not_reply_in_groups(bot_flow, command):
+    await bot_flow.bot.dp.feed_update(
+        bot_flow.bot.bot,
+        Update(
+            update_id=900,
+            message=Message(
+                message_id=900, date=datetime.now(UTC),
+                chat=Chat(id=-1001, type="supergroup"),
+                from_user=User(id=42, is_bot=False, first_name="Owner"), text=command,
+            ),
+        ),
+    )
+    assert bot_flow.sent == []
+
+
+async def test_group_callback_cannot_enter_owner_control_flow(bot_flow):
+    await bot_flow.bot.dp.feed_update(
+        bot_flow.bot.bot,
+        Update(
+            update_id=901,
+            callback_query=CallbackQuery(
+                id="901", from_user=User(id=42, is_bot=False, first_name="Owner"),
+                chat_instance="offline", data="ai:ask",
+                message=Message(
+                    message_id=901, date=datetime.now(UTC),
+                    chat=Chat(id=-1001, type="supergroup"),
+                ),
+            ),
+        ),
+    )
+    assert bot_flow.sent == []
+
+
+async def test_start_remains_silent_for_non_owner(bot_flow):
+    await bot_flow.bot.dp.feed_update(
+        bot_flow.bot.bot,
+        Update(
+            update_id=902,
+            message=Message(
+                message_id=902, date=datetime.now(UTC), chat=Chat(id=99, type="private"),
+                from_user=User(id=99, is_bot=False, first_name="Other"), text="/start",
+            ),
+        ),
+    )
+    assert bot_flow.sent == []
 
 
 @pytest.mark.parametrize(

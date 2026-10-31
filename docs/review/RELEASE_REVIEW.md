@@ -1,3 +1,5 @@
+> Historical cycle-1 checkpoint. Current publication and cycle-2 results: [CYCLE2_REVIEW.md](CYCLE2_REVIEW.md) and [CYCLE2_VALIDATION.md](CYCLE2_VALIDATION.md).
+
 # Đợt cải tiến dễ dùng — 31/10/2026
 
 ## Kết quả và phạm vi

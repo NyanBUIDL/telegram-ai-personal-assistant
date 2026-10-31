@@ -10,7 +10,7 @@ from tg_assistant.admin_api import AdminContext, create_admin_app, dashboard_log
 from tg_assistant.admin_api.app import _job_json, _update_job_state
 from tg_assistant.config import Settings
 from tg_assistant.db.base import Base, Database
-from tg_assistant.db.models import BackgroundJob, TelegramChat, TelegramMessage
+from tg_assistant.db.models import BackgroundJob, PermissionName, TelegramChat, TelegramMessage
 from tg_assistant.policy import PolicyEngine
 from tg_assistant.services.ollama import OllamaService
 
@@ -308,6 +308,10 @@ async def test_admin_api_lists_and_previews_selected_history_link_posts(admin_cl
     assert image_action.status_code == 201
     assert image_action.json()["payload"]["candidate_count"] == 1
 
+    context = client._transport.app.state.admin_context
+    async with context.database.session() as session:
+        await context.policy.set_allowed(session, chat_id, True)
+        await context.policy.set_permission(session, chat_id, PermissionName.READ_MESSAGES, True)
     ai_filter = await client.post(
         f"/api/v1/groups/{chat_id}/history-ai-delete-filter",
         json={

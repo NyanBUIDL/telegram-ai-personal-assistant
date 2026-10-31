@@ -4,13 +4,14 @@ from datetime import UTC, datetime
 
 import pytest
 
-from tg_assistant.db.models import BackgroundJob, TelegramChat, TelegramMessage
+from tg_assistant.db.models import BackgroundJob, KnowledgeSource, TelegramChat, TelegramMessage
 from tg_assistant.runtime import (
     embedding_batches,
     knowledge_rows_query,
     learning_backlog_size,
     recover_interrupted_learning_jobs,
     requeue_interrupted_learning_job,
+    resume_learning_jobs,
 )
 
 
@@ -103,6 +104,34 @@ async def test_startup_recovers_interrupted_learning_jobs(session) -> None:
 
     assert await recover_interrupted_learning_jobs(session) == 1
     assert await learning_backlog_size(session) == 1
+
+
+@pytest.mark.asyncio
+async def test_startup_finishes_interrupted_pause_without_resuming(session) -> None:
+    paused_at = datetime(2026, 1, 1, tzinfo=UTC)
+    session.add(TelegramChat(chat_id=-1001, title="Offline source", chat_type="group"))
+    await session.flush()
+    source = KnowledgeSource(chat_id=-1001, status="pause_requested")
+    job = BackgroundJob(
+        job_type="learn_group", status="pause_requested", attempts=1,
+        locked_by="old-worker", locked_at=paused_at, paused_at=paused_at,
+        payload={"chat_id": -1001, "checkpoint": 17},
+    )
+    unrelated = BackgroundJob(job_type="other", status="pause_requested")
+    session.add_all([source, job, unrelated])
+    await session.flush()
+
+    assert await recover_interrupted_learning_jobs(session) == 1
+    assert job.status == source.status == "paused"
+    assert job.locked_by is None and job.locked_at is None
+    assert job.paused_at == paused_at
+    assert job.payload == {"chat_id": -1001, "checkpoint": 17}
+    assert job.attempts == 1
+    assert unrelated.status == "pause_requested"
+    assert await learning_backlog_size(session) == 0
+    assert await recover_interrupted_learning_jobs(session) == 0
+    assert await resume_learning_jobs(session) == 1
+    assert job.status == source.status == "queued"
 
 
 @pytest.mark.asyncio
