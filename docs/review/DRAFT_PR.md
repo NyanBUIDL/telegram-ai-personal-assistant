@@ -15,7 +15,7 @@ First-run setup, migrations, Telegram navigation and cache refreshes had reliabi
 
 Owner controls now operate only in the owner's private bot chat. Classification respects source READ/ALLOW, global AI and the existing route planner. Untrusted sources are separated from the question and redacted; blank/incomplete or unsupported citations are rejected. Ollama downloads require explicit success. Core tasks, scheduler jobs and aiogram updates are drained before resources close; interrupted pauses remain paused.
 
-Dashboard changes make stale/unknown data visible, enforce the existing500-source selection contract, and prevent old group forms writing to a newly selected group. `/start` is concise, and reminder times have explicit supported grammar/defaults and Vietnam-time acknowledgements.
+Dashboard changes make stale/unknown data visible, enforce the existing 500-source selection contract, and prevent old group forms writing to a newly selected group. `/start` is concise, and reminder times have explicit supported grammar/defaults and Vietnam-time acknowledgements.
 
 Validation:313 Python tests,13 automated Chrome regressions with mocked API,4 Sites tests,lint,production build,dependency and whitespace checks pass locally. Independent review findings were reproduced and fixed with regressions. Latest GitHub Actions results must match the PR head SHA; see Checks and final delivery evidence. See docs/review/CYCLE2_REVIEW.md and CYCLE2_VALIDATION.md for scope and residual risks.
 
