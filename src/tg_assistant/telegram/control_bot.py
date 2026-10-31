@@ -154,7 +154,7 @@ Mẫu: read_only | knowledge | task_management | moderation
 Các quyền: read_messages, sync_history, monitor_new_messages, search_messages, summarize, extract_tasks, create_memories, send_messages, edit_own_messages, delete_own_messages, delete_any_messages, pin_messages, moderate_messages, download_media, analyze_files, auto_knowledge, auto_task_suggestion, auto_moderation, group_ai_ask.
 
 Trong flow quản lý group, “Bật thành viên hỏi AI” cho phép thành viên dùng
-@your_assistant_username /ask <câu hỏi>. AI trả lời ngay trong group từ kho dự án đã học,
+@your_assistant_username /ask <câu hỏi>. AI chỉ dùng dữ liệu được cấp quyền của chính group,
 chỉ kèm nguồn khi câu hỏi mang tính tin tức hoặc cập nhật mới. Câu hỏi như
 “nhóm này đang thảo luận gì?” chỉ đọc hội thoại của chính group đang gọi.
 Câu “@a_member đã nói về chủ đề gì?” phân giải đúng tài khoản và truy cứu tối đa
@@ -216,7 +216,7 @@ Bạn cũng có thể gửi câu hỏi tự nhiên không có dấu /; bot sẽ 
 Các lệnh trên tạo bản xem trước và cần xác nhận:
 /pending_actions — xem hành động đang chờ
 /confirm <action_id> — xác nhận
-/cancel <action_id> — hủy
+/cancel <action_id> - hủy hành động; /cancel không có ID thoát thao tác đang nhập
 /audit [chat_id] — xem nhật ký hành động
 
 6. TASK, PROJECT VÀ NHẮC VIỆC
@@ -1717,9 +1717,10 @@ class ControlBot:
             await message.answer("Đã ghép nối chủ sở hữu. Hệ thống chỉ phản hồi tài khoản này.")
 
         @self.router.message(Command("start", "help"))
-        async def help_command(message: Message) -> None:
+        async def help_command(message: Message, state: FSMContext) -> None:
             if not self._owner(message):
                 return await self._deny(message)
+            await state.clear()
             for index, page in enumerate(HELP_PAGES):
                 reply_markup = None
                 if index == len(HELP_PAGES) - 1:
@@ -1768,7 +1769,7 @@ class ControlBot:
                 ),
             )
 
-        @self.router.message(AiFlowState.waiting_question)
+        @self.router.message(AiFlowState.waiting_question, ~F.text.startswith("/"))
         async def ai_question(message: Message, state: FSMContext) -> None:
             if not self._owner(message):
                 return await self._deny(message)
@@ -1812,7 +1813,7 @@ class ControlBot:
                 ),
             )
 
-        @self.router.message(AiFlowState.waiting_price)
+        @self.router.message(AiFlowState.waiting_price, ~F.text.startswith("/"))
         async def ai_price_query(message: Message, state: FSMContext) -> None:
             if not self._owner(message):
                 return await self._deny(message)
@@ -1848,7 +1849,7 @@ class ControlBot:
                 ),
             )
 
-        @self.router.message(AiFlowState.waiting_search)
+        @self.router.message(AiFlowState.waiting_search, ~F.text.startswith("/"))
         async def ai_search_query(message: Message, state: FSMContext) -> None:
             if not self._owner(message):
                 return await self._deny(message)
@@ -2021,7 +2022,7 @@ class ControlBot:
                 ),
             )
 
-        @self.router.message(AiFlowState.waiting_learning_search)
+        @self.router.message(AiFlowState.waiting_learning_search, ~F.text.startswith("/"))
         async def ai_learning_search_query(
             message: Message,
             state: FSMContext,
@@ -2595,7 +2596,7 @@ class ControlBot:
                 reply_markup=action_confirmation_keyboard(action.action_id),
             )
 
-        @self.router.message(AiFlowState.waiting_learning_audit_file)
+        @self.router.message(AiFlowState.waiting_learning_audit_file, ~F.text.startswith("/"))
         async def ai_learning_audit_waiting(message: Message) -> None:
             if not self._owner(message):
                 return await self._deny(message)
@@ -3138,7 +3139,7 @@ class ControlBot:
                 ),
             )
 
-        @self.router.message(OllamaFlowState.waiting_pull_model)
+        @self.router.message(OllamaFlowState.waiting_pull_model, ~F.text.startswith("/"))
         async def ollama_pull_name(message: Message, state: FSMContext) -> None:
             if not self._owner(message):
                 return await self._deny(message)
@@ -3290,9 +3291,10 @@ class ControlBot:
             )
 
         @self.router.message(Command("groups"))
-        async def groups(message: Message) -> None:
+        async def groups(message: Message, state: FSMContext) -> None:
             if not self._owner(message):
                 return await self._deny(message)
+            await state.clear()
             await self._send_groups_hub(message.chat.id)
 
         @self.router.callback_query(F.data == "groups:show")
@@ -3308,7 +3310,7 @@ class ControlBot:
             await self._send_groups_hub(callback.from_user.id)
 
         @self.router.callback_query(F.data.startswith("groups:list:"))
-        async def show_group_category(callback: CallbackQuery) -> None:
+        async def show_group_category(callback: CallbackQuery, state: FSMContext) -> None:
             if not self._owner_callback(callback):
                 await callback.answer()
                 return
@@ -3316,6 +3318,7 @@ class ControlBot:
             if category not in GROUP_LIST_CATEGORIES:
                 await callback.answer("Danh mục không hợp lệ.", show_alert=True)
                 return
+            await state.clear()
             await callback.answer()
             await self._send_groups_menu(
                 callback.from_user.id,
@@ -3323,7 +3326,7 @@ class ControlBot:
             )
 
         @self.router.callback_query(F.data.startswith("groups:page:"))
-        async def show_groups_page(callback: CallbackQuery) -> None:
+        async def show_groups_page(callback: CallbackQuery, state: FSMContext) -> None:
             if not self._owner_callback(callback):
                 await callback.answer()
                 return
@@ -3341,6 +3344,7 @@ class ControlBot:
             if category not in GROUP_LIST_CATEGORIES:
                 await callback.answer("Danh mục không hợp lệ.", show_alert=True)
                 return
+            await state.clear()
             await callback.answer()
             await self._send_groups_menu(
                 callback.from_user.id,
@@ -3386,7 +3390,7 @@ class ControlBot:
             await callback.answer("Đã hủy tìm kiếm.")
             await self._send_groups_hub(callback.from_user.id)
 
-        @self.router.message(GroupSearchState.waiting_query)
+        @self.router.message(GroupSearchState.waiting_query, ~F.text.startswith("/"))
         async def receive_group_search(
             message: Message,
             state: FSMContext,
@@ -3482,10 +3486,11 @@ class ControlBot:
                 await callback.message.edit_reply_markup(reply_markup=None)
 
         @self.router.callback_query(F.data.startswith("group:open:"))
-        async def open_group_flow(callback: CallbackQuery) -> None:
+        async def open_group_flow(callback: CallbackQuery, state: FSMContext) -> None:
             if not self._owner_callback(callback):
                 await callback.answer()
                 return
+            await state.clear()
             try:
                 chat_id = int((callback.data or "").rsplit(":", 1)[1])
             except (ValueError, IndexError):
@@ -3705,7 +3710,7 @@ class ControlBot:
                 )
             await callback.answer(f"Đã áp dụng quota {preset}.")
 
-        @self.router.message(AiFlowState.waiting_source_limits)
+        @self.router.message(AiFlowState.waiting_source_limits, ~F.text.startswith("/"))
         async def group_ai_custom_limits(
             message: Message,
             state: FSMContext,
@@ -3831,15 +3836,15 @@ class ControlBot:
                             f"BẬT THÀNH VIÊN HỎI AI\n"
                             f"Group: {chat.title or chat_id} ({chat_id})\n"
                             "Cú pháp: @your_assistant_username /ask <câu hỏi>\n"
-                            "AI sẽ trả lời ngay trong group từ toàn bộ kho group/channel "
-                            "đã học và được cấp quyền tìm kiếm, mặc định trong 7 ngày gần nhất.\n"
+                            "AI chỉ trả lời từ dữ liệu được cấp quyền tìm kiếm của chính group này, "
+                            "mặc định trong 7 ngày gần nhất.\n"
                             "Nếu hỏi “nhóm này đang thảo luận gì?”, AI chỉ đọc tối đa "
                             "100 tin gần nhất trong 7 ngày của chính group này.\n"
                             "Nếu hỏi “@username đã nói về chủ đề gì?”, Telegram Client "
                             "truy cứu và đồng bộ MySQL tối đa 100 tin gần nhất của riêng "
                             "tài khoản đó trong group.\n"
-                            "Lưu ý: nội dung tổng hợp từ các nguồn đã học có thể xuất hiện "
-                            "trong group này. Câu hỏi tin tức/cập nhật sẽ kèm nguồn; "
+                            "Dữ liệu của group/channel khác không được đưa vào câu trả lời. "
+                            "Owner muốn hỏi nhiều nguồn cần dùng bot riêng. Câu hỏi tin tức/cập nhật sẽ kèm nguồn; "
                             "câu hỏi kiến thức thông thường sẽ ẩn phần DẪN CHỨNG. "
                             "Mỗi thành viên được giới hạn 3 câu/phút."
                         )
@@ -4430,7 +4435,7 @@ class ControlBot:
                         f"{'on' if enabled else 'off'}"
                         + (
                             "\nKhi bật, thành viên có thể hỏi @your_assistant_username và "
-                            "nhận nội dung từ kho dự án đã học ngay trong group."
+                            "nhận câu trả lời chỉ từ dữ liệu được cấp quyền của chính group."
                             if permission is PermissionName.GROUP_AI_ASK and enabled
                             else ""
                         )
@@ -4471,35 +4476,15 @@ class ControlBot:
             if not self._owner(message):
                 return await self._deny(message)
             query = (command.args or "").strip()
-            async with self.database.session() as session:
-                ids = list(
-                    (
-                        await session.scalars(
-                            select(TelegramChatPolicy.chat_id).where(
-                                TelegramChatPolicy.allowed.is_(True)
-                            )
-                        )
-                    ).all()
+            answer = await self._search_telegram(query)
+            chunks = split_telegram_text(answer)
+            for index, chunk in enumerate(chunks):
+                await message.answer(
+                    chunk,
+                    reply_markup=(
+                        ai_followup_keyboard(mode="search") if index == len(chunks) - 1 else None
+                    ),
                 )
-                results = await self.search.keyword(
-                    session,
-                    query,
-                    owner_id=self.owner_id,
-                    actor_id=self.owner_id,
-                    chat_ids=ids,
-                    default_after=rag_time_window()[0],
-                )
-            await message.answer(
-                "\n\n".join(
-                    f"[{r.chat_id}/{r.message_id}] sender={r.sender_id} "
-                    f"time={r.sent_at} source={r.source}\n{r.text[:500]}"
-                    for r in results
-                )
-                or (
-                    "Không tìm thấy đủ thông tin trong khoảng thời gian đã chọn "
-                    "(mặc định là 7 ngày gần nhất) từ dữ liệu Telegram đã được cấp quyền."
-                )
-            )
 
         @self.router.message(Command("send"))
         async def send(message: Message, command: CommandObject) -> None:
@@ -4525,9 +4510,10 @@ class ControlBot:
             )
 
         @self.router.message(Command("ask"))
-        async def ask(message: Message, command: CommandObject) -> None:
+        async def ask(message: Message, command: CommandObject, state: FSMContext) -> None:
             if not self._owner(message):
                 return await self._deny(message)
+            await state.clear()
             question = (command.args or "").strip()
             if not question:
                 await self._send_ai_menu(
@@ -4953,10 +4939,10 @@ class ControlBot:
                 Task.status.not_in([TaskStatus.DONE.value, TaskStatus.CANCELLED.value])
             )
             if command_name == "/today":
+                today_start, _ = digest_window("today", now=now)
                 query = query.where(
-                    Task.due_at >= now.replace(hour=0, minute=0, second=0, microsecond=0),
-                    Task.due_at
-                    < now.replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=1),
+                    Task.due_at >= today_start,
+                    Task.due_at < today_start + timedelta(days=1),
                 )
             elif command_name == "/overdue":
                 query = query.where(Task.due_at < now)
@@ -5011,20 +4997,33 @@ class ControlBot:
         async def confirm(message: Message, command: CommandObject) -> None:
             if not self._owner(message):
                 return await self._deny(message)
-            async with self.database.session() as session:
-                action = await self.actions.confirm(
-                    session, (command.args or "").strip(), self.owner_id
-                )
+            try:
+                async with self.database.session() as session:
+                    action = await self.actions.confirm(
+                        session, (command.args or "").strip(), self.owner_id
+                    )
+            except (PermissionError, TimeoutError, ValueError) as exc:
+                await message.answer(str(exc))
+                return
             await message.answer(
                 f"Đã xác nhận {action.action_id}; worker sẽ thực thi sau khi kiểm tra quyền lần cuối."
             )
 
         @self.router.message(Command("cancel"))
-        async def cancel(message: Message, command: CommandObject) -> None:
+        async def cancel(message: Message, command: CommandObject, state: FSMContext) -> None:
             if not self._owner(message):
                 return await self._deny(message)
-            async with self.database.session() as session:
-                await self.actions.cancel(session, (command.args or "").strip(), self.owner_id)
+            action_id = (command.args or "").strip()
+            if not action_id:
+                await state.clear()
+                await message.answer("Đã hủy thao tác đang nhập. Dùng /groups hoặc /ask để bắt đầu lại.")
+                return
+            try:
+                async with self.database.session() as session:
+                    await self.actions.cancel(session, action_id, self.owner_id)
+            except ValueError as exc:
+                await message.answer(str(exc))
+                return
             await message.answer("Đã hủy.")
 
         @self.router.message(Command("audit"))

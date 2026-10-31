@@ -54,7 +54,7 @@ from .db.models import (
 )
 from .logging import configure_logging
 from .paths import ensure_runtime_dirs
-from .policy import PolicyEngine, SlidingWindowLimiter
+from .policy import PolicyEngine, SlidingWindowLimiter, cancel_learning_job
 from .security import SecretStore, contains_secret, redact
 from .services.actions import PendingActionService
 from .services.coingecko import (
@@ -301,6 +301,40 @@ async def resume_learning_jobs(session) -> int:
             if source:
                 source.status = "queued"
     return len(jobs)
+
+
+async def honor_learning_revocation(session: AsyncSession, job: BackgroundJob) -> bool:
+    payload = job.payload or {}
+    policy = await session.scalar(
+        select(TelegramChatPolicy)
+        .where(TelegramChatPolicy.chat_id == int(payload["chat_id"]))
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
+    if not policy:
+        return False
+    revoked_at = policy.revoked_at or (policy.updated_at if not policy.allowed else None)
+    if revoked_at is None:
+        return False
+    requested_at = job.created_at
+    action_id = payload.get("action_id") or payload.get("batch_action_id")
+    if action_id:
+        action = await session.get(PendingAction, str(action_id))
+        if action and action.confirmed_at:
+            requested_at = action.confirmed_at
+    requested_at = (
+        requested_at.replace(tzinfo=UTC)
+        if requested_at.tzinfo is None
+        else requested_at.astimezone(UTC)
+    )
+    revoked_at = (
+        revoked_at.replace(tzinfo=UTC) if revoked_at.tzinfo is None else revoked_at.astimezone(UTC)
+    )
+    # MySQL timestamps have second precision; ambiguous same-second requests require reconfirmation.
+    if requested_at.replace(microsecond=0) > revoked_at.replace(microsecond=0):
+        return False
+    await cancel_learning_job(session, job)
+    return True
 
 
 async def honor_learning_pause(session, job: BackgroundJob) -> bool:
@@ -1923,6 +1957,8 @@ class Application:
                         return
                     if job.status != "running":
                         return
+                    if await honor_learning_revocation(session, job):
+                        return
                     payload = dict(job.payload or {})
                     chat_id = int(payload["chat_id"])
                     owner_id = int(payload["owner_id"])
@@ -2033,6 +2069,8 @@ class Application:
                         log.info("learning_job_paused", job_id=job.id, phase="before_embedding")
                         return
                     if job.status != "running":
+                        return
+                    if await honor_learning_revocation(session, job):
                         return
                     payload = dict(job.payload or {})
                     chat_id = int(payload["chat_id"])

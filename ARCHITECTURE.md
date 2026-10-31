@@ -22,13 +22,14 @@
 2. Telegram user client chỉ nhận cú pháp chính xác `@<username> /ask <câu hỏi>`.
 3. Runtime kiểm tra lại allowlist và quyền `group_ai_ask`, chặn secret, giới hạn
    1.500 ký tự và rate-limit riêng theo thành viên/group.
-4. Corpus đầu vào chỉ gồm nguồn `auto_knowledge` đang `ALLOW`; RAG tiếp tục lọc
-   `search_messages` và cửa sổ trượt 7×24 giờ.
+4. Corpus đầu vào chỉ gồm `chat_id` của group gửi câu hỏi đang `ALLOW`; RAG tiếp tục
+   lọc `search_messages` và cửa sổ trượt 7×24 giờ. Kho hợp nhất từ nhiều nguồn chỉ
+   được truy vấn bởi owner trong bot riêng.
 5. Câu trả lời được gửi bằng Telegram Client, reply vào tin gọi và dùng định dạng
    HTML an toàn của Telegram.
 
 Trước bước 4, bộ định tuyến nhận diện câu hỏi về hội thoại hiện tại. Với ý định
-`nhóm này/chủ đề đang thảo luận/tóm tắt hội thoại`, runtime bỏ qua corpus hợp nhất,
+`nhóm này/chủ đề đang thảo luận/tóm tắt hội thoại`, runtime bỏ qua truy xuất RAG,
 đọc tối đa 100 tin mới nhất trong 7 ngày từ đúng `chat_id` đang gọi rồi tóm tắt.
 
 Nếu câu hỏi có `@username` và ý định `đã nói/đã nhắn/lịch sử/chủ đề`, Telegram
